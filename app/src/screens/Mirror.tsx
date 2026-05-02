@@ -25,7 +25,7 @@ export function Mirror({ goto }: { goto: (r: Route) => void }) {
 
   const advance = () => {
     haptic.light();
-    goto('transition');
+    goto('contentType');
   };
 
   return (

@@ -6,11 +6,10 @@ const NUMBERED: { id: Route; num: string }[] = [
   { id: 'name',        num: '02' },
   { id: 'capture',     num: '03' },
   { id: 'mirror',      num: '04' },
-  { id: 'transition',  num: '05' },
-  { id: 'contentType', num: '06' },
-  { id: 'composing',   num: '07' },
-  { id: 'player',      num: '08' },
-  { id: 'reflect',     num: '09' },
+  { id: 'contentType', num: '05' },
+  { id: 'composing',   num: '06' },
+  { id: 'player',      num: '07' },
+  { id: 'reflect',     num: '08' },
 ];
 
 export function Jumper({ route, goto }: { route: Route; goto: (r: Route) => void }) {

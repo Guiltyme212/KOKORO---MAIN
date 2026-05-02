@@ -5,7 +5,6 @@ export type Route =
   | 'name'
   | 'capture'
   | 'mirror'
-  | 'transition'
   | 'contentType'
   | 'composing'
   | 'player'
@@ -16,7 +15,7 @@ export type Route =
   | 'sleep';
 
 const VALID: Route[] = [
-  'welcome', 'name', 'capture', 'mirror', 'transition',
+  'welcome', 'name', 'capture', 'mirror',
   'contentType', 'composing', 'player', 'reflect',
   'home', 'library', 'quickReset', 'sleep',
 ];

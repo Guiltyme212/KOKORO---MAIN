@@ -8,7 +8,6 @@ import { Welcome } from './screens/Welcome';
 import { Name } from './screens/Name';
 import { Capture } from './screens/Capture';
 import { Mirror } from './screens/Mirror';
-import { Transition } from './screens/Transition';
 import { ContentType } from './screens/ContentType';
 import { Composing } from './screens/Composing';
 import { Player } from './screens/Player';
@@ -22,7 +21,6 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   name: Name,
   capture: Capture,
   mirror: Mirror,
-  transition: Transition,
   contentType: ContentType,
   composing: Composing,
   player: Player,

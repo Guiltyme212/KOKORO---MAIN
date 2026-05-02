@@ -53,7 +53,7 @@ export function ContentType({ goto }: { goto: (r: Route) => void }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)' }}>
       <Glow intensity={0.10} />
-      <TopBar onBack={() => goto('transition')} center="shape · voice" />
+      <TopBar onBack={() => goto('mirror')} center="shape · voice" />
 
       <div style={{ padding: '14px 28px 0' }}>
         <Eyebrow>— the meditation —</Eyebrow>
