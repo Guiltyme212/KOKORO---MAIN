@@ -1,0 +1,276 @@
+import { useEffect, useRef, useState } from 'react';
+import type { Route } from '../lib/router';
+import { useAnimationTime } from '../lib/hooks';
+import { useAnswers } from '../state/answers';
+import { haptic } from '../lib/telegram';
+import { Glow, TopBar, Eyebrow, Display, Btn } from '../components/atoms';
+
+const SUGGESTIONS = ['Love', 'Babe', 'Honey', 'Baby', 'Sweetheart', 'Sunshine', 'Kitten'];
+
+export function Name({ goto }: { goto: (r: Route) => void }) {
+  const { answers, setAnswer } = useAnswers();
+  const [pick, setPick] = useState<string | null>(answers.callMe || null);
+  const [custom, setCustom] = useState('');
+  const [customMode, setCustomMode] = useState(false);
+  const [nameMode, setNameMode] = useState(false);
+  const [realName, setRealName] = useState(answers.realName ?? '');
+
+  const customRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  const t = useAnimationTime();
+  const breath = 0.7 + Math.sin(t * 0.6) * 0.08;
+
+  useEffect(() => {
+    if (customMode) setTimeout(() => customRef.current?.focus(), 80);
+  }, [customMode]);
+  useEffect(() => {
+    if (nameMode) setTimeout(() => nameRef.current?.focus(), 80);
+  }, [nameMode]);
+
+  const choose = (val: string) => {
+    haptic.selection();
+    setPick(val);
+    setNameMode(false);
+    setCustomMode(false);
+  };
+  const enterNameMode = () => {
+    setNameMode(true);
+    setPick(null);
+    setCustomMode(false);
+  };
+  const enterCustom = () => {
+    setCustomMode(true);
+    setNameMode(false);
+    setPick(null);
+  };
+
+  const valid =
+    (nameMode && realName.trim().length > 0) ||
+    (!!pick && pick !== '__name__') ||
+    (customMode && custom.trim().length > 0);
+
+  const onContinue = () => {
+    let value = '';
+    if (nameMode && realName.trim()) {
+      value = realName.trim();
+      setAnswer('realName', value);
+    } else if (customMode && custom.trim()) {
+      value = custom.trim();
+    } else if (pick) {
+      value = pick;
+    }
+    setAnswer('callMe', value);
+    haptic.light();
+    goto('capture');
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)', overflow: 'hidden' }}>
+      <Glow intensity={0.13} />
+      <TopBar onBack={() => goto('welcome')} center="how to call you" />
+
+      {/* breathing 心 in upper-right negative space */}
+      <div style={{
+        position: 'absolute', top: 92, right: -40,
+        fontFamily: 'var(--jp)', fontWeight: 300,
+        fontSize: 220, lineHeight: 1, color: 'var(--persimmon)',
+        opacity: breath * 0.10, pointerEvents: 'none', userSelect: 'none',
+      }}>
+        心
+      </div>
+
+      <div style={{
+        position: 'absolute', top: 132, left: 0, right: 0, bottom: 24,
+        padding: '0 28px',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <Eyebrow>— how to call you —</Eyebrow>
+        <div style={{ height: 18 }} />
+        <Display size={40}>
+          What should<br />I call you?
+        </Display>
+        <p style={{
+          marginTop: 16, marginBottom: 0,
+          fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
+          fontSize: 16, lineHeight: 1.45, color: 'rgba(244,239,230,0.55)',
+          textWrap: 'balance', maxWidth: 300,
+        }}>
+          Not your username. The name that lands when someone says it softly.
+        </p>
+
+        {/* "By my name" — expands inline to ask for the actual name */}
+        {nameMode ? (
+          <div style={{ marginTop: 28, position: 'relative' }}>
+            <div style={{
+              fontFamily: 'var(--mono)', fontSize: 9.5,
+              letterSpacing: '0.28em', textTransform: 'uppercase',
+              color: 'var(--persimmon)', marginBottom: 10,
+            }}>
+              — what's your name? —
+            </div>
+            <input
+              ref={nameRef}
+              value={realName}
+              onChange={(e) => setRealName(e.target.value.slice(0, 32))}
+              onKeyDown={(e) => e.key === 'Enter' && valid && onContinue()}
+              placeholder="first name…"
+              style={{
+                width: '100%', color: 'var(--washi)',
+                fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
+                fontSize: 32, padding: '8px 0',
+                letterSpacing: -0.4, lineHeight: 1.3,
+                caretColor: 'var(--persimmon)',
+              }}
+            />
+            <div style={{
+              height: 1,
+              background: realName
+                ? 'linear-gradient(90deg, rgba(200,76,43,0.7), rgba(200,76,43,0.1))'
+                : 'linear-gradient(90deg, rgba(244,239,230,0.25), transparent)',
+              transition: 'background 240ms',
+            }} />
+            <button
+              onClick={() => { setNameMode(false); setRealName(''); }}
+              style={{
+                position: 'absolute', right: 0, top: 32,
+                color: 'var(--stone)',
+                fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+              }}
+            >
+              cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={enterNameMode}
+            style={{
+              marginTop: 28, alignSelf: 'flex-start',
+              background: 'transparent',
+              border: '1px solid rgba(244,239,230,0.18)',
+              color: 'var(--washi)',
+              fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 400,
+              fontSize: 18, letterSpacing: -0.2,
+              padding: '12px 20px', borderRadius: 100,
+              transition: 'all 220ms var(--ease)',
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+            }}
+          >
+            <span style={{
+              width: 6, height: 6, borderRadius: 3,
+              background: 'rgba(244,239,230,0.3)',
+            }} />
+            By my name
+          </button>
+        )}
+
+        {/* custom input */}
+        {customMode ? (
+          <div style={{ marginTop: 26, position: 'relative' }}>
+            <input
+              ref={customRef}
+              value={custom}
+              onChange={(e) => setCustom(e.target.value.slice(0, 24))}
+              onKeyDown={(e) => e.key === 'Enter' && valid && onContinue()}
+              placeholder="type here…"
+              style={{
+                width: '100%', color: 'var(--washi)',
+                fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
+                fontSize: 28, padding: '12px 0',
+                letterSpacing: -0.4, lineHeight: 1.3,
+                caretColor: 'var(--persimmon)',
+              }}
+            />
+            <div style={{
+              height: 1,
+              background: custom
+                ? 'linear-gradient(90deg, rgba(200,76,43,0.7), rgba(200,76,43,0.1))'
+                : 'linear-gradient(90deg, rgba(244,239,230,0.25), transparent)',
+              transition: 'background 240ms',
+            }} />
+            <button
+              onClick={() => { setCustomMode(false); setCustom(''); }}
+              style={{
+                position: 'absolute', right: 0, top: 14,
+                color: 'var(--stone)',
+                fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+              }}
+            >
+              cancel
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{
+              marginTop: 30, marginBottom: 18,
+              display: 'flex', alignItems: 'center', gap: 14,
+              fontFamily: 'var(--mono)', fontSize: 9.5,
+              letterSpacing: '0.3em', textTransform: 'uppercase',
+              color: 'rgba(244,239,230,0.32)',
+            }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(244,239,230,0.1)' }} />
+              or something softer
+              <div style={{ flex: 1, height: 1, background: 'rgba(244,239,230,0.1)' }} />
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {SUGGESTIONS.map((s) => {
+                const active = pick === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => choose(s)}
+                    style={{
+                      background: active ? 'var(--persimmon)' : 'rgba(244,239,230,0.04)',
+                      border: `1px solid ${active ? 'var(--persimmon)' : 'rgba(244,239,230,0.14)'}`,
+                      color: active ? 'var(--washi)' : 'rgba(244,239,230,0.92)',
+                      fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 400,
+                      fontSize: 17, letterSpacing: -0.1,
+                      padding: '10px 18px', borderRadius: 100,
+                      transition: 'all 220ms var(--ease)',
+                    }}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={enterCustom}
+                style={{
+                  background: 'transparent',
+                  border: '1px dashed rgba(244,239,230,0.28)',
+                  color: 'var(--stone)',
+                  fontFamily: 'var(--mono)', fontSize: 10,
+                  letterSpacing: '0.2em', textTransform: 'uppercase',
+                  padding: '10px 16px', borderRadius: 100,
+                  transition: 'all 220ms var(--ease)',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 14, lineHeight: 1, marginTop: -2 }}>+</span> Your own
+              </button>
+            </div>
+          </>
+        )}
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
+          <Btn onClick={onContinue}>{valid ? 'Continue →' : 'Skip for now'}</Btn>
+          <div style={{
+            flex: 1,
+            fontFamily: 'var(--mono)', fontSize: 9,
+            letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: 'rgba(244,239,230,0.32)', textAlign: 'right',
+            lineHeight: 1.4,
+          }}>
+            you can change this<br />any time
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

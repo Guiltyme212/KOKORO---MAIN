@@ -1,0 +1,46 @@
+.jumper {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 2px;
+  background: rgba(10, 9, 8, 0.78);
+  border: 1px solid rgba(244, 239, 230, 0.08);
+  border-radius: 100px;
+  padding: 4px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  max-width: 96vw;
+  overflow-x: auto;
+}
+
+.jumper button {
+  color: rgba(244, 239, 230, 0.42);
+  padding: 6px 9px;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+  transition: all 220ms var(--ease);
+}
+
+.jumper button:hover { color: var(--washi); }
+
+.jumper button.active {
+  background: var(--persimmon);
+  color: var(--washi);
+  box-shadow:
+    0 0 0 1px rgba(200, 76, 43, 0.4),
+    0 4px 14px rgba(200, 76, 43, 0.35);
+}
+
+@media (max-width: 500px) {
+  .jumper { top: 8px; font-size: 9px; padding: 3px; }
+  .jumper button { padding: 5px 7px; }
+}

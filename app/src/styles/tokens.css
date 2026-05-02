@@ -1,0 +1,15 @@
+:root {
+  --sumi: #0a0908;
+  --sumi-deep: #07060a;
+  --washi: #f4efe6;
+  --persimmon: #c84c2b;
+  --graphite: #3a3833;
+  --stone: #7a736a;
+
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Geist', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --jp: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', serif;
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
