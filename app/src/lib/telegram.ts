@@ -1,7 +1,24 @@
+export type TgUser = {
+  id: number;
+  is_bot?: boolean;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
+  is_premium?: boolean;
+};
+
 type TgWebApp = {
   ready(): void;
   expand(): void;
   initData: string;
+  initDataUnsafe?: {
+    user?: TgUser;
+    auth_date?: number;
+    hash?: string;
+    query_id?: string;
+    start_param?: string;
+  };
   platform: string;
   version: string;
   themeParams: Record<string, string>;
@@ -71,3 +88,17 @@ export const haptic = {
   selection: () => safe((a) => a.HapticFeedback.selectionChanged()),
   success:   () => safe((a) => a.HapticFeedback.notificationOccurred('success')),
 };
+
+/**
+ * Returns the Telegram user when running inside Telegram, otherwise null.
+ * The data is unsigned (initDataUnsafe) — fine for analytics/logging,
+ * NOT trustworthy for auth without server-side hash verification.
+ */
+export const tgUser = (): TgUser | null =>
+  isInTelegram() ? (tg()!.initDataUnsafe?.user ?? null) : null;
+
+/**
+ * Raw signed initData string. Pass this to backend if/when server-side
+ * verification is added (HMAC with bot token). Empty string outside Telegram.
+ */
+export const tgInitData = (): string => tg()?.initData ?? '';

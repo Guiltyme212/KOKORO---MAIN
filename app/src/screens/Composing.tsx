@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { Route } from '../lib/router';
 import { useAnswers } from '../state/answers';
-import { haptic } from '../lib/telegram';
+import { haptic, isInTelegram, tgUser, tgInitData } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
 import type { ContentType } from '../types';
 import { generateMeditation } from '../lib/api';
 import type {
   Becoming,
   Capture,
+  ClientInfo,
   ContentType as MeditationContentType,
   GenerateMeditationInput,
   GenerateMeditationOutput,
@@ -32,8 +33,28 @@ const makeRequestId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const localeFromBrowser = (): Locale =>
-  navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+const resolveLocale = (): Locale => {
+  const tgLang = tgUser()?.language_code?.toLowerCase();
+  if (tgLang?.startsWith('ru')) return 'ru';
+  if (tgLang?.startsWith('en')) return 'en';
+  return navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+};
+
+const buildClientInfo = (): ClientInfo => {
+  const user = tgUser();
+  if (user) {
+    return {
+      source: 'telegram',
+      tgUserId: user.id,
+      tgUsername: user.username,
+      tgFirstName: user.first_name,
+      tgLanguageCode: user.language_code,
+      tgIsPremium: user.is_premium,
+      tgInitData: tgInitData() || undefined,
+    };
+  }
+  return { source: isInTelegram() ? 'telegram' : 'web' };
+};
 
 export function Composing({ goto }: { goto: (r: Route) => void }) {
   const { answers } = useAnswers();
@@ -69,8 +90,9 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
       contentType,
       becoming: answers.becoming ? (answers.becoming as Becoming) : undefined,
       voiceId,
-      locale: localeFromBrowser(),
+      locale: resolveLocale(),
       requestId: makeRequestId(),
+      client: buildClientInfo(),
     };
     const key = JSON.stringify({ ...input, requestId: undefined });
 

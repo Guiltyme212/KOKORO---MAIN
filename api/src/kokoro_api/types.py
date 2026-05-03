@@ -58,6 +58,21 @@ class History(_CamelModel):
     last_becoming: str | None = None
 
 
+ClientSource = Literal["telegram", "web"]
+
+
+class ClientInfo(_CamelModel):
+    source: ClientSource = "web"
+    tg_user_id: int | None = None
+    tg_username: str | None = None
+    tg_first_name: str | None = None
+    tg_language_code: str | None = None
+    tg_is_premium: bool | None = None
+    # Raw signed initData; we don't verify it server-side yet (no bot token wired in),
+    # but we keep it so HMAC verification can be added later without a frontend change.
+    tg_init_data: str | None = None
+
+
 class GenerateMeditationInput(_CamelModel):
     call_me: Annotated[str, Field(min_length=1, max_length=24, pattern=r"^[^\n\r]+$")]
     real_name: Annotated[str, Field(max_length=60)] | None = None
@@ -69,6 +84,7 @@ class GenerateMeditationInput(_CamelModel):
     history: History | None = None
     locale: Locale
     request_id: UUID
+    client: ClientInfo | None = None
 
 
 class TranscriptionMeta(_CamelModel):

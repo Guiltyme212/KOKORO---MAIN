@@ -21,6 +21,16 @@ export type Capture =
   | { kind: 'text'; text: string }
   | { kind: 'theme'; chips: string[] };
 
+export type ClientInfo = {
+  source: 'telegram' | 'web';
+  tgUserId?: number;
+  tgUsername?: string;
+  tgFirstName?: string;
+  tgLanguageCode?: string;
+  tgIsPremium?: boolean;
+  tgInitData?: string; // raw signed initData; backend can HMAC-verify later
+};
+
 export type GenerateMeditationInput = {
   callMe: string;
   realName?: string;
@@ -32,6 +42,7 @@ export type GenerateMeditationInput = {
   history?: { previousScripts?: string[]; lastBecoming?: string };
   locale: Locale;
   requestId: string;
+  client?: ClientInfo;
 };
 
 export type ProviderMeta = {

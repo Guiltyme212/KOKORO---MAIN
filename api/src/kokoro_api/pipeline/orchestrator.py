@@ -51,6 +51,7 @@ async def run_pipeline(
     t0 = time.monotonic()
     meditation_id = str(uuid.uuid4())
 
+    client = input.client
     bound = log.bind(
         meditation_id=meditation_id,
         request_id=str(input.request_id),
@@ -61,6 +62,11 @@ async def run_pipeline(
         voice_id=input.voice_id,
         locale=input.locale,
         capture_kind=input.capture.kind,
+        source=client.source if client else "unknown",
+        tg_user_id=client.tg_user_id if client else None,
+        tg_username=client.tg_username if client else None,
+        tg_language_code=client.tg_language_code if client else None,
+        tg_is_premium=client.tg_is_premium if client else None,
     )
     bound.info("pipeline.start")
 
