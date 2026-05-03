@@ -7,8 +7,8 @@
   "targetDurationSec": 420,
   "musicStylePrompt": "cinematic ambient pad, slow build, hopeful, 60 bpm, soft synth swells, no percussion",
   "referenceTrackUrls": [
-    "https://cdn.kokoro.app/refs/cinematic_morning_pad.mp3",
-    "https://cdn.kokoro.app/refs/hopeful_swell_marconi.mp3"
+    "sasha-meditation-reference-mix-60s.mp3",
+    "sasha-belair-inner-support-ref-60s.mp3"
   ],
   "structure": [
     { "id": "open",       "sec": 30,  "intent": "ground in the room you're in" },

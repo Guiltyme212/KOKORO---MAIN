@@ -1,52 +1,67 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Route } from '../lib/router';
 import { useAnimationTime } from '../lib/hooks';
 import { useAnswers } from '../state/answers';
 import { haptic } from '../lib/telegram';
-import { Glow, TopBar, Eyebrow, Display } from '../components/atoms';
+import { Glow, TopBar, Display } from '../components/atoms';
 import type { ContentType } from '../types';
+import { useGeneratedMeditation } from '../state/generatedMeditation';
 
-const META: Record<ContentType, { tag: string; name: string; mins: number; kanji: string }> = {
-  unwind:  { tag: '心 · Unwind',  name: 'Vent. Then breathe.',     mins: 5, kanji: '心' },
-  attract: { tag: '未 · Attract', name: 'A Tuesday in Amsterdam.', mins: 7, kanji: '未' },
-  lockin:  { tag: '志 · Lock In', name: 'One rep of being him.',   mins: 4, kanji: '志' },
+const META: Record<ContentType, { tag: string; name: string; kanji: string }> = {
+  unwind: { tag: 'heart · Unwind', name: 'Vent. Then breathe.', kanji: '心' },
+  attract: { tag: 'future · Attract', name: 'A scene you can enter.', kanji: '未' },
+  lockin: { tag: 'will · Lock In', name: 'One rep of being him.', kanji: '志' },
 };
 
-const SCENE_LINES = [
-  'You wake up in your apartment in Amsterdam.',
-  'The room is quiet because your systems are running.',
-  'You check the dashboard. Revenue came in overnight.',
-  "You're not shocked. This is normal now.",
-  'You stand up. Light through the window.',
-  'Today is Tuesday. You know exactly what to do.',
-];
-
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const fmt = (s: number) => {
+  const safe = Math.max(0, Math.floor(s));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`;
+};
 
 export function Player({ goto }: { goto: (r: Route) => void }) {
   const { answers } = useAnswers();
+  const { generated } = useGeneratedMeditation();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const ct: ContentType = answers.contentType || 'unwind';
   const becoming = answers.becoming || 'calm';
   const isCinematic = ct === 'attract';
 
   const meta = META[ct];
-  const TOTAL = meta.mins * 60;
+  const total = Math.max(1, Math.round(generated?.durationSec ?? 1));
 
-  const [elapsed, setElapsed] = useState(Math.round(TOTAL * 0.18));
-  const [playing, setPlaying] = useState(true);
+  const [elapsed, setElapsed] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const t = useAnimationTime();
 
   useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => setElapsed((e) => Math.min(TOTAL, e + 1)), 1000);
-    return () => clearInterval(id);
-  }, [playing, TOTAL]);
+    if (!generated) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  const progress = elapsed / TOTAL;
-  const visibleScene = SCENE_LINES.filter((_, i) => progress > (i / SCENE_LINES.length) * 0.95);
+    const onTime = () => setElapsed(audio.currentTime);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onEnded = () => setPlaying(false);
+
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+
+    audio.play().catch(() => setPlaying(false));
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, [generated]);
+
+  const progress = Math.min(1, elapsed / total);
 
   const bars = useMemo(() => {
-    const v: number[] = [];
+    const values: number[] = [];
     let seed = 11;
     const rnd = () => {
       seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -54,13 +69,59 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
     };
     for (let i = 0; i < 80; i++) {
       const env = Math.sin((i / 80) * Math.PI) * 0.6 + 0.4;
-      v.push(env * (0.3 + rnd() * 0.7));
+      values.push(env * (0.3 + rnd() * 0.7));
     }
-    return v;
+    return values;
   }, []);
+
+  const seek = (delta: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(total, audio.currentTime + delta));
+    setElapsed(audio.currentTime);
+  };
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    haptic.medium();
+    if (audio.paused) audio.play().catch(() => setPlaying(false));
+    else audio.pause();
+  };
+
+  if (!generated) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)' }}>
+        <Glow intensity={0.10} />
+        <TopBar onBack={() => goto('contentType')} center="player" />
+        <div style={{
+          position: 'absolute', inset: '0 28px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          textAlign: 'center', gap: 24,
+        }}>
+          <div style={{ fontFamily: 'var(--jp)', fontSize: 150, color: 'var(--persimmon)', opacity: 0.22 }}>
+            心
+          </div>
+          <Display size={26}>No meditation yet.</Display>
+          <button
+            onClick={() => goto('composing')}
+            style={{
+              padding: '14px 24px', borderRadius: 100,
+              background: 'var(--persimmon)', color: 'var(--washi)',
+              fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 18,
+            }}
+          >
+            Compose one
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)', overflow: 'hidden' }}>
+      <audio ref={audioRef} src={generated.audioUrl} preload="auto" />
+
       {isCinematic ? (
         <>
           <div style={{
@@ -93,68 +154,41 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
         padding: '0 28px',
         display: 'flex', flexDirection: 'column',
       }}>
-        {isCinematic ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Eyebrow>— scene —</Eyebrow>
-            <div style={{ height: 16 }} />
-            <div style={{
-              fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
-              fontSize: 26, lineHeight: 1.4, color: 'var(--washi)',
-              minHeight: 220, textWrap: 'pretty',
-            }}>
-              {visibleScene.map((l, i) => (
-                <div
-                  key={i}
-                  style={{
-                    marginBottom: 14,
-                    opacity: i === visibleScene.length - 1 ? 1 : 0.45,
-                    animation: 'v2line 700ms var(--ease) both',
-                    transition: 'opacity 700ms var(--ease)',
-                  }}
-                >
-                  {l}
-                </div>
-              ))}
-            </div>
-            <style>{`@keyframes v2line { from { opacity: 0; transform: translateY(8px); } }`}</style>
-          </div>
-        ) : (
+        <div style={{
+          flex: 1,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          alignItems: 'center', gap: 28,
+        }}>
           <div style={{
-            flex: 1,
-            display: 'flex', flexDirection: 'column', justifyContent: 'center',
-            alignItems: 'center', gap: 32,
+            fontFamily: 'var(--jp)', fontSize: 190, lineHeight: 1, color: 'var(--persimmon)',
+            opacity: 0.18 + 0.06 * Math.sin(t * 0.8),
+            filter: 'drop-shadow(0 0 30px rgba(200,76,43,0.4))',
+            transform: `scale(${1 + 0.02 * Math.sin(t * 0.6)})`,
+            userSelect: 'none',
           }}>
+            {meta.kanji}
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <Display size={25}>{meta.name}</Display>
             <div style={{
-              fontFamily: 'var(--jp)', fontSize: 200, lineHeight: 1, color: 'var(--persimmon)',
-              opacity: 0.18 + 0.06 * Math.sin(t * 0.8),
-              filter: 'drop-shadow(0 0 30px rgba(200,76,43,0.4))',
-              transform: `scale(${1 + 0.02 * Math.sin(t * 0.6)})`,
-              userSelect: 'none',
+              marginTop: 10,
+              fontFamily: 'var(--mono)', fontSize: 10.5,
+              letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--stone)',
             }}>
-              {meta.kanji}
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <Display size={26}>{meta.name}</Display>
-              <div style={{
-                marginTop: 10,
-                fontFamily: 'var(--mono)', fontSize: 10.5,
-                letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--stone)',
-              }}>
-                toward {becoming}
-              </div>
+              toward {becoming}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 28px 36px' }}>
         <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 2, marginBottom: 12 }}>
-          {bars.map((v, i) => {
+          {bars.map((value, i) => {
             const barP = i / bars.length;
             const played = barP <= progress;
             const isHead = Math.abs(barP - progress) < 1.5 / bars.length;
             const mod = playing && played ? 1 + 0.12 * Math.sin(t * 3 + i * 0.5) : 1;
-            const h = Math.max(2, v * 40 * mod);
+            const h = Math.max(2, value * 40 * mod);
             return (
               <div
                 key={i}
@@ -174,7 +208,7 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
           marginBottom: 18,
         }}>
           <span>{fmt(elapsed)}</span>
-          <span>−{fmt(TOTAL - elapsed)}</span>
+          <span>-{fmt(total - elapsed)}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 36 }}>
@@ -184,12 +218,12 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
               fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1,
               padding: 8,
             }}
-            onClick={() => { haptic.light(); setElapsed((e) => Math.max(0, e - 15)); }}
+            onClick={() => { haptic.light(); seek(-15); }}
           >
-            −15s
+            -15s
           </button>
           <button
-            onClick={() => { haptic.medium(); setPlaying((p) => !p); }}
+            onClick={toggle}
             style={{
               width: 78, height: 78, borderRadius: '50%',
               background: 'var(--persimmon)', color: 'var(--washi)',
@@ -214,7 +248,7 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
               fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1,
               padding: 8,
             }}
-            onClick={() => { haptic.light(); setElapsed((e) => Math.min(TOTAL, e + 15)); }}
+            onClick={() => { haptic.light(); seek(15); }}
           >
             +15s
           </button>
@@ -229,12 +263,12 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
               padding: 8,
             }}
           >
-            End →
+            End
           </button>
           <button
             style={{
               color: 'var(--persimmon)', fontFamily: 'var(--sans)', fontSize: 12,
-              letterSpacing: 0.3, padding: 8,
+              padding: 8,
             }}
           >
             Save to library

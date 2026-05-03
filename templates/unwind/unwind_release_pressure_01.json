@@ -7,8 +7,8 @@
   "targetDurationSec": 360,
   "musicStylePrompt": "warm ambient pad, slow breathing tempo 50 bpm, no percussion, melancholic, soft analog texture",
   "referenceTrackUrls": [
-    "https://cdn.kokoro.app/refs/ambient_low_pad_60bpm.mp3",
-    "https://cdn.kokoro.app/refs/warm_drone_marconi.mp3"
+    "sasha-meditation-reference-mix-60s.mp3",
+    "sasha-belyakova-anxiety-panic-ref-60s.mp3"
   ],
   "structure": [
     { "id": "open",       "sec": 30, "intent": "ground in body, name what's here" },

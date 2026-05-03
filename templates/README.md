@@ -21,7 +21,7 @@ Each file is validated by the loader (`api/src/templates/loader.ts`). Schema:
 | `themeKeywords` | string[] | words from user input that bias the selector toward this template |
 | `targetDurationSec` | number | total meditation length |
 | `musicStylePrompt` | string | passed to Suno as style hint |
-| `referenceTrackUrls` | string[] | 1–2 audio URLs Suno uses as style reference |
+| `referenceTrackUrls` | string[] | 1–2 public URLs or filenames under `api/refs/`; backend resolves filenames with `REFERENCE_PUBLIC_BASE_URL` |
 | `structure` | array of `{id, sec, intent}` | beat structure; sum of `sec` should approximate `targetDurationSec` |
 | `registerNotes` | `{soft, sharp}` | tone notes per mode, injected into LLM prompt |
 

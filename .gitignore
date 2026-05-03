@@ -6,6 +6,9 @@ node_modules/
 dist/
 build/
 
+# Local-only full reference sources; API serves clipped refs from api/refs/
+api/reference-sources/
+
 # Env / secrets
 .env
 .env.local

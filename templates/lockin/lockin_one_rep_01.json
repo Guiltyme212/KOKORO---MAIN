@@ -7,8 +7,8 @@
   "targetDurationSec": 240,
   "musicStylePrompt": "tense focused drone, low pulse 70 bpm, no melody, taut, building",
   "referenceTrackUrls": [
-    "https://cdn.kokoro.app/refs/focus_drone_low.mp3",
-    "https://cdn.kokoro.app/refs/tense_pulse_marconi.mp3"
+    "sasha-meditation-reference-mix-60s.mp3",
+    "sasha-belair-inner-support-ref-60s.mp3"
   ],
   "structure": [
     { "id": "open",    "sec": 20,  "intent": "stop scrolling, eyes up, exhale" },

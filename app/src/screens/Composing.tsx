@@ -4,8 +4,22 @@ import { useAnswers } from '../state/answers';
 import { haptic } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
 import type { ContentType } from '../types';
+import { generateMeditation } from '../lib/api';
+import type {
+  Becoming,
+  Capture,
+  ContentType as MeditationContentType,
+  GenerateMeditationInput,
+  GenerateMeditationOutput,
+  Locale,
+  VoiceId,
+} from '../lib/types-meditation';
+import { generatedMeditationApi } from '../state/generatedMeditation';
 
-const DURATION_MS = 9000;
+const ESTIMATED_DURATION_MS = 90000;
+let inFlight:
+  | { key: string; promise: Promise<GenerateMeditationOutput> }
+  | null = null;
 
 const TYPE_NAME: Record<ContentType, string> = {
   unwind: 'Unwind',
@@ -13,10 +27,19 @@ const TYPE_NAME: Record<ContentType, string> = {
   lockin: 'Lock In',
 };
 
+const makeRequestId = () => {
+  if ('randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const localeFromBrowser = (): Locale =>
+  navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+
 export function Composing({ goto }: { goto: (r: Route) => void }) {
   const { answers } = useAnswers();
   const [t, setT] = useState(0);
-  const [phase, setPhase] = useState<0 | 1>(0);
+  const [phase, setPhase] = useState<'working' | 'ready' | 'error'>('working');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let raf = 0;
@@ -24,29 +47,91 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
     const loop = (ts: number) => {
       const e = ts - start;
       setT(e / 1000);
-      if (e >= DURATION_MS) {
-        setPhase(1);
-        haptic.success();
-        return;
-      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const progress = Math.min(1, (t * 1000) / DURATION_MS);
+  useEffect(() => {
+    const contentType = (answers.contentType || 'unwind') as MeditationContentType;
+    const voiceId = (answers.voiceId || 'mira') as VoiceId;
+    const carry = answers.carry.trim();
+    const capture: Capture = carry
+      ? { kind: 'text', text: carry }
+      : { kind: 'theme', chips: answers.chips.length ? answers.chips : ['tired'] };
+
+    const input: GenerateMeditationInput = {
+      callMe: answers.callMe.trim() || 'friend',
+      realName: answers.realName?.trim() || undefined,
+      mode: answers.mode,
+      capture,
+      contentType,
+      becoming: answers.becoming ? (answers.becoming as Becoming) : undefined,
+      voiceId,
+      locale: localeFromBrowser(),
+      requestId: makeRequestId(),
+    };
+    const key = JSON.stringify({ ...input, requestId: undefined });
+
+    const promise = inFlight?.key === key
+      ? inFlight.promise
+      : generateMeditation(input);
+    inFlight = { key, promise };
+
+    let cancelled = false;
+    promise
+      .then((out) => {
+        if (cancelled) return;
+        if (inFlight?.promise === promise) inFlight = null;
+        generatedMeditationApi.set(out);
+        setPhase('ready');
+        haptic.success();
+        window.setTimeout(() => goto('player'), 650);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if (inFlight?.promise === promise) inFlight = null;
+        setError(err instanceof Error ? err.message : 'generation failed');
+        setPhase('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [answers, goto]);
+
+  const progress =
+    phase === 'ready' ? 1 : Math.min(0.95, (t * 1000) / ESTIMATED_DURATION_MS);
   const ctName = answers.contentType ? TYPE_NAME[answers.contentType] : 'Unwind';
   const becoming = answers.becoming || 'calm';
 
   const lines = [
     'Holding what you told me.',
-    'Listening for the shape underneath.',
-    `Softening the edges of ${becoming}.`,
-    `Settling into ${ctName.toLowerCase()}.`,
-    'Letting the voice find its breath.',
-    'Almost ready.',
+    'Choosing the shape underneath.',
+    `Writing toward ${becoming}.`,
+    `Composing the ${ctName.toLowerCase()} script.`,
+    'Voicing it into music.',
+    'Saving the audio.',
   ];
+
+  const errorLines = [
+    'Something broke upstream.',
+    'Your words are still here.',
+    'Try once more in a moment.',
+  ];
+
+  const activeLines = phase === 'error' ? errorLines : lines;
+  const thresholds = phase === 'error'
+    ? [0, 0.33, 0.66]
+    : [0, 0.12, 0.28, 0.48, 0.68, 0.88];
+  let activeIdx = 0;
+  for (let k = 0; k < thresholds.length; k++) if (progress >= thresholds[k]) activeIdx = k;
+
+  const retry = () => {
+    haptic.medium();
+    window.location.reload();
+  };
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)', overflow: 'hidden' }}>
@@ -58,11 +143,11 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         paddingBottom: 260,
         transition: 'opacity 600ms var(--ease), transform 800ms var(--ease)',
-        opacity: phase === 1 ? 0.65 : 1,
-        transform: phase === 1 ? 'scale(0.78) translateY(-8px)' : 'scale(1)',
+        opacity: phase === 'ready' ? 0.65 : 1,
+        transform: phase === 'ready' ? 'scale(0.78) translateY(-8px)' : 'scale(1)',
       }}>
         <div style={{ position: 'relative', width: 280, height: 280 }}>
-          {phase !== 1 && [0, 1, 2, 3].map((r) => {
+          {phase !== 'ready' && [0, 1, 2, 3].map((r) => {
             const phase01 = ((t * 0.45) + r * 0.25) % 1;
             const scale = 0.55 + phase01 * 1.05;
             const alpha = (1 - phase01) * (0.18 + 0.18 * progress);
@@ -87,12 +172,12 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--jp)', fontSize: 220, fontWeight: 400,
-            color: 'var(--persimmon)',
+            color: phase === 'error' ? 'var(--stone)' : 'var(--persimmon)',
             opacity: 0.32 + 0.55 * progress,
             transform: `scale(${1 + Math.sin(t * 1.1) * 0.04})`,
             filter: `drop-shadow(0 0 ${20 + 30 * progress}px rgba(200,76,43,${0.35 + 0.3 * progress}))`,
             userSelect: 'none',
-            transition: 'opacity 400ms var(--ease)',
+            transition: 'opacity 400ms var(--ease), color 400ms var(--ease)',
           }}>
             心
           </div>
@@ -103,17 +188,14 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
         position: 'absolute', left: 28, right: 28, bottom: 168,
         textAlign: 'center', minHeight: 60,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: phase === 1 ? 0 : 1,
+        opacity: phase === 'ready' ? 0 : 1,
         transition: 'opacity 600ms var(--ease)',
       }}>
-        {lines.map((l, i) => {
-          const thresholds = [0, 0.16, 0.34, 0.52, 0.70, 0.92];
-          let idx = 0;
-          for (let k = 0; k < thresholds.length; k++) if (progress >= thresholds[k]) idx = k;
-          const active = i === idx;
+        {activeLines.map((line, i) => {
+          const active = i === activeIdx;
           return (
             <div
-              key={i}
+              key={line}
               style={{
                 position: 'absolute', left: 0, right: 0,
                 fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
@@ -122,17 +204,49 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
                 opacity: active ? 0.92 : 0,
                 transform: active ? 'translateY(0)' : 'translateY(8px)',
                 transition: 'opacity 900ms var(--ease), transform 900ms var(--ease)',
-                letterSpacing: 0.1,
                 padding: '0 16px',
               }}
             >
-              {l}
+              {line}
             </div>
           );
         })}
       </div>
 
-      {phase === 1 && (
+      {phase === 'error' && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 48,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+          padding: '0 28px',
+          animation: 'v2pop 700ms var(--ease) both',
+        }}>
+          <div style={{
+            maxWidth: 330,
+            fontFamily: 'var(--mono)', fontSize: 9.5,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--stone)', textAlign: 'center', lineHeight: 1.6,
+            overflowWrap: 'anywhere',
+          }}>
+            {error}
+          </div>
+          <button
+            onClick={retry}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 12,
+              padding: '14px 24px', borderRadius: 100,
+              background: 'var(--persimmon)', color: 'var(--washi)',
+              boxShadow: '0 0 60px rgba(200,76,43,0.35)',
+              fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 18,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Try again
+          </button>
+          <style>{`@keyframes v2pop { from { opacity: 0; transform: translateY(12px); } }`}</style>
+        </div>
+      )}
+
+      {phase === 'ready' && (
         <div style={{
           position: 'absolute', left: 0, right: 0, bottom: 56,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
@@ -143,32 +257,8 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
             letterSpacing: '0.28em', textTransform: 'uppercase',
             color: 'var(--persimmon)',
           }}>
-            — ready when you are —
+            - ready -
           </div>
-          <button
-            onClick={() => { haptic.medium(); goto('player'); }}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 14,
-              padding: '14px 28px 14px 18px', borderRadius: 100,
-              background: 'var(--persimmon)', color: 'var(--washi)',
-              boxShadow: '0 0 60px rgba(200,76,43,0.45)',
-              fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 18,
-              letterSpacing: -0.1,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span style={{
-              width: 32, height: 32, borderRadius: 16,
-              background: 'rgba(0,0,0,0.18)',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="11" height="12" viewBox="0 0 13 14" fill="currentColor">
-                <polygon points="2,1 2,13 12,7" />
-              </svg>
-            </span>
-            Help me settle
-          </button>
           <style>{`@keyframes v2pop { from { opacity: 0; transform: translateY(12px); } }`}</style>
         </div>
       )}
