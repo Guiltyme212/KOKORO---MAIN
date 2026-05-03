@@ -3,8 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypedDict
 
+import structlog
+
 from kokoro_api.providers.audio.base import AudioResult, MeditationAudioProvider
 from kokoro_api.types import Locale, Template, VoiceId
+
+log = structlog.get_logger()
 
 
 class VoicePreset(TypedDict):
@@ -32,6 +36,19 @@ async def synthesize_audio(
         )
 
     style_prompt = f"{preset['style_hint']}; {input.template.music_style_prompt}"
+
+    log.info(
+        "audio.suno_call",
+        template_id=input.template.id,
+        voice_id=input.voice_id,
+        locale=input.locale,
+        target_duration_sec=input.template.target_duration_sec,
+        persona_id=preset["persona_id"] or None,
+        style_prompt=style_prompt[:300],
+        script_length=len(input.script),
+        script_preview=input.script[:400],
+        refs_count=len(input.template.reference_track_urls),
+    )
 
     return await provider.synthesize(
         script=input.script,

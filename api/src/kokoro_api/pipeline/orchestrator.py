@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import structlog
+
 from kokoro_api.pipeline.generate_script import GenerateScriptInput, generate_script
 from kokoro_api.pipeline.persist import PersistInput, persist
 from kokoro_api.pipeline.resolve_capture import resolve_capture
@@ -29,6 +31,8 @@ from kokoro_api.types import (
     Template,
 )
 
+log = structlog.get_logger()
+
 
 @dataclass(slots=True)
 class PipelineDeps:
@@ -47,7 +51,29 @@ async def run_pipeline(
     t0 = time.monotonic()
     meditation_id = str(uuid.uuid4())
 
+    bound = log.bind(
+        meditation_id=meditation_id,
+        request_id=str(input.request_id),
+        call_me=input.call_me,
+        mode=input.mode,
+        content_type=input.content_type,
+        becoming=input.becoming,
+        voice_id=input.voice_id,
+        locale=input.locale,
+        capture_kind=input.capture.kind,
+    )
+    bound.info("pipeline.start")
+
     captured = await resolve_capture(input.capture, input.locale, deps.stt)
+    bound.info(
+        "pipeline.captured",
+        text_preview=captured.text[:300],
+        text_length=len(captured.text),
+        transcribed=captured.transcription_meta is not None,
+        transcription_provider=(
+            captured.transcription_meta.provider if captured.transcription_meta else None
+        ),
+    )
 
     template = select_template(
         deps.templates,
@@ -57,6 +83,13 @@ async def run_pipeline(
             theme_text=captured.text,
             becoming=input.becoming,
         ),
+    )
+    bound.info(
+        "pipeline.template_picked",
+        template_id=template.id,
+        target_duration_sec=template.target_duration_sec,
+        music_style=template.music_style_prompt[:200],
+        refs_count=len(template.reference_track_urls),
     )
 
     history_dict: HistoryDict | None = None
@@ -78,6 +111,16 @@ async def run_pipeline(
         ),
         deps.llm,
     )
+    bound.info(
+        "pipeline.script_done",
+        script_preview=scripted.script[:400],
+        script_length=len(scripted.script),
+        estimated_duration_sec=scripted.estimated_duration_sec,
+        llm_latency_ms=scripted.meta.latency_ms,
+        tokens_in=scripted.meta.tokens_in,
+        tokens_out=scripted.meta.tokens_out,
+        cache_read_tokens=scripted.meta.cache_read_tokens,
+    )
 
     audio = await synthesize_audio(
         SynthesizeAudioInput(
@@ -88,6 +131,14 @@ async def run_pipeline(
         ),
         deps.audio,
         deps.voice_presets,
+    )
+    bound.info(
+        "pipeline.audio_done",
+        audio_bytes=len(audio.audio_bytes),
+        duration_sec=audio.duration_sec,
+        suno_latency_ms=audio.latency_ms,
+        suno_jobs=audio.job_ids,
+        chosen_candidate=audio.chosen_candidate,
     )
 
     generated_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -130,6 +181,12 @@ async def run_pipeline(
             chosen_candidate=audio.chosen_candidate,
         ),
         persistence=PersistenceMeta(provider=deps.blob.name, latency_ms=persisted.latency_ms),
+        total_latency_ms=int((time.monotonic() - t0) * 1000),
+    )
+
+    bound.info(
+        "pipeline.done",
+        audio_url=persisted.audio_url,
         total_latency_ms=int((time.monotonic() - t0) * 1000),
     )
 
