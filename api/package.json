@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --reporter=verbose -- --integration",
-    "lint": "eslint src tests"
+    "lint": "eslint --no-error-on-unmatched-pattern src tests"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",
@@ -22,10 +22,13 @@
     "zod": "^4.4.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
     "@vitest/ui": "^4.1.5",
+    "eslint": "^10.3.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.1",
     "vitest": "^4.1.5"
   }
 }
