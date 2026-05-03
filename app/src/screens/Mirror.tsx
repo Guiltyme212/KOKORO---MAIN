@@ -25,13 +25,13 @@ export function Mirror({ goto }: { goto: (r: Route) => void }) {
 
   const advance = () => {
     haptic.light();
-    goto('contentType');
+    goto('composing');
   };
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)' }}>
       <Glow intensity={0.10} />
-      <TopBar onBack={() => goto('capture')} center="02 · what kokoro heard" />
+      <TopBar onBack={() => goto('contentType')} center="02 · what kokoro heard" />
 
       <div style={{
         position: 'absolute', top: 120, bottom: 132, left: 0, right: 0,

@@ -89,7 +89,7 @@ export function Capture({ goto }: { goto: (r: Route) => void }) {
     setAnswer('chips', chips);
     haptic.light();
     stt.stop();
-    goto('mirror');
+    goto('contentType');
   };
 
   return (
