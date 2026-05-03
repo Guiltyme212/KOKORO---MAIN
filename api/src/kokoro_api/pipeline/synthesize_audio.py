@@ -44,10 +44,10 @@ async def synthesize_audio(
         locale=input.locale,
         target_duration_sec=input.template.target_duration_sec,
         persona_id=preset["persona_id"] or None,
-        style_prompt=style_prompt[:300],
+        style_prompt=style_prompt,
         script_length=len(input.script),
-        script_preview=input.script[:400],
-        refs_count=len(input.template.reference_track_urls),
+        script_full=input.script,  # full text — verbose but useful for debugging
+        reference_track_urls=[str(u) for u in input.template.reference_track_urls],
     )
 
     return await provider.synthesize(

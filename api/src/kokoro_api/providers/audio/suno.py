@@ -7,9 +7,12 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 import httpx
+import structlog
 
 from kokoro_api.providers.audio.base import AudioResult, MeditationAudioProvider
 from kokoro_api.types import Locale
+
+log = structlog.get_logger()
 
 POLL_INTERVAL_SEC = 4
 POLL_TIMEOUT_SEC = 180
@@ -292,6 +295,12 @@ class SunoAudioProvider(MeditationAudioProvider):
             body["personaId"] = voice_persona_id
             body["personaModel"] = "voice_persona"
 
+        log.info(
+            "suno.generate.request",
+            url=f"{self._base_url}/api/v1/generate",
+            body=body,
+        )
+
         res = await client.post(
             f"{self._base_url}/api/v1/generate",
             headers={"authorization": f"Bearer {self._api_key}"},
@@ -299,6 +308,7 @@ class SunoAudioProvider(MeditationAudioProvider):
         )
         res.raise_for_status()
         payload = res.json()
+        log.info("suno.generate.response", code=payload.get("code"), data=payload.get("data"))
         if payload.get("code") != 200:
             raise RuntimeError(f"sunoapi generate failed: {payload}")
         task_id = (payload.get("data") or {}).get("taskId")
@@ -342,6 +352,12 @@ class SunoAudioProvider(MeditationAudioProvider):
             body["personaId"] = voice_persona_id
             body["personaModel"] = "voice_persona"
 
+        log.info(
+            "suno.upload_extend.request",
+            url=f"{self._base_url}/api/v1/generate/upload-extend",
+            body=body,
+        )
+
         res = await client.post(
             f"{self._base_url}/api/v1/generate/upload-extend",
             headers={"authorization": f"Bearer {self._api_key}"},
@@ -349,6 +365,7 @@ class SunoAudioProvider(MeditationAudioProvider):
         )
         res.raise_for_status()
         payload = res.json()
+        log.info("suno.upload_extend.response", code=payload.get("code"), data=payload.get("data"))
         if payload.get("code") != 200:
             raise RuntimeError(f"sunoapi upload-extend failed: {payload}")
         task_id = (payload.get("data") or {}).get("taskId")

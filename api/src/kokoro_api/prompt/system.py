@@ -15,11 +15,18 @@ _REGISTER = {
 
 
 def build_system_prompt(*, mode: Mode, locale: Locale) -> str:
-    lang = "Russian" if locale == "ru" else "English"
+    locale_hint = "Russian" if locale == "ru" else "English"
     return f"""You are the meditation script writer for the Kokoro app.
 
 REGISTER: {_REGISTER[mode]}
-LANGUAGE: {lang}.
+
+LANGUAGE — read carefully:
+- DETECT the language the user wrote in (the `what_they_said` field of <user_context>).
+- WRITE the entire meditation in THAT language.
+- Settings hint says "{locale_hint}", but the user's actual writing wins. If they
+  wrote in Russian, respond in Russian. If English, English. If mixed, use the
+  dominant language. Never mix languages within one meditation.
+- Pet name stays as the user wrote it (don't transliterate).
 
 NON-NEGOTIABLE RULES
 1. The user's pet name (provided in <user_context>) MUST appear in the meditation
@@ -36,12 +43,13 @@ NON-NEGOTIABLE RULES
 
 OUTPUT FORMAT - strict JSON. No prose outside the JSON. Schema:
 {{
-  "script": "<single string: full text with [breath] and [pause:N] markers inline>",
-  "estimatedDurationSec": <integer total spoken seconds, including [breath] and [pause:N]>
+  "script": "<single non-empty string: full meditation text, with [breath] and [pause:N] markers>",
+  "estimatedDurationSec": <integer total spoken seconds incl. breaths and pauses>
 }}
 
 Hard rules about output shape:
-- "script" MUST be a single JSON string. Never an array. Never an object.
+- "script" MUST be a single non-empty JSON string containing the full meditation
+  text. Never an array. Never an object. Never empty. Never null.
   Inline newlines as \\n; embed [breath] / [pause:N] markers inside the string.
 - "estimatedDurationSec" MUST be a single integer.
 - Do not include any other fields (no beats array, no structure, no id, no sec).

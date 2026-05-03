@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
 class LlmParsed(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
 
-    script: str
+    # min_length=1 catches the case where coercion (script as empty array, or
+    # array of dicts without text/Text/content) produces an empty string.
+    # Empty script means Suno will hallucinate vocal content from the reference
+    # track instead of speaking our meditation. Triggering a retry is cheaper
+    # than producing a broken audio.
+    script: str = Field(min_length=1)
     # LLM frequently forgets this field. Pipeline doesn't actually use it
     # (we rely on template.target_duration_sec and audio.duration_sec from Suno),
     # so default to 0 rather than burning a retry on missing duration.

@@ -119,7 +119,7 @@ async def run_pipeline(
     )
     bound.info(
         "pipeline.script_done",
-        script_preview=scripted.script[:400],
+        script_full=scripted.script,
         script_length=len(scripted.script),
         estimated_duration_sec=scripted.estimated_duration_sec,
         llm_latency_ms=scripted.meta.latency_ms,
