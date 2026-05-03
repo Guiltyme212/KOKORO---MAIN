@@ -10,7 +10,10 @@ class LlmParsed(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
 
     script: str
-    estimated_duration_sec: int
+    # LLM frequently forgets this field. Pipeline doesn't actually use it
+    # (we rely on template.target_duration_sec and audio.duration_sec from Suno),
+    # so default to 0 rather than burning a retry on missing duration.
+    estimated_duration_sec: int = 0
 
 
 def parse_llm_output(raw: str) -> LlmParsed:

@@ -52,7 +52,16 @@ def test_rejects_malformed_json() -> None:
         parse_llm_output("not json")
 
 
-def test_rejects_missing_required_fields() -> None:
-    bad = json.dumps({"script": "x"})
+def test_defaults_estimated_duration_when_missing() -> None:
+    # LLM frequently forgets this field; we don't use it downstream so default to 0
+    # rather than burning a retry on a missing duration.
+    raw = json.dumps({"script": "Body."})
+    result = parse_llm_output(raw)
+    assert result.script == "Body."
+    assert result.estimated_duration_sec == 0
+
+
+def test_rejects_missing_script() -> None:
+    bad = json.dumps({"estimatedDurationSec": 60})
     with pytest.raises(ValidationError):
         parse_llm_output(bad)

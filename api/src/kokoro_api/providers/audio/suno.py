@@ -317,7 +317,10 @@ class SunoAudioProvider(MeditationAudioProvider):
     ) -> str:
         body: dict[str, Any] = {
             "uploadUrl": upload_url,
-            "defaultParamFlag": True,
+            # MUST be false: when true, sunoapi.org ignores our prompt/style/title
+            # and auto-generates everything from the reference clip — that was
+            # producing audio in random languages instead of speaking our script.
+            "defaultParamFlag": False,
             "model": SUNOAPI_MODEL,
             "callBackUrl": self._callback_url,
             "instrumental": False,
@@ -325,10 +328,12 @@ class SunoAudioProvider(MeditationAudioProvider):
             "style": self._trim_style(music_style_prompt),
             "title": "Kokoro meditation",
             "continueAt": 30,
-            "negativeTags": "fast dance beat, heavy drums, aggressive melody",
-            "styleWeight": 0.45,
-            "weirdnessConstraint": 0.25,
-            "audioWeight": 0.65,
+            "negativeTags": "fast dance beat, heavy drums, aggressive melody, foreign language",
+            # Lean toward our style prompt and our lyrics; lower audio weight so
+            # the reference track only contributes vibe, not pulls vocal into its language.
+            "styleWeight": 0.7,
+            "weirdnessConstraint": 0.2,
+            "audioWeight": 0.3,
         }
         vocal_gender = self._infer_vocal_gender(music_style_prompt)
         if vocal_gender:
