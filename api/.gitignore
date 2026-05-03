@@ -10,3 +10,7 @@ blob-data/
 dist/
 build/
 *.egg-info/
+
+# Transcripts produced by scripts/transcribe_references.py — these contain
+# (potentially copyrighted) source meditation text. Don't commit.
+reference-sources/*.txt

@@ -10,7 +10,7 @@ import structlog
 from kokoro_api.pipeline.generate_script import GenerateScriptInput, generate_script
 from kokoro_api.pipeline.persist import PersistInput, persist
 from kokoro_api.pipeline.resolve_capture import resolve_capture
-from kokoro_api.pipeline.select_template import SelectInput, select_template
+from kokoro_api.pipeline.select_template import SelectInput, select_templates
 from kokoro_api.pipeline.synthesize_audio import (
     SynthesizeAudioInput,
     VoicePreset,
@@ -81,7 +81,7 @@ async def run_pipeline(
         ),
     )
 
-    template = select_template(
+    selected = select_templates(
         deps.templates,
         SelectInput(
             content_type=input.content_type,
@@ -89,13 +89,17 @@ async def run_pipeline(
             theme_text=captured.text,
             becoming=input.becoming,
         ),
+        top_n=2,
     )
+    primary = selected[0]
     bound.info(
-        "pipeline.template_picked",
-        template_id=template.id,
-        target_duration_sec=template.target_duration_sec,
-        music_style=template.music_style_prompt[:200],
-        refs_count=len(template.reference_track_urls),
+        "pipeline.templates_picked",
+        primary_template_id=primary.id,
+        all_template_ids=[t.id for t in selected],
+        sources_with_transcripts=[t.id for t in selected if t.transcript],
+        target_duration_sec=primary.target_duration_sec,
+        music_style=primary.music_style_prompt[:200],
+        refs_count=len(primary.reference_track_urls),
     )
 
     history_dict: HistoryDict | None = None
@@ -111,7 +115,7 @@ async def run_pipeline(
             mode=input.mode,
             capture_text=captured.text,
             becoming=input.becoming,
-            template=template,
+            templates=selected,
             history=history_dict,
             locale=input.locale,
         ),
@@ -132,7 +136,7 @@ async def run_pipeline(
         SynthesizeAudioInput(
             script=scripted.script,
             voice_id=input.voice_id,
-            template=template,
+            template=primary,
             locale=input.locale,
         ),
         deps.audio,
@@ -161,7 +165,8 @@ async def run_pipeline(
             **input.model_dump(by_alias=True, mode="json", exclude={"capture"}),
             "capture": capture_for_meta,
         },
-        "templateUsedId": template.id,
+        "templateUsedId": primary.id,
+        "sourceTemplateIds": [t.id for t in selected],
         "script": scripted.script,
         "estimatedDurationSec": scripted.estimated_duration_sec,
     }
@@ -201,7 +206,7 @@ async def run_pipeline(
         audio_url=persisted.audio_url,
         duration_sec=audio.duration_sec,
         script=scripted.script,
-        template_used_id=template.id,
+        template_used_id=primary.id,
         generated_at=generated_at,
         provider_meta=provider_meta,
     )

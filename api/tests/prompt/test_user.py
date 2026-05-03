@@ -32,7 +32,7 @@ def test_embeds_call_me_capture_becoming_template() -> None:
             mode="soft",
             capture_text="long day, pressure",
             becoming="calm",
-            template=_tpl(),
+            templates=[_tpl()],
             history=None,
         )
     )
@@ -50,7 +50,7 @@ def test_includes_history_block_when_present() -> None:
             mode="sharp",
             capture_text="...",
             becoming="focus",
-            template=_tpl(),
+            templates=[_tpl()],
             history={
                 "previous_scripts": ["Yesterday you set an intention..."],
                 "last_becoming": "focus",
@@ -68,7 +68,7 @@ def test_omits_history_block_when_empty() -> None:
             mode="soft",
             capture_text="y",
             becoming="calm",
-            template=_tpl(),
+            templates=[_tpl()],
             history=None,
         )
     )

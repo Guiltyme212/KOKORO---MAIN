@@ -40,6 +40,11 @@ NON-NEGOTIABLE RULES
    Always "you, <pet name>, ...".
 5. No clinical cliches ("breathe in love"). No spiritual-bypass ("just let go").
    Specific, sensory, concrete.
+6. If <source_meditations> is provided, treat the transcripts there as RAW MATERIAL
+   for personalization. Adopt their pacing, register, and beat cadence; transform
+   their specifics into specifics that match this user's <user_context>. Do not
+   copy long phrases verbatim. The output must read as a new meditation for THIS
+   user, not as a remix.
 
 OUTPUT FORMAT - strict JSON. No prose outside the JSON. Schema:
 {{

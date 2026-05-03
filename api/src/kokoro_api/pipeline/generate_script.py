@@ -20,7 +20,9 @@ class GenerateScriptInput:
     mode: Mode
     capture_text: str
     becoming: str | None
-    template: Template
+    # First template is primary (drives structure + register notes for the prompt
+    # block). Remaining templates contribute their transcripts as source material.
+    templates: list[Template]
     history: HistoryDict | None
     locale: Locale
 
@@ -42,14 +44,17 @@ async def generate_script(
             mode=input.mode,
             capture_text=input.capture_text,
             becoming=input.becoming,
-            template=input.template,
+            templates=input.templates,
             history=input.history,
         )
     )
 
+    primary = input.templates[0]
+    sources_with_transcripts = [t.id for t in input.templates if t.transcript]
     log.info(
         "script.prompts_built",
-        template_id=input.template.id,
+        primary_template_id=primary.id,
+        source_template_ids=sources_with_transcripts,
         locale=input.locale,
         mode=input.mode,
         call_me=input.call_me,
@@ -70,7 +75,7 @@ async def generate_script(
         result = await llm.generate(
             system_prompt=system_prompt,
             user_prompt=prompt_for_attempt,
-            cache_key=input.template.id,
+            cache_key=primary.id,
         )
         log.info(
             "script.llm_response",

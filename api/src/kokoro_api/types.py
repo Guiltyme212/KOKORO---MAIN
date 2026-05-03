@@ -157,5 +157,13 @@ class Template(BaseModel):
     reference_track_urls: list[str] = Field(alias="referenceTrackUrls", max_length=2)
     structure: list[TemplateBeat] = Field(min_length=3)
     register_notes: RegisterNotes = Field(alias="registerNotes")
+    # Full transcript of an existing meditation that matches this template's
+    # situation. The orchestrator passes it (and transcripts of other top-N
+    # selected templates) to the LLM as source material for personalization.
+    transcript: str | None = None
+    # Free-form attribution / origin note. Internal only — never sent to LLM
+    # or to the user. Useful for the operator to track which transcript came
+    # from where.
+    transcript_source: str | None = Field(default=None, alias="transcriptSource")
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")

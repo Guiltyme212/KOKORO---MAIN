@@ -17,14 +17,17 @@ class BuildUserArgs:
     mode: Mode
     capture_text: str
     becoming: str | None
-    template: Template
+    # First element is the primary template (used for music + structure).
+    # Any subsequent ones contribute their transcripts as source material.
+    templates: list[Template]
     history: HistoryDict | None
 
 
 def build_user_prompt(args: BuildUserArgs) -> str:
+    primary = args.templates[0]
     beat_lines = "\n".join(
         f'  - id="{beat.id}" sec={beat.sec} intent="{beat.intent}"'
-        for beat in args.template.structure
+        for beat in primary.structure
     )
 
     history_block = ""
@@ -40,11 +43,13 @@ def build_user_prompt(args: BuildUserArgs) -> str:
             f"</history>\n"
         )
 
+    sources_block = _build_sources_block(args.templates)
+
     capture_text = args.capture_text.replace('"', '\\"')
     register_note = (
-        args.template.register_notes.soft
+        primary.register_notes.soft
         if args.mode == "soft"
-        else args.template.register_notes.sharp
+        else primary.register_notes.sharp
     )
 
     return f"""<user_context>
@@ -54,11 +59,43 @@ becoming: {args.becoming or "unspecified"}
 what_they_said: "{capture_text}"
 </user_context>
 
-<template id="{args.template.id}" target_duration_sec={args.template.target_duration_sec}>
+<template id="{primary.id}" target_duration_sec={primary.target_duration_sec}>
 register_note ({args.mode}): {register_note}
 beats:
 {beat_lines}
 </template>
-{history_block}
-TASK: Write the meditation script following the system rules and the template beats.
-Return strict JSON only."""
+{sources_block}{history_block}
+TASK: Personalize the situation in <user_context> into a brand new meditation.
+Use the SOURCE_MEDITATIONS above as raw material — adopt their pacing, register,
+and structural cadence — but rewrite specifics so the meditation lands FOR THIS user
+(use their pet name, reference what they said). Do not copy the source meditations
+verbatim or quote long phrases from them. The output must feel original to this user.
+
+Follow the rules in the system prompt. Return strict JSON only."""
+
+
+def _build_sources_block(templates: list[Template]) -> str:
+    sources: list[tuple[Template, str]] = []
+    for template in templates:
+        transcript = (template.transcript or "").strip()
+        if transcript:
+            sources.append((template, transcript))
+    if not sources:
+        return ""
+
+    blocks: list[str] = []
+    for index, (template, transcript) in enumerate(sources, start=1):
+        intent = ", ".join(beat.intent for beat in template.structure)
+        blocks.append(
+            f"--- SOURCE {index} (template_id={template.id}, intent={intent}) ---\n"
+            f"{transcript}\n"
+        )
+
+    body = "\n".join(blocks)
+    return (
+        "<source_meditations>\n"
+        "These are full transcripts of existing meditations that match the user's situation.\n"
+        "Use them as raw material to transform — not as examples to imitate phrase-by-phrase.\n"
+        f"{body}"
+        "</source_meditations>\n\n"
+    )
