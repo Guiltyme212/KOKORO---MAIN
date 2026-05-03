@@ -1,0 +1,24 @@
+{
+  "id": "attract_amsterdam_morning_01",
+  "contentType": "attract",
+  "modes": ["soft", "sharp"],
+  "becomingMatch": ["future", "confidence", "action"],
+  "themeKeywords": ["amsterdam", "morning", "future-self", "vision", "build"],
+  "targetDurationSec": 420,
+  "musicStylePrompt": "cinematic ambient pad, slow build, hopeful, 60 bpm, soft synth swells, no percussion",
+  "referenceTrackUrls": [
+    "https://cdn.kokoro.app/refs/cinematic_morning_pad.mp3",
+    "https://cdn.kokoro.app/refs/hopeful_swell_marconi.mp3"
+  ],
+  "structure": [
+    { "id": "open",       "sec": 30,  "intent": "ground in the room you're in" },
+    { "id": "scene_set",  "sec": 60,  "intent": "establish the location, season, time of day" },
+    { "id": "scene_body", "sec": 180, "intent": "narrate the future moment in concrete sensory detail" },
+    { "id": "identity",   "sec": 90,  "intent": "name who you are in this scene, in present tense" },
+    { "id": "close",      "sec": 60,  "intent": "return softly to the room, carrying the scene with you" }
+  ],
+  "registerNotes": {
+    "soft": "warm narrator, romantic but not saccharine, low-register voice",
+    "sharp": "grounded, decisive, present-tense identity language"
+  }
+}

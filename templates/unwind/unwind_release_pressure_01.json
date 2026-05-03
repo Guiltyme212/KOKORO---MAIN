@@ -1,0 +1,24 @@
+{
+  "id": "unwind_release_pressure_01",
+  "contentType": "unwind",
+  "modes": ["soft", "sharp"],
+  "becomingMatch": ["calm", "softness", "detachment"],
+  "themeKeywords": ["pressure", "anger", "tired", "overthinking", "unrecognized"],
+  "targetDurationSec": 360,
+  "musicStylePrompt": "warm ambient pad, slow breathing tempo 50 bpm, no percussion, melancholic, soft analog texture",
+  "referenceTrackUrls": [
+    "https://cdn.kokoro.app/refs/ambient_low_pad_60bpm.mp3",
+    "https://cdn.kokoro.app/refs/warm_drone_marconi.mp3"
+  ],
+  "structure": [
+    { "id": "open",       "sec": 30, "intent": "ground in body, name what's here" },
+    { "id": "validate",   "sec": 60, "intent": "validate the emotion, no fix" },
+    { "id": "breathwork", "sec": 90, "intent": "4-7-8 breathing, 6 cycles" },
+    { "id": "release",    "sec": 90, "intent": "permission to put it down" },
+    { "id": "close",      "sec": 90, "intent": "anchor for sleep / next moment" }
+  ],
+  "registerNotes": {
+    "soft": "warm, validating, lower-register voice",
+    "sharp": "grounded, direct, no platitudes"
+  }
+}
