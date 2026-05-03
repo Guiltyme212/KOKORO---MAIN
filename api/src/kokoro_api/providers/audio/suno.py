@@ -204,7 +204,7 @@ class SunoAudioProvider(MeditationAudioProvider):
                     client,
                     reference_track_urls[0],
                 )
-                task_id = await self._start_sunoapi_org_upload_extend_job(
+                task_id = await self._start_sunoapi_org_upload_cover_job(
                     client,
                     upload_url=upload_url,
                     script=script,
@@ -316,7 +316,7 @@ class SunoAudioProvider(MeditationAudioProvider):
             raise RuntimeError("sunoapi start: no taskId in response")
         return str(task_id)
 
-    async def _start_sunoapi_org_upload_extend_job(
+    async def _start_sunoapi_org_upload_cover_job(
         self,
         client: httpx.AsyncClient,
         *,
@@ -325,25 +325,23 @@ class SunoAudioProvider(MeditationAudioProvider):
         voice_persona_id: str,
         music_style_prompt: str,
     ) -> str:
+        # `upload-cover` tells sunoapi.org "listen to this clip and produce a
+        # NEW song in a similar style with these new lyrics". Unlike
+        # `upload-extend`, it does NOT copy any seconds from the reference
+        # into the output — the reference only informs vocal character and
+        # musical vibe. This is what we want for meditation generation:
+        # transcripts already feed the LLM with content; the audio reference
+        # only shapes how that content sounds.
         body: dict[str, Any] = {
             "uploadUrl": upload_url,
-            # MUST be false: when true, sunoapi.org ignores our prompt/style/title
-            # and auto-generates everything from the reference clip — that was
-            # producing audio in random languages instead of speaking our script.
-            "defaultParamFlag": False,
             "model": SUNOAPI_MODEL,
             "callBackUrl": self._callback_url,
+            "customMode": True,
             "instrumental": False,
             "prompt": script,
             "style": self._trim_style(music_style_prompt),
             "title": "Kokoro meditation",
-            "continueAt": 30,
             "negativeTags": "fast dance beat, heavy drums, aggressive melody, foreign language",
-            # Lean toward our style prompt and our lyrics; lower audio weight so
-            # the reference track only contributes vibe, not pulls vocal into its language.
-            "styleWeight": 0.7,
-            "weirdnessConstraint": 0.2,
-            "audioWeight": 0.3,
         }
         vocal_gender = self._infer_vocal_gender(music_style_prompt)
         if vocal_gender:
@@ -353,24 +351,24 @@ class SunoAudioProvider(MeditationAudioProvider):
             body["personaModel"] = "voice_persona"
 
         log.info(
-            "suno.upload_extend.request",
-            url=f"{self._base_url}/api/v1/generate/upload-extend",
+            "suno.upload_cover.request",
+            url=f"{self._base_url}/api/v1/generate/upload-cover",
             body=body,
         )
 
         res = await client.post(
-            f"{self._base_url}/api/v1/generate/upload-extend",
+            f"{self._base_url}/api/v1/generate/upload-cover",
             headers={"authorization": f"Bearer {self._api_key}"},
             json=body,
         )
         res.raise_for_status()
         payload = res.json()
-        log.info("suno.upload_extend.response", code=payload.get("code"), data=payload.get("data"))
+        log.info("suno.upload_cover.response", code=payload.get("code"), data=payload.get("data"))
         if payload.get("code") != 200:
-            raise RuntimeError(f"sunoapi upload-extend failed: {payload}")
+            raise RuntimeError(f"sunoapi upload-cover failed: {payload}")
         task_id = (payload.get("data") or {}).get("taskId")
         if not task_id:
-            raise RuntimeError("sunoapi upload-extend: no taskId in response")
+            raise RuntimeError("sunoapi upload-cover: no taskId in response")
         return str(task_id)
 
     async def _poll_sunoapi_org(
