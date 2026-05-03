@@ -36,8 +36,13 @@ NON-NEGOTIABLE RULES
 
 OUTPUT FORMAT - strict JSON. No prose outside the JSON. Schema:
 {{
-  "script": "<full text with [breath] and [pause:N] markers inline>",
+  "script": "<single string: full text with [breath] and [pause:N] markers inline>",
   "estimatedDurationSec": <integer total spoken seconds, including [breath] and [pause:N]>
 }}
 
-Return only those two fields. Do not include any other keys."""
+Hard rules about output shape:
+- "script" MUST be a single JSON string. Never an array. Never an object.
+  Inline newlines as \\n; embed [breath] / [pause:N] markers inside the string.
+- "estimatedDurationSec" MUST be a single integer.
+- Do not include any other fields (no beats array, no structure, no id, no sec).
+  Return ONLY the two fields above."""

@@ -30,7 +30,39 @@ def parse_llm_output(raw: str) -> LlmParsed:
     except json.JSONDecodeError as exc:
         raise ValueError(f"could not parse llm output as json: {exc.msg}") from exc
 
+    if isinstance(parsed, dict):
+        parsed = _coerce_shape(parsed)
+
     return LlmParsed.model_validate(parsed)
+
+
+def _coerce_shape(parsed: dict[str, object]) -> dict[str, object]:
+    """LLMs sometimes return `script` as an array of beat-like objects, or
+    as a single dict, or stash the script under `beats` while leaving
+    `script` empty. Flatten anything reasonable into a single string."""
+    script = parsed.get("script")
+    if isinstance(script, list):
+        parsed["script"] = _join_text_pieces(script)
+    elif isinstance(script, dict):
+        text = script.get("text") if isinstance(script.get("text"), str) else None
+        parsed["script"] = text or json.dumps(script, ensure_ascii=False)
+    elif script is None:
+        beats = parsed.get("beats")
+        if isinstance(beats, list):
+            parsed["script"] = _join_text_pieces(beats)
+    return parsed
+
+
+def _join_text_pieces(items: list[object]) -> str:
+    parts: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            text = item.get("text") or item.get("Text") or item.get("content")
+            if isinstance(text, str) and text.strip():
+                parts.append(text.strip())
+    return "\n\n".join(parts)
 
 
 def _extract_json_object(raw: str) -> str:
