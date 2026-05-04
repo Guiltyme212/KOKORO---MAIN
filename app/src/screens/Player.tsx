@@ -83,6 +83,22 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
     setElapsed(audio.currentTime);
   };
 
+  const seekTo = (absoluteSec: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const clamped = Math.max(0, Math.min(total, absoluteSec));
+    audio.currentTime = clamped;
+    setElapsed(clamped);
+  };
+
+  const seekFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = (event.clientX - rect.left) / rect.width;
+    seekTo(ratio * total);
+    haptic.light();
+  };
+
   const toggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -184,7 +200,19 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 28px 36px' }}>
-        <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 2, marginBottom: 12 }}>
+        <div
+          role="slider"
+          aria-label="Seek"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={Math.round(elapsed)}
+          tabIndex={0}
+          onPointerDown={seekFromPointer}
+          style={{
+            height: 48, display: 'flex', alignItems: 'center', gap: 2, marginBottom: 12,
+            cursor: 'pointer', touchAction: 'none', userSelect: 'none',
+          }}
+        >
           {bars.map((value, i) => {
             const barP = i / bars.length;
             const played = barP <= progress;
@@ -199,6 +227,7 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
                   background: played ? 'var(--persimmon)' : 'var(--stone)',
                   opacity: played ? (isHead ? 1 : 0.92) : 0.22,
                   boxShadow: isHead ? '0 0 8px rgba(200,76,43,0.7)' : 'none',
+                  pointerEvents: 'none',
                 }}
               />
             );
