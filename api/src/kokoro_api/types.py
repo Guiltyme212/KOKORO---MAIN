@@ -134,6 +134,35 @@ class GenerateMeditationOutput(_CamelModel):
     provider_meta: ProviderMeta
 
 
+class LibraryItem(_CamelModel):
+    """Summary of a saved meditation. Stored per-user in the blob store."""
+
+    meditation_id: str
+    audio_url: str
+    duration_sec: float
+    call_me: str
+    real_name: str | None = None
+    content_type: ContentType
+    becoming: Becoming | None = None
+    mode: Mode
+    capture_preview: str | None = None
+    saved_at: str
+    generated_at: str
+
+
+class LibraryListOutput(_CamelModel):
+    items: list[LibraryItem]
+
+
+class LibrarySaveInput(_CamelModel):
+    meditation_id: str
+    tg_user_id: int
+
+
+class LibraryRemoveInput(_CamelModel):
+    tg_user_id: int
+
+
 class Template(BaseModel):
     """Loaded from JSON in /templates. Internal-only, not part of the public API.
 

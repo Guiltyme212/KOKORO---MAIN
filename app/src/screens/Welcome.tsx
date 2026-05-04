@@ -223,6 +223,18 @@ export function Welcome({ goto }: { goto: (r: Route) => void }) {
           >
             No story · just reset me
           </button>
+
+          <button
+            onClick={() => goto('library')}
+            style={{
+              color: 'var(--stone)',
+              fontFamily: 'var(--mono)', fontSize: 9.5,
+              letterSpacing: '0.28em', textTransform: 'uppercase',
+              padding: '4px 8px',
+            }}
+          >
+            Library
+          </button>
         </div>
       </div>
 

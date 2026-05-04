@@ -18,3 +18,7 @@ class BlobStore(ABC):
 
     @abstractmethod
     async def signed_url(self, key: str, expiry_sec: int) -> str: ...
+
+    @abstractmethod
+    async def get(self, key: str) -> bytes | None:
+        """Return raw bytes for the key, or None if not found."""

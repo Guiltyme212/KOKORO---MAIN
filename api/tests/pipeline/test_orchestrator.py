@@ -148,6 +148,10 @@ class FakeBlob(BlobStore):
     async def signed_url(self, key: str, expiry_sec: int) -> str:  # pragma: no cover
         raise NotImplementedError
 
+    async def get(self, key: str) -> bytes | None:  # pragma: no cover
+        _ = key
+        return None
+
 
 def _make_deps() -> tuple[PipelineDeps, FakeStt, _FakeLlm, _FakeLlm, FakeAudio]:
     stt = FakeStt()

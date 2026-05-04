@@ -27,6 +27,10 @@ class FakeBlob(BlobStore):
     async def signed_url(self, key: str, expiry_sec: int) -> str:
         raise NotImplementedError
 
+    async def get(self, key: str) -> bytes | None:
+        _ = key
+        return None
+
 
 @pytest.mark.asyncio
 async def test_writes_audio_meta_returns_signed_url() -> None:

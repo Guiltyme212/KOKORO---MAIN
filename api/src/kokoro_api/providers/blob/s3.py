@@ -28,3 +28,7 @@ class S3BlobStore(BlobStore):
     async def signed_url(self, key: str, expiry_sec: int) -> str:
         _ = (key, expiry_sec)
         raise NotImplementedError("S3BlobStore not yet implemented")
+
+    async def get(self, key: str) -> bytes | None:
+        _ = key
+        raise NotImplementedError("S3BlobStore not yet implemented")

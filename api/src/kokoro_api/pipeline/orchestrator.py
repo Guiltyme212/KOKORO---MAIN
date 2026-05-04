@@ -196,6 +196,7 @@ async def run_pipeline(
         "style": written.style,
         "lyrics": written.lyrics,
         "estimatedDurationSec": written.estimated_duration_sec,
+        "audioDurationSec": audio.duration_sec,
         "validationWarnings": written.validation_warnings,
     }
 

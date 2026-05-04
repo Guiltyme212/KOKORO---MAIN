@@ -6,6 +6,8 @@ import { haptic } from '../lib/telegram';
 import { Glow, TopBar, Display } from '../components/atoms';
 import type { ContentType } from '../types';
 import { useGeneratedMeditation } from '../state/generatedMeditation';
+import { useLibrary } from '../state/library';
+import { isLibraryAvailable } from '../lib/library';
 
 const META: Record<ContentType, { tag: string; name: string; kanji: string }> = {
   unwind: { tag: 'heart · Unwind', name: 'Vent. Then breathe.', kanji: '心' },
@@ -265,16 +267,76 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
           >
             End
           </button>
-          <button
-            style={{
-              color: 'var(--persimmon)', fontFamily: 'var(--sans)', fontSize: 12,
-              padding: 8,
-            }}
-          >
-            Save to library
-          </button>
+          <SaveButton />
         </div>
       </div>
+    </div>
+  );
+}
+
+function SaveButton() {
+  const { generated } = useGeneratedMeditation();
+  const { items, save, remove, error } = useLibrary();
+  const [pending, setPending] = useState(false);
+
+  if (!generated) return null;
+  if (!isLibraryAvailable()) {
+    return (
+      <span style={{
+        color: 'var(--stone)', fontFamily: 'var(--mono)', fontSize: 10,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        padding: 8,
+      }}>
+        open in telegram to save
+      </span>
+    );
+  }
+
+  const saved = items.some((item) => item.meditationId === generated.meditationId);
+  const label = pending
+    ? (saved ? 'Removing…' : 'Saving…')
+    : (saved ? 'Saved · tap to remove' : 'Save to library');
+
+  const onClick = async () => {
+    if (pending) return;
+    setPending(true);
+    try {
+      haptic.light();
+      if (saved) {
+        await remove(generated.meditationId);
+      } else {
+        await save(generated.meditationId);
+        haptic.success();
+      }
+    } catch {
+      // error surfaces via store; local fallback message handled below
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+      <button
+        onClick={onClick}
+        disabled={pending}
+        style={{
+          color: saved ? 'var(--washi)' : 'var(--persimmon)',
+          fontFamily: 'var(--sans)', fontSize: 12,
+          padding: 8,
+          opacity: pending ? 0.5 : 1,
+        }}
+      >
+        {label}
+      </button>
+      {error && (
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--stone)',
+          padding: '0 8px',
+        }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }

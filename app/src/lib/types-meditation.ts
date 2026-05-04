@@ -76,3 +76,21 @@ export type GenerateMeditationOutput = {
   generatedAt: string;
   providerMeta: ProviderMeta;
 };
+
+export type LibraryItem = {
+  meditationId: string;
+  audioUrl: string;
+  durationSec: number;
+  callMe: string;
+  realName?: string;
+  contentType: ContentType;
+  becoming?: Becoming;
+  mode: Mode;
+  capturePreview?: string;
+  savedAt: string;
+  generatedAt: string;
+};
+
+export type LibraryListOutput = {
+  items: LibraryItem[];
+};

@@ -30,3 +30,9 @@ class FilesystemBlobStore(BlobStore):
     async def signed_url(self, key: str, expiry_sec: int) -> str:
         _ = expiry_sec
         return f"{self._base}/{key}"
+
+    async def get(self, key: str) -> bytes | None:
+        path = self._root / key
+        if not path.exists():
+            return None
+        return path.read_bytes()

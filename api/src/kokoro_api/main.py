@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from kokoro_api.config import load_config
 from kokoro_api.library.loader import load_library
+from kokoro_api.library_store.blob_backed import BlobLibraryStore
 from kokoro_api.pipeline.orchestrator import PipelineDeps, run_pipeline
 from kokoro_api.pipeline.synthesize_audio import VoicePreset
 from kokoro_api.providers.audio.suno import SunoAudioProvider
@@ -34,6 +35,7 @@ from kokoro_api.providers.stt.base import TranscriptionProvider
 from kokoro_api.providers.stt.disabled import DisabledTranscriptionProvider
 from kokoro_api.providers.stt.elevenlabs import ElevenLabsTranscriptionProvider
 from kokoro_api.providers.stt.whisper import WhisperProvider
+from kokoro_api.routes.library import register_library_routes
 from kokoro_api.routes.meditations import register_meditations_route
 from kokoro_api.templates.loader import load_templates
 from kokoro_api.types import GenerateMeditationInput, GenerateMeditationOutput, Template
@@ -191,6 +193,7 @@ async def suno_callback(payload: dict[str, object]) -> dict[str, bool]:
 
 
 register_meditations_route(app, run_pipeline=_run)
+register_library_routes(app, store=BlobLibraryStore(blob))
 
 
 def serve() -> None:

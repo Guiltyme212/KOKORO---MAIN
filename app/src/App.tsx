@@ -12,6 +12,7 @@ import { ContentType } from './screens/ContentType';
 import { Composing } from './screens/Composing';
 import { Player } from './screens/Player';
 import { Reflect } from './screens/Reflect';
+import { Library } from './screens/Library';
 import './App.css';
 
 type ScreenProps = { goto: (r: Route) => void };
@@ -26,7 +27,7 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   player: Player,
   reflect: Reflect,
   home: Welcome,
-  library: Welcome,
+  library: Library,
   quickReset: Welcome,
   sleep: Welcome,
 };
