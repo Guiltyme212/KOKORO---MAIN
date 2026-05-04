@@ -286,7 +286,11 @@ class SunoAudioProvider(MeditationAudioProvider):
             "prompt": script,
             "style": self._trim_style(music_style_prompt),
             "title": "Kokoro meditation",
-            "negativeTags": "fast dance beat, heavy drums, aggressive melody",
+            "negativeTags": (
+                "fast dance beat, heavy drums, aggressive melody, "
+                "singing, sung vocals, melodic vocals, chorus, verse, rap, "
+                "rhyming, song structure, melody on vocals, pop vocals, autotune"
+            ),
         }
         vocal_gender = self._infer_vocal_gender(music_style_prompt)
         if vocal_gender:
@@ -341,7 +345,11 @@ class SunoAudioProvider(MeditationAudioProvider):
             "prompt": script,
             "style": self._trim_style(music_style_prompt),
             "title": "Kokoro meditation",
-            "negativeTags": "fast dance beat, heavy drums, aggressive melody, foreign language",
+            "negativeTags": (
+                "fast dance beat, heavy drums, aggressive melody, foreign language, "
+                "singing, sung vocals, melodic vocals, chorus, verse, rap, "
+                "rhyming, song structure, melody on vocals, pop vocals, autotune"
+            ),
         }
         vocal_gender = self._infer_vocal_gender(music_style_prompt)
         if vocal_gender:

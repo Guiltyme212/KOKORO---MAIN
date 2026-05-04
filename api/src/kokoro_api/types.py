@@ -127,43 +127,27 @@ class GenerateMeditationOutput(_CamelModel):
     meditation_id: str
     audio_url: str
     duration_sec: float
-    script: str
-    template_used_id: str
+    style: str
+    lyrics: str
+    picked_reference_ids: list[str]
     generated_at: str
     provider_meta: ProviderMeta
 
 
-class TemplateBeat(BaseModel):
-    id: str
-    sec: int = Field(gt=0)
-    intent: str
-
-
-class RegisterNotes(BaseModel):
-    soft: str
-    sharp: str
-
-
 class Template(BaseModel):
-    """Loaded from JSON in /templates. Internal-only, not part of the public API."""
+    """Loaded from JSON in /templates. Internal-only, not part of the public API.
+
+    Slimmed: the writer LLM now generates the Suno style string per request, and
+    the picker LLM selects reference transcripts from meditation_scripts/. The
+    template only carries the music/duration profile per (content_type, mode)
+    and the optional reference audio used by Suno's upload-cover endpoint.
+    """
 
     id: str
     content_type: ContentType = Field(alias="contentType")
     modes: list[Mode] = Field(min_length=1)
-    becoming_match: list[str] = Field(alias="becomingMatch")
-    theme_keywords: list[str] = Field(alias="themeKeywords")
     target_duration_sec: int = Field(alias="targetDurationSec", gt=0)
     music_style_prompt: str = Field(alias="musicStylePrompt", min_length=10)
     reference_track_urls: list[str] = Field(alias="referenceTrackUrls", max_length=2)
-    structure: list[TemplateBeat] = Field(min_length=3)
-    register_notes: RegisterNotes = Field(alias="registerNotes")
-    # Full transcript of an existing meditation that matches this template's
-    # situation. The orchestrator passes it (and transcripts of other top-N
-    # selected templates) to the LLM as source material for personalization.
-    transcript: str | None = None
-    # Free-form attribution / origin note. Internal only — never sent to LLM
-    # or to the user. Useful for the operator to track which transcript came
-    # from where.
-    transcript_source: str | None = Field(default=None, alias="transcriptSource")
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")

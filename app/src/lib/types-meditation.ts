@@ -70,8 +70,9 @@ export type GenerateMeditationOutput = {
   meditationId: string;
   audioUrl: string;
   durationSec: number;
-  script: string;
-  templateUsedId: string;
+  style: string;
+  lyrics: string;
+  pickedReferenceIds: string[];
   generatedAt: string;
   providerMeta: ProviderMeta;
 };

@@ -2,45 +2,67 @@ from __future__ import annotations
 
 import re
 
+from kokoro_api.library.loader import ReferenceMeditation
 from kokoro_api.prompt.user import BuildUserArgs, build_user_prompt
-from kokoro_api.types import RegisterNotes, Template, TemplateBeat
 
 
-def _tpl() -> Template:
-    return Template(
-        id="unwind_a",
-        content_type="unwind",
-        modes=["soft"],
-        becoming_match=["calm"],
-        theme_keywords=["tired"],
-        target_duration_sec=360,
-        music_style_prompt="ambient pad",
-        reference_track_urls=[],
-        structure=[
-            TemplateBeat(id="open", sec=30, intent="ground in body"),
-            TemplateBeat(id="close", sec=30, intent="rest"),
-            TemplateBeat(id="seal", sec=30, intent="anchor"),
-        ],
-        register_notes=RegisterNotes(soft="warm", sharp="direct"),
-    )
+def _ref(id: str, text: str) -> ReferenceMeditation:
+    return ReferenceMeditation(id=id, title=id, preview=text[:200], full_text=text)
 
 
-def test_embeds_call_me_capture_becoming_template() -> None:
+def test_embeds_call_me_capture_becoming_target_duration() -> None:
     prompt = build_user_prompt(
         BuildUserArgs(
             call_me="зай",
             mode="soft",
             capture_text="long day, pressure",
             becoming="calm",
-            templates=[_tpl()],
+            references=[_ref("ref-1", "Some real meditation text here, full transcript.")],
+            target_duration_sec=360,
             history=None,
         )
     )
     assert "зай" in prompt
     assert "long day, pressure" in prompt
     assert "calm" in prompt
-    assert "ground in body" in prompt
     assert "360" in prompt
+
+
+def test_includes_source_meditations_block_when_refs_present() -> None:
+    prompt = build_user_prompt(
+        BuildUserArgs(
+            call_me="x",
+            mode="soft",
+            capture_text="y",
+            becoming=None,
+            references=[
+                _ref("ref-1", "First meditation transcript text."),
+                _ref("ref-2", "Second meditation transcript text."),
+            ],
+            target_duration_sec=240,
+            history=None,
+        )
+    )
+    assert "<source_meditations>" in prompt
+    assert "ref-1" in prompt
+    assert "ref-2" in prompt
+    assert "First meditation transcript text." in prompt
+    assert "Second meditation transcript text." in prompt
+
+
+def test_omits_source_meditations_when_no_refs() -> None:
+    prompt = build_user_prompt(
+        BuildUserArgs(
+            call_me="x",
+            mode="soft",
+            capture_text="y",
+            becoming=None,
+            references=[],
+            target_duration_sec=240,
+            history=None,
+        )
+    )
+    assert "<source_meditations>" not in prompt
 
 
 def test_includes_history_block_when_present() -> None:
@@ -50,7 +72,8 @@ def test_includes_history_block_when_present() -> None:
             mode="sharp",
             capture_text="...",
             becoming="focus",
-            templates=[_tpl()],
+            references=[_ref("ref-1", "x")],
+            target_duration_sec=120,
             history={
                 "previous_scripts": ["Yesterday you set an intention..."],
                 "last_becoming": "focus",
@@ -68,8 +91,24 @@ def test_omits_history_block_when_empty() -> None:
             mode="soft",
             capture_text="y",
             becoming="calm",
-            templates=[_tpl()],
+            references=[_ref("ref-1", "x")],
+            target_duration_sec=60,
             history=None,
         )
     )
     assert "<history>" not in prompt
+
+
+def test_reminds_writer_this_is_a_meditation_not_a_song() -> None:
+    prompt = build_user_prompt(
+        BuildUserArgs(
+            call_me="x",
+            mode="soft",
+            capture_text="y",
+            becoming=None,
+            references=[],
+            target_duration_sec=60,
+            history=None,
+        )
+    )
+    assert re.search(r"not a song", prompt, re.I) or "MEDITATION" in prompt

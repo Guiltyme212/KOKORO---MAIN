@@ -6,26 +6,7 @@ import pytest
 
 from kokoro_api.pipeline.synthesize_audio import SynthesizeAudioInput, synthesize_audio
 from kokoro_api.providers.audio.base import AudioResult, MeditationAudioProvider
-from kokoro_api.types import Locale, RegisterNotes, Template, TemplateBeat
-
-
-def _tpl() -> Template:
-    return Template(
-        id="unwind_a",
-        content_type="unwind",
-        modes=["soft"],
-        becoming_match=["calm"],
-        theme_keywords=[],
-        target_duration_sec=60,
-        music_style_prompt="warm ambient",
-        reference_track_urls=["https://x/r.mp3"],
-        structure=[
-            TemplateBeat(id="a", sec=30, intent="x"),
-            TemplateBeat(id="b", sec=15, intent="y"),
-            TemplateBeat(id="c", sec=15, intent="z"),
-        ],
-        register_notes=RegisterNotes(soft="s", sharp="s"),
-    )
+from kokoro_api.types import Locale
 
 
 class FakeAudio(MeditationAudioProvider):
@@ -59,7 +40,7 @@ class FakeAudio(MeditationAudioProvider):
 
 
 @pytest.mark.asyncio
-async def test_passes_voice_preset_style_refs_to_provider() -> None:
+async def test_passes_writer_style_and_lyrics_verbatim_to_provider() -> None:
     fake = FakeAudio()
     voice_presets = {
         "mira": {"persona_id": "persona-mira", "style_hint": "soft female voice"},
@@ -70,9 +51,11 @@ async def test_passes_voice_preset_style_refs_to_provider() -> None:
 
     result = await synthesize_audio(
         SynthesizeAudioInput(
-            script="Hi.",
+            lyrics="[Intro: ambient, no singing]\n[Spoken word, slow]\nHi.",
+            style="Russian spoken-word guided meditation, no singing, no chorus",
             voice_id="mira",
-            template=_tpl(),
+            target_duration_sec=60,
+            reference_track_urls=["https://x/r.mp3"],
             locale="en",
         ),
         fake,
@@ -83,7 +66,12 @@ async def test_passes_voice_preset_style_refs_to_provider() -> None:
     fake.synthesize.assert_awaited_once()
     kwargs = fake.synthesize.await_args.kwargs
     assert kwargs["voice_persona_id"] == "persona-mira"
-    assert kwargs["music_style_prompt"] == "soft female voice; warm ambient"
+    # The writer's style is passed verbatim — orchestrator no longer
+    # concatenates voice preset hints into it.
+    assert kwargs["music_style_prompt"] == (
+        "Russian spoken-word guided meditation, no singing, no chorus"
+    )
+    assert kwargs["script"].startswith("[Intro: ambient, no singing]")
     assert kwargs["reference_track_urls"] == ["https://x/r.mp3"]
     assert kwargs["target_duration_sec"] == 60
     assert kwargs["candidates"] == 2
@@ -94,9 +82,11 @@ async def test_allows_empty_persona_when_preset_exists() -> None:
     fake = FakeAudio()
     await synthesize_audio(
         SynthesizeAudioInput(
-            script="x",
+            lyrics="x",
+            style="spoken-word, no singing",
             voice_id="mira",
-            template=_tpl(),
+            target_duration_sec=60,
+            reference_track_urls=[],
             locale="en",
         ),
         fake,
@@ -112,9 +102,11 @@ async def test_throws_if_voice_preset_missing() -> None:
     with pytest.raises(RuntimeError, match="voice preset"):
         await synthesize_audio(
             SynthesizeAudioInput(
-                script="x",
+                lyrics="x",
+                style="spoken-word, no singing",
                 voice_id="mira",
-                template=_tpl(),
+                target_duration_sec=60,
+                reference_track_urls=[],
                 locale="en",
             ),
             fake,

@@ -9,7 +9,8 @@ from kokoro_api.prompt.parse import parse_llm_output
 
 VALID = json.dumps(
     {
-        "script": "Hi, зай. [breath] Settle.",
+        "style": "Russian spoken-word guided meditation, intimate female voice, no singing",
+        "lyrics": "[Intro: ambient, no singing]\n[Spoken word, slow]\nЗайка, [Breath] добро пожаловать.",
         "estimatedDurationSec": 12,
     }
 )
@@ -17,7 +18,8 @@ VALID = json.dumps(
 
 def test_parses_valid_json() -> None:
     result = parse_llm_output(VALID)
-    assert result.script == "Hi, зай. [breath] Settle."
+    assert "Зайка" in result.lyrics
+    assert "spoken-word" in result.style
     assert result.estimated_duration_sec == 12
 
 
@@ -29,21 +31,21 @@ def test_strips_json_fences() -> None:
 def test_extracts_json_from_surrounding_prose() -> None:
     raw = f"Here is the JSON:\n{VALID}\nDone."
     result = parse_llm_output(raw)
-    assert result.script == "Hi, зай. [breath] Settle."
+    assert "Зайка" in result.lyrics
 
 
 def test_ignores_extra_top_level_fields() -> None:
-    # LLM sometimes emits beats, hints, etc. — we keep parsing forgiving.
     raw = json.dumps(
         {
-            "script": "Body of meditation.",
+            "style": "spoken-word, no singing",
+            "lyrics": "Body of meditation.",
             "estimatedDurationSec": 90,
             "beats": [{"any": "shape"}],
             "notes": "ignored",
         }
     )
     result = parse_llm_output(raw)
-    assert result.script == "Body of meditation."
+    assert result.lyrics == "Body of meditation."
     assert result.estimated_duration_sec == 90
 
 
@@ -53,15 +55,38 @@ def test_rejects_malformed_json() -> None:
 
 
 def test_defaults_estimated_duration_when_missing() -> None:
-    # LLM frequently forgets this field; we don't use it downstream so default to 0
-    # rather than burning a retry on a missing duration.
-    raw = json.dumps({"script": "Body."})
+    raw = json.dumps(
+        {
+            "style": "spoken-word, no singing",
+            "lyrics": "Body.",
+        }
+    )
     result = parse_llm_output(raw)
-    assert result.script == "Body."
+    assert result.lyrics == "Body."
     assert result.estimated_duration_sec == 0
 
 
-def test_rejects_missing_script() -> None:
-    bad = json.dumps({"estimatedDurationSec": 60})
+def test_rejects_missing_lyrics() -> None:
+    bad = json.dumps({"style": "spoken-word, no singing", "estimatedDurationSec": 60})
     with pytest.raises(ValidationError):
         parse_llm_output(bad)
+
+
+def test_rejects_missing_style() -> None:
+    bad = json.dumps({"lyrics": "Body.", "estimatedDurationSec": 60})
+    with pytest.raises(ValidationError):
+        parse_llm_output(bad)
+
+
+def test_coerces_legacy_script_field_to_lyrics() -> None:
+    # Older writer prompt used `script`; the parser keeps backward-compat
+    # shape coercion so a stale prompt doesn't immediately break.
+    raw = json.dumps(
+        {
+            "style": "spoken-word, no singing",
+            "script": "Body of meditation.",
+            "estimatedDurationSec": 60,
+        }
+    )
+    result = parse_llm_output(raw)
+    assert result.lyrics == "Body of meditation."

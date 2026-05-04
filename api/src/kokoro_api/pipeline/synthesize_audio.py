@@ -6,7 +6,7 @@ from typing import TypedDict
 import structlog
 
 from kokoro_api.providers.audio.base import AudioResult, MeditationAudioProvider
-from kokoro_api.types import Locale, Template, VoiceId
+from kokoro_api.types import Locale, VoiceId
 
 log = structlog.get_logger()
 
@@ -18,9 +18,11 @@ class VoicePreset(TypedDict):
 
 @dataclass(slots=True)
 class SynthesizeAudioInput:
-    script: str
+    lyrics: str
+    style: str
     voice_id: VoiceId
-    template: Template
+    target_duration_sec: int
+    reference_track_urls: list[str]
     locale: Locale
 
 
@@ -35,27 +37,24 @@ async def synthesize_audio(
             f"no voice preset for voice_id={input.voice_id}; check voice_presets.json"
         )
 
-    style_prompt = f"{preset['style_hint']}; {input.template.music_style_prompt}"
-
     log.info(
         "audio.suno_call",
-        template_id=input.template.id,
         voice_id=input.voice_id,
         locale=input.locale,
-        target_duration_sec=input.template.target_duration_sec,
+        target_duration_sec=input.target_duration_sec,
         persona_id=preset["persona_id"] or None,
-        style_prompt=style_prompt,
-        script_length=len(input.script),
-        script_full=input.script,  # full text — verbose but useful for debugging
-        reference_track_urls=[str(u) for u in input.template.reference_track_urls],
+        style=input.style,
+        lyrics_length=len(input.lyrics),
+        lyrics_full=input.lyrics,  # full text — verbose but useful for debugging
+        reference_track_urls=input.reference_track_urls,
     )
 
     return await provider.synthesize(
-        script=input.script,
+        script=input.lyrics,
         voice_persona_id=preset["persona_id"],
-        music_style_prompt=style_prompt,
-        reference_track_urls=[str(url) for url in input.template.reference_track_urls],
-        target_duration_sec=input.template.target_duration_sec,
+        music_style_prompt=input.style,
+        reference_track_urls=input.reference_track_urls,
+        target_duration_sec=input.target_duration_sec,
         locale=input.locale,
         candidates=2,
     )

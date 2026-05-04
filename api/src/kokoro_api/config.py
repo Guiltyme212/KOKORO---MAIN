@@ -15,7 +15,13 @@ class Config(BaseSettings):
 
     anthropic_base_url: AnyHttpUrl
     anthropic_api_key: str = Field(min_length=20)
+    # Writer model (big LLM that produces the meditation script + style).
     anthropic_model: str = "claude-opus-4-7"
+    # Picker model. Ideally Haiku (fast/cheap), but the cli-proxy at
+    # ANTHROPIC_BASE_URL injects a "you are Claude Code" identity that Haiku
+    # refuses to override, so we default to Opus too. Override per-env if a
+    # direct Anthropic key (no proxy) becomes available.
+    anthropic_picker_model: str = "claude-opus-4-7"
 
     whisper_api_key: str | None = Field(default=None, min_length=20)
     whisper_base_url: AnyHttpUrl = AnyHttpUrl("https://api.openai.com/v1")

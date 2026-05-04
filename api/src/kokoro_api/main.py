@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import cast
 
-import structlog
+# Force UTF-8 on stdout/stderr so structlog can write the Russian-character
+# library/lyrics safely on Windows (where stderr defaults to cp1252 in
+# PowerShell and crashes on Cyrillic). No-op on Linux/Railway where stdout is
+# already UTF-8.
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+
+import structlog  # noqa: E402  must come after the encoding fix above
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from kokoro_api.config import load_config
+from kokoro_api.library.loader import load_library
 from kokoro_api.pipeline.orchestrator import PipelineDeps, run_pipeline
 from kokoro_api.pipeline.synthesize_audio import VoicePreset
 from kokoro_api.providers.audio.suno import SunoAudioProvider
@@ -108,10 +118,15 @@ if refs_dir.exists():
     app.mount("/refs", StaticFiles(directory=refs_dir), name="refs")
 
 stt = _make_stt()
-llm = AnthropicScriptGenerator(
+llm_writer = AnthropicScriptGenerator(
     base_url=str(config.anthropic_base_url),
     api_key=config.anthropic_api_key,
     model=config.anthropic_model,
+)
+llm_picker = AnthropicScriptGenerator(
+    base_url=str(config.anthropic_base_url),
+    api_key=config.anthropic_api_key,
+    model=config.anthropic_picker_model,
 )
 audio = SunoAudioProvider(
     base_url=str(config.suno_base_url),
@@ -120,6 +135,8 @@ audio = SunoAudioProvider(
 )
 blob = _make_blob()
 voice_presets = _load_voice_presets()
+library = load_library()
+log.info("kokoro_api.library_loaded", count=len(library))
 _templates_cache: list[Template] = []
 
 
@@ -151,8 +168,10 @@ async def _run(input: GenerateMeditationInput) -> GenerateMeditationOutput:
     templates = await _ensure_templates_loaded()
     deps = PipelineDeps(
         templates=templates,
+        library=library,
         stt=stt,
-        llm=llm,
+        llm_picker=llm_picker,
+        llm_writer=llm_writer,
         audio=audio,
         blob=blob,
         voice_presets=voice_presets,

@@ -21,8 +21,9 @@ def _ok_output() -> GenerateMeditationOutput:
         meditation_id="m1",
         audio_url="https://cdn/x.mp3",
         duration_sec=60,
-        script="Hi зай.",
-        template_used_id="t",
+        style="Russian spoken-word guided meditation, no singing",
+        lyrics="[Intro: ambient, no singing]\n[Spoken word, slow]\nЗай.",
+        picked_reference_ids=["ref-1", "ref-2"],
         generated_at="now",
         provider_meta=ProviderMeta(
             llm=LlmMeta(
@@ -56,18 +57,22 @@ async def test_returns_200_with_valid_output() -> None:
         response = await client.post(
             "/meditations",
             json={
-                "callMe": "зай",
+                "callMe": "Зай",
                 "mode": "soft",
                 "capture": {"kind": "text", "text": "tired"},
                 "contentType": "unwind",
                 "becoming": "calm",
                 "voiceId": "mira",
-                "locale": "en",
+                "locale": "ru",
                 "requestId": "11111111-1111-1111-1111-111111111111",
             },
         )
         assert response.status_code == 200
-        assert response.json()["audioUrl"] == "https://cdn/x.mp3"
+        body = response.json()
+        assert body["audioUrl"] == "https://cdn/x.mp3"
+        assert body["lyrics"].startswith("[Intro: ambient, no singing]")
+        assert "spoken-word" in body["style"]
+        assert body["pickedReferenceIds"] == ["ref-1", "ref-2"]
 
 
 @pytest.mark.asyncio

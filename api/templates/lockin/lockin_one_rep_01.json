@@ -2,23 +2,10 @@
   "id": "lockin_one_rep_01",
   "contentType": "lockin",
   "modes": ["soft", "sharp"],
-  "becomingMatch": ["focus", "power", "action", "confidence"],
-  "themeKeywords": ["pitch", "workout", "deep-work", "interview", "stage", "discipline", "rep"],
   "targetDurationSec": 240,
-  "musicStylePrompt": "tense focused drone, low pulse 70 bpm, no melody, taut, building",
+  "musicStylePrompt": "tense focused drone, low pulse 70 bpm, no melody on vocals, taut, building, spoken-word friendly",
   "referenceTrackUrls": [
     "sasha-meditation-reference-mix-60s.mp3",
     "sasha-belair-inner-support-ref-60s.mp3"
-  ],
-  "structure": [
-    { "id": "open",    "sec": 20,  "intent": "stop scrolling, eyes up, exhale" },
-    { "id": "frame",   "sec": 40,  "intent": "name what's coming, no softening" },
-    { "id": "command", "sec": 100, "intent": "direct second-person commands toward the state required" },
-    { "id": "anchor",  "sec": 60,  "intent": "one physical anchor (jaw, posture, breath rate)" },
-    { "id": "release", "sec": 20,  "intent": "snap into action, no goodbye" }
-  ],
-  "registerNotes": {
-    "soft": "still grounded, but not warm — measured discipline",
-    "sharp": "direct, command-driven, no platitudes"
-  }
+  ]
 }

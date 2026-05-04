@@ -7,10 +7,18 @@ from datetime import UTC, datetime
 
 import structlog
 
-from kokoro_api.pipeline.generate_script import GenerateScriptInput, generate_script
+from kokoro_api.library.loader import ReferenceMeditation
+from kokoro_api.pipeline.generate_meditation import (
+    GenerateMeditationInput as WriterInput,
+)
+from kokoro_api.pipeline.generate_meditation import generate_meditation
 from kokoro_api.pipeline.persist import PersistInput, persist
+from kokoro_api.pipeline.pick_references import (
+    PickReferencesInput,
+    pick_references,
+)
 from kokoro_api.pipeline.resolve_capture import resolve_capture
-from kokoro_api.pipeline.select_template import SelectInput, select_templates
+from kokoro_api.pipeline.select_template import SelectInput, select_template
 from kokoro_api.pipeline.synthesize_audio import (
     SynthesizeAudioInput,
     VoicePreset,
@@ -37,8 +45,10 @@ log = structlog.get_logger()
 @dataclass(slots=True)
 class PipelineDeps:
     templates: list[Template]
+    library: list[ReferenceMeditation]
     stt: TranscriptionProvider
-    llm: ScriptGenerator
+    llm_picker: ScriptGenerator
+    llm_writer: ScriptGenerator
     audio: MeditationAudioProvider
     blob: BlobStore
     voice_presets: dict[str, VoicePreset]
@@ -81,25 +91,36 @@ async def run_pipeline(
         ),
     )
 
-    selected = select_templates(
-        deps.templates,
-        SelectInput(
-            content_type=input.content_type,
+    picked = await pick_references(
+        PickReferencesInput(
+            capture_text=captured.text,
+            call_me=input.call_me,
             mode=input.mode,
-            theme_text=captured.text,
+            content_type=input.content_type,
             becoming=input.becoming,
+            locale=input.locale,
         ),
-        top_n=2,
+        deps.llm_picker,
+        deps.library,
     )
-    primary = selected[0]
     bound.info(
-        "pipeline.templates_picked",
-        primary_template_id=primary.id,
-        all_template_ids=[t.id for t in selected],
-        sources_with_transcripts=[t.id for t in selected if t.transcript],
-        target_duration_sec=primary.target_duration_sec,
-        music_style=primary.music_style_prompt[:200],
-        refs_count=len(primary.reference_track_urls),
+        "pipeline.references_picked",
+        picked_reference_ids=[ref.id for ref in picked.picked],
+        picker_latency_ms=picked.meta.latency_ms,
+        picker_tokens_in=picked.meta.tokens_in,
+        picker_tokens_out=picked.meta.tokens_out,
+        picker_cache_read_tokens=picked.meta.cache_read_tokens,
+    )
+
+    template = select_template(
+        deps.templates,
+        SelectInput(content_type=input.content_type, mode=input.mode),
+    )
+    bound.info(
+        "pipeline.template_selected",
+        template_id=template.id,
+        target_duration_sec=template.target_duration_sec,
+        refs_count=len(template.reference_track_urls),
     )
 
     history_dict: HistoryDict | None = None
@@ -109,34 +130,39 @@ async def run_pipeline(
             "last_becoming": input.history.last_becoming or "",
         }
 
-    scripted = await generate_script(
-        GenerateScriptInput(
+    written = await generate_meditation(
+        WriterInput(
             call_me=input.call_me,
             mode=input.mode,
             capture_text=captured.text,
             becoming=input.becoming,
-            templates=selected,
+            references=picked.picked,
+            target_duration_sec=template.target_duration_sec,
             history=history_dict,
             locale=input.locale,
         ),
-        deps.llm,
+        deps.llm_writer,
     )
     bound.info(
         "pipeline.script_done",
-        script_full=scripted.script,
-        script_length=len(scripted.script),
-        estimated_duration_sec=scripted.estimated_duration_sec,
-        llm_latency_ms=scripted.meta.latency_ms,
-        tokens_in=scripted.meta.tokens_in,
-        tokens_out=scripted.meta.tokens_out,
-        cache_read_tokens=scripted.meta.cache_read_tokens,
+        style=written.style,
+        lyrics_full=written.lyrics,
+        lyrics_length=len(written.lyrics),
+        estimated_duration_sec=written.estimated_duration_sec,
+        validation_warnings=written.validation_warnings,
+        writer_latency_ms=written.meta.latency_ms,
+        tokens_in=written.meta.tokens_in,
+        tokens_out=written.meta.tokens_out,
+        cache_read_tokens=written.meta.cache_read_tokens,
     )
 
     audio = await synthesize_audio(
         SynthesizeAudioInput(
-            script=scripted.script,
+            lyrics=written.lyrics,
+            style=written.style,
             voice_id=input.voice_id,
-            template=primary,
+            target_duration_sec=template.target_duration_sec,
+            reference_track_urls=[str(u) for u in template.reference_track_urls],
             locale=input.locale,
         ),
         deps.audio,
@@ -165,10 +191,12 @@ async def run_pipeline(
             **input.model_dump(by_alias=True, mode="json", exclude={"capture"}),
             "capture": capture_for_meta,
         },
-        "templateUsedId": primary.id,
-        "sourceTemplateIds": [t.id for t in selected],
-        "script": scripted.script,
-        "estimatedDurationSec": scripted.estimated_duration_sec,
+        "templateUsedId": template.id,
+        "pickedReferenceIds": [ref.id for ref in picked.picked],
+        "style": written.style,
+        "lyrics": written.lyrics,
+        "estimatedDurationSec": written.estimated_duration_sec,
+        "validationWarnings": written.validation_warnings,
     }
 
     persisted = await persist(
@@ -183,7 +211,7 @@ async def run_pipeline(
 
     provider_meta = ProviderMeta(
         transcription=captured.transcription_meta,
-        llm=scripted.meta,
+        llm=written.meta,
         audio=AudioMeta(
             provider=deps.audio.name,
             job_id=",".join(audio.job_ids),
@@ -205,8 +233,9 @@ async def run_pipeline(
         meditation_id=meditation_id,
         audio_url=persisted.audio_url,
         duration_sec=audio.duration_sec,
-        script=scripted.script,
-        template_used_id=primary.id,
+        style=written.style,
+        lyrics=written.lyrics,
+        picked_reference_ids=[ref.id for ref in picked.picked],
         generated_at=generated_at,
         provider_meta=provider_meta,
     )

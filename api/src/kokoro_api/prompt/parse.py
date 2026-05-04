@@ -9,15 +9,17 @@ from pydantic.alias_generators import to_camel
 class LlmParsed(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
 
-    # min_length=1 catches the case where coercion (script as empty array, or
-    # array of dicts without text/Text/content) produces an empty string.
-    # Empty script means Suno will hallucinate vocal content from the reference
-    # track instead of speaking our meditation. Triggering a retry is cheaper
-    # than producing a broken audio.
-    script: str = Field(min_length=1)
+    # Suno-bound style string. Validator enforces "spoken" + "no singing"
+    # downstream; we only check non-empty here so a malformed empty string
+    # triggers a retry rather than a Suno call with no style guidance.
+    style: str = Field(min_length=10)
+    # Spoken-word meditation text. Empty lyrics means Suno will hallucinate
+    # vocal content from the reference track instead of speaking our text;
+    # triggering a retry is cheaper than producing broken audio.
+    lyrics: str = Field(min_length=1)
     # LLM frequently forgets this field. Pipeline doesn't actually use it
-    # (we rely on template.target_duration_sec and audio.duration_sec from Suno),
-    # so default to 0 rather than burning a retry on missing duration.
+    # (we rely on template.target_duration_sec and audio.duration_sec from
+    # Suno), so default to 0 rather than burning a retry on missing duration.
     estimated_duration_sec: int = 0
 
 
@@ -45,19 +47,38 @@ def parse_llm_output(raw: str) -> LlmParsed:
 
 
 def _coerce_shape(parsed: dict[str, object]) -> dict[str, object]:
-    """LLMs sometimes return `script` as an array of beat-like objects, or
-    as a single dict, or stash the script under `beats` while leaving
-    `script` empty. Flatten anything reasonable into a single string."""
-    script = parsed.get("script")
-    if isinstance(script, list):
-        parsed["script"] = _join_text_pieces(script)
-    elif isinstance(script, dict):
-        text = script.get("text") if isinstance(script.get("text"), str) else None
-        parsed["script"] = text or json.dumps(script, ensure_ascii=False)
-    elif script is None:
-        beats = parsed.get("beats")
-        if isinstance(beats, list):
-            parsed["script"] = _join_text_pieces(beats)
+    """LLMs sometimes return `lyrics` as an array of beat-like objects, or a
+    single dict, or stash the text under `script`/`beats`. Flatten anything
+    reasonable into a single string. Same for `style` if it arrives as a list."""
+    lyrics = parsed.get("lyrics")
+    if isinstance(lyrics, list):
+        parsed["lyrics"] = _join_text_pieces(lyrics)
+    elif isinstance(lyrics, dict):
+        text = lyrics.get("text") if isinstance(lyrics.get("text"), str) else None
+        parsed["lyrics"] = text or json.dumps(lyrics, ensure_ascii=False)
+    elif lyrics is None:
+        # Backwards compat: model sometimes uses old `script` field name, or
+        # stashes content under `beats`.
+        for fallback in ("script", "beats"):
+            value = parsed.get(fallback)
+            if isinstance(value, str) and value.strip():
+                parsed["lyrics"] = value
+                break
+            if isinstance(value, list):
+                joined = _join_text_pieces(value)
+                if joined:
+                    parsed["lyrics"] = joined
+                    break
+
+    style = parsed.get("style")
+    if isinstance(style, list):
+        parsed["style"] = ", ".join(s for s in style if isinstance(s, str))
+    elif isinstance(style, dict):
+        # Take the first string-valued field as a fallback.
+        for value in style.values():
+            if isinstance(value, str) and value.strip():
+                parsed["style"] = value
+                break
     return parsed
 
 
