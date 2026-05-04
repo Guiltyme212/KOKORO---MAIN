@@ -30,6 +30,17 @@ async def resolve_capture(
         return ResolvedCapture(text=f"Carrying {', '.join(capture.chips)}.")
 
     if isinstance(capture, CaptureVoice):
+        # Frontend may have already transcribed via Web Speech; trust it
+        # unless the field is missing/empty.
+        if capture.transcribed_text and capture.transcribed_text.strip():
+            return ResolvedCapture(
+                text=capture.transcribed_text.strip(),
+                transcription_meta=TranscriptionMeta(
+                    provider="frontend-web-speech",
+                    latency_ms=0,
+                    confidence=1.0,
+                ),
+            )
         result = await stt.transcribe(
             audio_url=str(capture.audio_url),
             mime_type=capture.mime_type,

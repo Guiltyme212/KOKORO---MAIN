@@ -17,9 +17,20 @@ export type Becoming =
 export type Locale = 'en' | 'ru';
 
 export type Capture =
-  | { kind: 'voice'; audioUrl: string; mimeType: string }
+  | { kind: 'voice'; audioUrl: string; mimeType: string; transcribedText?: string }
   | { kind: 'text'; text: string }
   | { kind: 'theme'; chips: string[] };
+
+export type UploadResponse = {
+  audioUrl: string;
+  key: string;
+  mimeType: string;
+};
+
+export type FeedbackInput = {
+  tgUserId?: number;
+  liked: boolean;
+};
 
 export type ClientInfo = {
   source: 'telegram' | 'web';

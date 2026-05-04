@@ -4,6 +4,10 @@ import { useAnimationTime } from '../lib/hooks';
 import { haptic } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
 import { createStt } from '../lib/stt';
+import { useGeneratedMeditation } from '../state/generatedMeditation';
+import { useLibrary } from '../state/library';
+import { isLibraryAvailable } from '../lib/library';
+import { sendFeedback } from '../lib/feedback';
 
 type Verdict = 'yes' | 'no' | null;
 type Adjust = 'softer' | 'sharper' | 'shorter' | 'longer' | null;
@@ -16,8 +20,15 @@ export function Reflect({ goto }: { goto: (r: Route) => void }) {
   const [adjust, setAdjust] = useState<Adjust>(null);
   const [word, setWord] = useState('');
   const [recording, setRecording] = useState(false);
+  const [feedbackSentFor, setFeedbackSentFor] = useState<Verdict>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const t = useAnimationTime();
+
+  const { generated } = useGeneratedMeditation();
+  const { items, save, remove, error: libError } = useLibrary();
+  const [savePending, setSavePending] = useState(false);
+  const meditationId = generated?.meditationId;
+  const saved = !!meditationId && items.some((item) => item.meditationId === meditationId);
 
   // STT — single-utterance mode for a short word/phrase. Final transcript
   // lands in the same `word` state the text input is bound to.
@@ -36,6 +47,36 @@ export function Reflect({ goto }: { goto: (r: Route) => void }) {
     haptic.light();
     stt.stop();
     goto('welcome');
+  };
+
+  const onVerdict = (next: Exclude<Verdict, null>) => {
+    haptic.selection();
+    setVerdict(next);
+    if (!meditationId || feedbackSentFor === next) return;
+    setFeedbackSentFor(next);
+    void sendFeedback(meditationId, next === 'yes').catch(() => {
+      // Swallow — UX shouldn't break on feedback send. We can revisit if
+      // we add explicit "feedback failed" surfaces later.
+    });
+  };
+
+  const onSaveTap = async () => {
+    if (!meditationId || savePending) return;
+    if (!isLibraryAvailable()) return;
+    haptic.medium();
+    setSavePending(true);
+    try {
+      if (saved) {
+        await remove(meditationId);
+      } else {
+        await save(meditationId);
+        haptic.success();
+      }
+    } catch {
+      // libError surfaces via store
+    } finally {
+      setSavePending(false);
+    }
   };
 
   const onMicTap = () => {
@@ -110,7 +151,7 @@ export function Reflect({ goto }: { goto: (r: Route) => void }) {
               return (
                 <button
                   key={v.id}
-                  onClick={() => { haptic.selection(); setVerdict(v.id); }}
+                  onClick={() => onVerdict(v.id)}
                   style={{
                     padding: '4px 2px',
                     fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
@@ -125,6 +166,53 @@ export function Reflect({ goto }: { goto: (r: Route) => void }) {
               );
             })}
           </div>
+          {meditationId && (
+            <div style={{
+              marginTop: 26,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            }}>
+              <button
+                onClick={onSaveTap}
+                disabled={savePending || !isLibraryAvailable()}
+                style={{
+                  appearance: 'none',
+                  padding: '14px 36px',
+                  borderRadius: 100,
+                  background: saved ? 'transparent' : 'var(--persimmon)',
+                  border: saved
+                    ? '1px solid rgba(244,239,230,0.4)'
+                    : '1px solid var(--persimmon)',
+                  color: saved ? 'var(--washi)' : 'var(--washi)',
+                  fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 19,
+                  letterSpacing: -0.1,
+                  boxShadow: saved ? 'none' : '0 0 40px rgba(200,76,43,0.32)',
+                  opacity: savePending || !isLibraryAvailable() ? 0.55 : 1,
+                  transition: 'all 240ms var(--ease)',
+                  cursor: isLibraryAvailable() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {savePending
+                  ? (saved ? 'Removing…' : 'Saving…')
+                  : (saved ? 'Saved · tap to remove' : 'Save to library')}
+              </button>
+              {!isLibraryAvailable() && (
+                <span style={{
+                  fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--stone)',
+                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                }}>
+                  open in telegram to save
+                </span>
+              )}
+              {libError && isLibraryAvailable() && (
+                <span style={{
+                  fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--persimmon)',
+                  textAlign: 'center', maxWidth: 240,
+                }}>
+                  {libError}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{

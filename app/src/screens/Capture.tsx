@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Route } from '../lib/router';
 import { useAnimationTime } from '../lib/hooks';
 import { useAnswers } from '../state/answers';
 import { haptic } from '../lib/telegram';
 import { Glow, TopBar, Eyebrow, Display, Btn } from '../components/atoms';
 import { createStt } from '../lib/stt';
+import { captureAudioApi } from '../state/captureAudio';
 
 type Mode = 'voice' | 'type' | 'chips';
 
@@ -50,7 +51,27 @@ export function Capture({ goto }: { goto: (r: Route) => void }) {
     onError: (err) => { setSttError(err); setRecording(false); },
   }));
 
-  useEffect(() => () => stt.stop(), [stt]);
+  // Parallel MediaRecorder so we keep the actual audio file (not just the
+  // Web Speech transcript). The blob is handed to Composing.tsx via
+  // captureAudioApi and uploaded to /uploads in the background.
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const stopRecorder = () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch { /* already stopped */ }
+    }
+    const stream = streamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    recorderRef.current = null;
+  };
+
+  useEffect(() => () => { stt.stop(); stopRecorder(); }, [stt]);
 
   // tick the recording timer while voice mode is recording
   useEffect(() => {
@@ -64,10 +85,42 @@ export function Capture({ goto }: { goto: (r: Route) => void }) {
     setChips((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   };
 
+  const startRecorder = async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+    if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : MediaRecorder.isTypeSupported('audio/mp4')
+            ? 'audio/mp4'
+            : '';
+      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' });
+        chunksRef.current = [];
+        if (blob.size > 0) captureAudioApi.set(blob);
+      };
+      recorder.start(250);
+      recorderRef.current = recorder;
+    } catch {
+      // Mic denied or unsupported — silently keep STT-only flow. The user
+      // already saw the STT permission prompt; no need for a second one.
+    }
+  };
+
   const onMicTap = () => {
     haptic.medium();
     if (recording) {
       stt.stop();
+      stopRecorder();
       setRecording(false);
       return;
     }
@@ -76,19 +129,26 @@ export function Capture({ goto }: { goto: (r: Route) => void }) {
     setSttError(null);
     setSecs(0);
     setRecording(true);
+    captureAudioApi.set(null);
     stt.start();
+    void startRecorder();
   };
 
   const onContinue = () => {
     if (mode === 'voice') {
       const real = (transcript + (partial ? ` ${partial}` : '')).trim();
       setAnswer('carry', real || VOICE_SAMPLE);
+    } else {
+      // Switching away from voice clears any half-recorded blob — we don't
+      // want to upload audio that's unrelated to the typed/chip text.
+      captureAudioApi.set(null);
     }
     if (mode === 'type') setAnswer('carry', typed || 'Still wired from today.');
     if (mode === 'chips') setAnswer('carry', `Carrying ${chips.join(', ')}.`);
     setAnswer('chips', chips);
     haptic.light();
     stt.stop();
+    stopRecorder();
     goto('contentType');
   };
 

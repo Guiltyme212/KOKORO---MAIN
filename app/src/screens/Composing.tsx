@@ -5,6 +5,8 @@ import { haptic, isInTelegram, tgUser, tgInitData } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
 import type { ContentType } from '../types';
 import { generateMeditation } from '../lib/api';
+import { uploadCapture } from '../lib/uploads';
+import { captureAudioApi } from '../state/captureAudio';
 import type {
   Becoming,
   Capture,
@@ -78,45 +80,71 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
     const contentType = (answers.contentType || 'unwind') as MeditationContentType;
     const voiceId = (answers.voiceId || 'mira') as VoiceId;
     const carry = answers.carry.trim();
-    const capture: Capture = carry
+    const recordedBlob = captureAudioApi.take();
+
+    const fallbackCapture: Capture = carry
       ? { kind: 'text', text: carry }
       : { kind: 'theme', chips: answers.chips.length ? answers.chips : ['tired'] };
 
-    const input: GenerateMeditationInput = {
-      callMe: answers.callMe.trim() || 'friend',
-      realName: answers.realName?.trim() || undefined,
-      mode: answers.mode,
-      capture,
-      contentType,
-      becoming: answers.becoming ? (answers.becoming as Becoming) : undefined,
-      voiceId,
-      locale: resolveLocale(),
-      requestId: makeRequestId(),
-      client: buildClientInfo(),
-    };
-    const key = JSON.stringify({ ...input, requestId: undefined });
-
-    const promise = inFlight?.key === key
-      ? inFlight.promise
-      : generateMeditation(input);
-    inFlight = { key, promise };
-
     let cancelled = false;
-    promise
-      .then((out) => {
-        if (cancelled) return;
-        if (inFlight?.promise === promise) inFlight = null;
-        generatedMeditationApi.set(out);
-        setPhase('ready');
-        haptic.success();
-        window.setTimeout(() => goto('player'), 650);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        if (inFlight?.promise === promise) inFlight = null;
-        setError(err instanceof Error ? err.message : 'generation failed');
-        setPhase('error');
-      });
+
+    const buildCaptureWithUpload = async (): Promise<Capture> => {
+      if (!recordedBlob || !carry) return fallbackCapture;
+      try {
+        const upload = await uploadCapture(recordedBlob);
+        if (cancelled) return fallbackCapture;
+        return {
+          kind: 'voice',
+          audioUrl: upload.audioUrl,
+          mimeType: upload.mimeType,
+          transcribedText: carry,
+        };
+      } catch {
+        // Upload failed — keep going with the transcript so the user still
+        // gets their meditation. We just lose the audio recording for this run.
+        return fallbackCapture;
+      }
+    };
+
+    void (async () => {
+      const capture = await buildCaptureWithUpload();
+      if (cancelled) return;
+
+      const input: GenerateMeditationInput = {
+        callMe: answers.callMe.trim() || 'friend',
+        realName: answers.realName?.trim() || undefined,
+        mode: answers.mode,
+        capture,
+        contentType,
+        becoming: answers.becoming ? (answers.becoming as Becoming) : undefined,
+        voiceId,
+        locale: resolveLocale(),
+        requestId: makeRequestId(),
+        client: buildClientInfo(),
+      };
+      const key = JSON.stringify({ ...input, requestId: undefined });
+
+      const promise = inFlight?.key === key
+        ? inFlight.promise
+        : generateMeditation(input);
+      inFlight = { key, promise };
+
+      promise
+        .then((out) => {
+          if (cancelled) return;
+          if (inFlight?.promise === promise) inFlight = null;
+          generatedMeditationApi.set(out);
+          setPhase('ready');
+          haptic.success();
+          window.setTimeout(() => goto('player'), 650);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          if (inFlight?.promise === promise) inFlight = null;
+          setError(err instanceof Error ? err.message : 'generation failed');
+          setPhase('error');
+        });
+    })();
 
     return () => {
       cancelled = true;

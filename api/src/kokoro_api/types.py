@@ -35,6 +35,10 @@ class CaptureVoice(_CamelModel):
     kind: Literal["voice"]
     audio_url: AnyHttpUrl
     mime_type: str
+    # When the frontend already transcribed the audio (Web Speech API),
+    # it can pass the result here so the backend doesn't burn an extra
+    # STT call. Empty string / missing → server runs STT.
+    transcribed_text: str | None = None
 
 
 class CaptureText(_CamelModel):
@@ -161,6 +165,21 @@ class LibrarySaveInput(_CamelModel):
 
 class LibraryRemoveInput(_CamelModel):
     tg_user_id: int
+
+
+class UploadResponse(_CamelModel):
+    audio_url: str
+    key: str
+    mime_type: str
+
+
+class FeedbackInput(_CamelModel):
+    tg_user_id: int | None = None
+    liked: bool
+
+
+class FeedbackOutput(_CamelModel):
+    ok: bool
 
 
 class Template(BaseModel):
