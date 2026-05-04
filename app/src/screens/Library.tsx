@@ -5,12 +5,14 @@ import { haptic } from '../lib/telegram';
 import { isLibraryAvailable } from '../lib/library';
 import { useLibrary } from '../state/library';
 import { generatedMeditationApi } from '../state/generatedMeditation';
-import type { LibraryItem, ContentType } from '../lib/types-meditation';
+import type { LibraryItem, Vibe } from '../lib/types-meditation';
 
-const KANJI: Record<ContentType, string> = {
-  unwind: '心',
-  attract: '未',
-  lockin: '志',
+const KANJI: Record<Vibe, string> = {
+  raw: '!?',
+  cosmic: '✦',
+  iron: '力',
+  zen: '無',
+  sleep: '夢',
 };
 
 const fmtMin = (s: number) => {
@@ -45,7 +47,8 @@ export function Library({ goto }: { goto: (r: Route) => void }) {
       durationSec: item.durationSec,
       style: '',
       lyrics: '',
-      pickedReferenceIds: [],
+      vibe: item.vibe,
+      templateId: '',
       generatedAt: item.generatedAt,
       providerMeta: {
         llm: { provider: '', model: '', latencyMs: 0, tokensIn: 0, tokensOut: 0, cacheReadTokens: 0 },
@@ -134,7 +137,7 @@ export function Library({ goto }: { goto: (r: Route) => void }) {
                   fontFamily: 'var(--jp)', fontSize: 28, lineHeight: 1,
                   color: 'var(--persimmon)', flexShrink: 0, paddingTop: 4,
                 }}>
-                  {KANJI[item.contentType]}
+                  {KANJI[item.vibe]}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <button
@@ -149,8 +152,7 @@ export function Library({ goto }: { goto: (r: Route) => void }) {
                       letterSpacing: '0.22em', textTransform: 'uppercase',
                       color: 'var(--persimmon)', marginBottom: 4,
                     }}>
-                      {item.contentType} · {item.mode}
-                      {item.becoming ? ` · ${item.becoming}` : ''}
+                      {item.vibe}
                     </div>
                     <div style={{
                       fontFamily: 'var(--serif)', fontStyle: 'italic',

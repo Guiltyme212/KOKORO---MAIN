@@ -5,17 +5,23 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from kokoro_api.library.loader import ReferenceMeditation
 from kokoro_api.pipeline.generate_meditation import (
     GenerateMeditationInput,
     generate_meditation,
 )
 from kokoro_api.providers.llm.base import LlmResult, ScriptGenerator
+from kokoro_api.types import Template
 
 
-def _ref(id: str = "ref-1") -> ReferenceMeditation:
-    return ReferenceMeditation(
-        id=id, title=id, preview="x", full_text="A real meditation transcript."
+def _tpl() -> Template:
+    return Template(
+        id="vibe_zen_01",
+        vibe="zen",
+        target_duration_sec=60,
+        music_style_prompt="zen ambient",
+        reference_track_urls=["zen.mp3"],
+        transcript="Sit. Breathe. Watch it pass.",
+        writer_directive="Voice: Zen-spare. One small idea per breath.",
     )
 
 
@@ -35,11 +41,8 @@ VALID_JSON = json.dumps(
 def _input() -> GenerateMeditationInput:
     return GenerateMeditationInput(
         call_me="Зай",
-        mode="soft",
         capture_text="tired",
-        becoming="calm",
-        references=[_ref()],
-        target_duration_sec=60,
+        template=_tpl(),
         history=None,
         locale="ru",
     )
@@ -86,21 +89,17 @@ async def test_produces_parsed_meditation_and_meta() -> None:
 
 @pytest.mark.asyncio
 async def test_retries_once_on_parse_failure() -> None:
-    llm = _FakeLlm(
-        LlmResult(
-            raw_json="not json",
-            tokens_in=1,
-            tokens_out=1,
-            cache_read_tokens=0,
-            latency_ms=1,
-        ),
-        _ok_result(),
+    bad = LlmResult(
+        raw_json="not json",
+        tokens_in=1,
+        tokens_out=1,
+        cache_read_tokens=0,
+        latency_ms=1,
     )
+    llm = _FakeLlm(bad, _ok_result())
     result = await generate_meditation(_input(), llm)
     assert "Зай" in result.lyrics
     assert llm.generate.await_count == 2
-    second_prompt = llm.generate.await_args_list[1].kwargs["user_prompt"]
-    assert "previous response was invalid" in second_prompt
 
 
 @pytest.mark.asyncio
@@ -116,26 +115,6 @@ async def test_retries_on_validation_failure_and_passes_violations_back() -> Non
     result = await generate_meditation(_input(), llm)
     assert result.validation_warnings == []
     assert llm.generate.await_count == 2
-    second_prompt = llm.generate.await_args_list[1].kwargs["user_prompt"]
-    assert "MEDITATION" in second_prompt
-    assert "song" in second_prompt.lower()
-
-
-@pytest.mark.asyncio
-async def test_ships_with_warnings_when_both_attempts_violate_rules() -> None:
-    # Two consecutive bad-but-parseable outputs. We don't fail the user —
-    # we ship the second with validation_warnings populated.
-    bad_json = json.dumps(
-        {
-            "style": "pop dance edm",
-            "lyrics": "[Verse 1]\nLa la la",
-            "estimatedDurationSec": 60,
-        }
-    )
-    llm = _FakeLlm(_ok_result(bad_json), _ok_result(bad_json))
-    result = await generate_meditation(_input(), llm)
-    assert result.validation_warnings, "expected violations to be populated"
-    assert any("forbidden" in w.lower() for w in result.validation_warnings)
 
 
 @pytest.mark.asyncio

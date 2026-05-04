@@ -1,19 +1,7 @@
 // Mirror of api/src/kokoro_api/types.py. Update both when changing.
 // JSON wire format is camelCase via Pydantic alias_generator.
 
-export type Mode = 'soft' | 'sharp';
-export type ContentType = 'unwind' | 'attract' | 'lockin';
-export type VoiceId = 'mira' | 'brad' | 'aiko' | 'sage';
-export type Becoming =
-  | 'calm'
-  | 'sleep'
-  | 'focus'
-  | 'detachment'
-  | 'confidence'
-  | 'softness'
-  | 'power'
-  | 'future'
-  | 'action';
+export type Vibe = 'raw' | 'cosmic' | 'iron' | 'zen' | 'sleep';
 export type Locale = 'en' | 'ru';
 
 export type Capture =
@@ -45,12 +33,9 @@ export type ClientInfo = {
 export type GenerateMeditationInput = {
   callMe: string;
   realName?: string;
-  mode: Mode;
   capture: Capture;
-  contentType: ContentType;
-  becoming?: Becoming;
-  voiceId: VoiceId;
-  history?: { previousScripts?: string[]; lastBecoming?: string };
+  vibe: Vibe;
+  history?: { previousScripts?: string[] };
   locale: Locale;
   requestId: string;
   client?: ClientInfo;
@@ -83,7 +68,8 @@ export type GenerateMeditationOutput = {
   durationSec: number;
   style: string;
   lyrics: string;
-  pickedReferenceIds: string[];
+  vibe: Vibe;
+  templateId: string;
   generatedAt: string;
   providerMeta: ProviderMeta;
 };
@@ -94,9 +80,7 @@ export type LibraryItem = {
   durationSec: number;
   callMe: string;
   realName?: string;
-  contentType: ContentType;
-  becoming?: Becoming;
-  mode: Mode;
+  vibe: Vibe;
   capturePreview?: string;
   savedAt: string;
   generatedAt: string;

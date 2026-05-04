@@ -1,24 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from kokoro_api.types import ContentType, Mode, Template
+from kokoro_api.types import Template, Vibe
 
 
-@dataclass(slots=True)
-class SelectInput:
-    content_type: ContentType
-    mode: Mode
+def select_template(templates: list[Template], vibe: Vibe) -> Template:
+    """Return the template registered for the given vibe.
 
-
-def select_template(templates: list[Template], input: SelectInput) -> Template:
-    """Pick the template that drives music + duration + reference audio for this
-    (content_type, mode). Reference transcripts are now picked separately by the
-    LLM picker from meditation_scripts/, so this is a flat lookup — no keyword
-    scoring, no top-N."""
+    There is exactly one template per vibe; if multiple exist, the first
+    in load order wins. Raises ValueError when nothing matches — that
+    means the operator forgot to commit a template for this vibe.
+    """
     for template in templates:
-        if template.content_type == input.content_type and input.mode in template.modes:
+        if template.vibe == vibe:
             return template
-    raise ValueError(
-        f"no template for content_type={input.content_type} mode={input.mode}"
-    )
+    available = ", ".join(sorted({t.vibe for t in templates})) or "<none>"
+    raise ValueError(f"no template for vibe={vibe!r}; available: {available}")

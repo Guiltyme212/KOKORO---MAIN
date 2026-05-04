@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
 import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import cast
 
 # Force UTF-8 on stdout/stderr so structlog can write the Russian-character
 # library/lyrics safely on Windows (where stderr defaults to cp1252 in
@@ -14,23 +12,24 @@ from typing import cast
 # already UTF-8.
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
-        stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        stream.reconfigure(encoding="utf-8")
 
-import structlog  # noqa: E402  must come after the encoding fix above
+# Imports below intentionally come after the encoding reconfigure above.
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from kokoro_api.config import load_config
-from kokoro_api.library.loader import load_library
 from kokoro_api.library_store.blob_backed import BlobLibraryStore
 from kokoro_api.pipeline.orchestrator import PipelineDeps, run_pipeline
-from kokoro_api.pipeline.synthesize_audio import VoicePreset
 from kokoro_api.providers.audio.suno import SunoAudioProvider
 from kokoro_api.providers.blob.base import BlobStore
 from kokoro_api.providers.blob.filesystem import FilesystemBlobStore
 from kokoro_api.providers.blob.s3 import S3BlobStore
 from kokoro_api.providers.llm.anthropic_provider import AnthropicScriptGenerator
+from kokoro_api.providers.llm.base import ScriptGenerator
+from kokoro_api.providers.llm.openai_provider import OpenAIScriptGenerator
 from kokoro_api.providers.stt.base import TranscriptionProvider
 from kokoro_api.providers.stt.disabled import DisabledTranscriptionProvider
 from kokoro_api.providers.stt.elevenlabs import ElevenLabsTranscriptionProvider
@@ -82,12 +81,6 @@ def _make_blob() -> BlobStore:
     return FilesystemBlobStore(root_dir=config.blob_fs_dir, public_base_url=base)
 
 
-def _load_voice_presets() -> dict[str, VoicePreset]:
-    path = Path(__file__).parent / "providers" / "audio" / "voice_presets.json"
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    return cast(dict[str, VoicePreset], raw)
-
-
 def _make_stt() -> TranscriptionProvider:
     if config.elevenlabs_api_key:
         return ElevenLabsTranscriptionProvider(
@@ -121,26 +114,34 @@ refs_dir = Path("refs")
 if refs_dir.exists():
     app.mount("/refs", StaticFiles(directory=refs_dir), name="refs")
 
+def _make_llm() -> ScriptGenerator:
+    if config.llm_provider == "openai":
+        if not config.openai_api_key:
+            raise RuntimeError("LLM_PROVIDER=openai requires OPENAI_API_KEY")
+        return OpenAIScriptGenerator(
+            api_key=config.openai_api_key,
+            model=config.openai_model,
+            base_url=str(config.openai_base_url),
+        )
+    if not (config.anthropic_api_key and config.anthropic_base_url):
+        raise RuntimeError(
+            "LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL"
+        )
+    return AnthropicScriptGenerator(
+        base_url=str(config.anthropic_base_url),
+        api_key=config.anthropic_api_key,
+        model=config.anthropic_model,
+    )
+
+
 stt = _make_stt()
-llm_writer = AnthropicScriptGenerator(
-    base_url=str(config.anthropic_base_url),
-    api_key=config.anthropic_api_key,
-    model=config.anthropic_model,
-)
-llm_picker = AnthropicScriptGenerator(
-    base_url=str(config.anthropic_base_url),
-    api_key=config.anthropic_api_key,
-    model=config.anthropic_picker_model,
-)
+llm = _make_llm()
 audio = SunoAudioProvider(
     base_url=str(config.suno_base_url),
     api_key=config.suno_api_key,
     callback_url=str(config.suno_callback_url),
 )
 blob = _make_blob()
-voice_presets = _load_voice_presets()
-library = load_library()
-log.info("kokoro_api.library_loaded", count=len(library))
 _templates_cache: list[Template] = []
 
 
@@ -172,13 +173,10 @@ async def _run(input: GenerateMeditationInput) -> GenerateMeditationOutput:
     templates = await _ensure_templates_loaded()
     deps = PipelineDeps(
         templates=templates,
-        library=library,
         stt=stt,
-        llm_picker=llm_picker,
-        llm_writer=llm_writer,
+        llm=llm,
         audio=audio,
         blob=blob,
-        voice_presets=voice_presets,
     )
     return await run_pipeline(input, deps)
 

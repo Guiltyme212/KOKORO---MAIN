@@ -3,19 +3,16 @@ import type { Route } from '../lib/router';
 import { useAnswers } from '../state/answers';
 import { haptic, isInTelegram, tgUser, tgInitData } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
-import { VIBE_TO_BACKEND, type ContentType } from '../types';
+import type { Vibe } from '../types';
 import { generateMeditation } from '../lib/api';
 import { uploadCapture } from '../lib/uploads';
 import { captureAudioApi } from '../state/captureAudio';
 import type {
-  Becoming,
   Capture,
   ClientInfo,
-  ContentType as MeditationContentType,
   GenerateMeditationInput,
   GenerateMeditationOutput,
   Locale,
-  VoiceId,
 } from '../lib/types-meditation';
 import { generatedMeditationApi } from '../state/generatedMeditation';
 
@@ -24,10 +21,12 @@ let inFlight:
   | { key: string; promise: Promise<GenerateMeditationOutput> }
   | null = null;
 
-const TYPE_NAME: Record<ContentType, string> = {
-  unwind: 'Unwind',
-  attract: 'Attract',
-  lockin: 'Lock In',
+const VIBE_NAME: Record<Vibe, string> = {
+  raw: 'Raw',
+  cosmic: 'Cosmic',
+  iron: 'Iron',
+  zen: 'Zen',
+  sleep: 'Sleep',
 };
 
 const makeRequestId = () => {
@@ -77,15 +76,7 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
   }, []);
 
   useEffect(() => {
-    // The user now picks a single `vibe` on the Mode screen instead of
-    // selecting contentType + voiceId separately. Translate it back into the
-    // legacy backend triple here so the orchestrator + Suno persona path
-    // keeps working until the backend can speak vibe natively.
-    const vibe = answers.vibe || 'zen';
-    const mapped = VIBE_TO_BACKEND[vibe];
-    const contentType = mapped.contentType as MeditationContentType;
-    const voiceId = mapped.voiceId as VoiceId;
-    const meditationMode = mapped.mode;
+    const vibe: Vibe = answers.vibe || 'zen';
     const carry = answers.carry.trim();
     const recordedBlob = captureAudioApi.take();
 
@@ -120,11 +111,8 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
       const input: GenerateMeditationInput = {
         callMe: answers.callMe.trim() || 'friend',
         realName: answers.realName?.trim() || undefined,
-        mode: meditationMode,
         capture,
-        contentType,
-        becoming: answers.becoming ? (answers.becoming as Becoming) : undefined,
-        voiceId,
+        vibe,
         locale: resolveLocale(),
         requestId: makeRequestId(),
         client: buildClientInfo(),
@@ -160,14 +148,13 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
 
   const progress =
     phase === 'ready' ? 1 : Math.min(0.95, (t * 1000) / ESTIMATED_DURATION_MS);
-  const ctName = answers.contentType ? TYPE_NAME[answers.contentType] : 'Unwind';
-  const becoming = answers.becoming || 'calm';
+  const vibeName = VIBE_NAME[answers.vibe || 'zen'];
 
   const lines = [
     'Holding what you told me.',
     'Choosing the shape underneath.',
-    `Writing toward ${becoming}.`,
-    `Composing the ${ctName.toLowerCase()} script.`,
+    `Tuning to ${vibeName.toLowerCase()}.`,
+    `Composing the ${vibeName.toLowerCase()} script.`,
     'Voicing it into music.',
     'Saving the audio.',
   ];

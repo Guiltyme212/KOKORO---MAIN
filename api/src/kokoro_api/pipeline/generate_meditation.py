@@ -5,27 +5,23 @@ from dataclasses import dataclass
 import structlog
 from pydantic import BaseModel
 
-from kokoro_api.library.loader import ReferenceMeditation
 from kokoro_api.pipeline.validate_lyrics import validate_meditation_output
 from kokoro_api.prompt.parse import parse_llm_output
 from kokoro_api.prompt.system import build_system_prompt
 from kokoro_api.prompt.user import BuildUserArgs, HistoryDict, build_user_prompt
 from kokoro_api.providers.llm.base import ScriptGenerator
-from kokoro_api.types import LlmMeta, Locale, Mode
+from kokoro_api.types import LlmMeta, Locale, Template
 
 log = structlog.get_logger()
 
-WRITER_CACHE_KEY = "writer_v1"
+WRITER_CACHE_KEY = "writer_v2"  # bump invalidates Anthropic cache after the rewrite
 
 
 @dataclass(slots=True)
 class GenerateMeditationInput:
     call_me: str
-    mode: Mode
     capture_text: str
-    becoming: str | None
-    references: list[ReferenceMeditation]
-    target_duration_sec: int
+    template: Template
     history: HistoryDict | None
     locale: Locale
 
@@ -42,26 +38,23 @@ async def generate_meditation(
     input: GenerateMeditationInput,
     llm: ScriptGenerator,
 ) -> GenerateMeditationResult:
-    system_prompt = build_system_prompt(mode=input.mode, locale=input.locale)
+    system_prompt = build_system_prompt(locale=input.locale)
     user_prompt = build_user_prompt(
         BuildUserArgs(
             call_me=input.call_me,
-            mode=input.mode,
             capture_text=input.capture_text,
-            becoming=input.becoming,
-            references=input.references,
-            target_duration_sec=input.target_duration_sec,
+            template=input.template,
             history=input.history,
         )
     )
 
     log.info(
         "writer.prompts_built",
-        reference_ids=[r.id for r in input.references],
+        template_id=input.template.id,
+        vibe=input.template.vibe,
+        target_duration_sec=input.template.target_duration_sec,
         locale=input.locale,
-        mode=input.mode,
         call_me=input.call_me,
-        target_duration_sec=input.target_duration_sec,
         system_prompt_length=len(system_prompt),
         user_prompt_length=len(user_prompt),
         capture_text_preview=input.capture_text[:200],
@@ -150,9 +143,6 @@ async def generate_meditation(
             + "\n\nFix every violation. Re-emit the full JSON object."
         )
 
-    # Out of attempts. If we have a parsed (but rule-failing) output, ship it
-    # with warnings so the user still gets a meditation. Only raise if we
-    # never parsed anything at all.
     if last_parsed is not None:
         log.warning(
             "writer.shipping_with_warnings",

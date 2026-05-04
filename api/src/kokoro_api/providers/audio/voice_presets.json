@@ -1,6 +1,0 @@
-{
-  "mira": { "persona_id": "", "style_hint": "soft female voice, slow warm narration, low register, breathy delivery, no melody" },
-  "brad": { "persona_id": "", "style_hint": "deep male voice, grounded direct cadence, no fluff, spoken word, no melody" },
-  "aiko": { "persona_id": "", "style_hint": "gentle young female voice, soothing soft narration, slow tempo, no melody" },
-  "sage": { "persona_id": "", "style_hint": "neutral calm voice, balanced register, measured pace, spoken word, no melody" }
-}

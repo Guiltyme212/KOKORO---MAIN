@@ -36,11 +36,10 @@ def _seed(blob: FakeBlob, meditation_id: str) -> None:
             "meditationId": meditation_id,
             "generatedAt": "2026-05-04T10:00:00Z",
             "audioDurationSec": 300,
+            "vibe": "zen",
             "input": {
                 "callMe": "зай",
-                "mode": "soft",
-                "contentType": "unwind",
-                "becoming": "calm",
+                "vibe": "zen",
                 "capture": {"kind": "text", "text": "tired"},
             },
         }

@@ -142,6 +142,10 @@ class BlobLibraryStore(LibraryStore):
         except (TypeError, ValueError):
             duration_sec = 0.0
 
+        # The vibe lives at the top of meta (set by the orchestrator) and
+        # also inside meta.input as a fallback for older saves.
+        vibe = meta.get("vibe") or input_block.get("vibe") or "zen"
+
         return {
             "meditationId": meditation_id,
             # audioUrl is filled in at read time (re-signed on each list).
@@ -149,9 +153,7 @@ class BlobLibraryStore(LibraryStore):
             "durationSec": duration_sec,
             "callMe": str(input_block.get("callMe", "")),
             "realName": input_block.get("realName"),
-            "contentType": str(input_block.get("contentType", "unwind")),
-            "becoming": input_block.get("becoming"),
-            "mode": str(input_block.get("mode", "soft")),
+            "vibe": str(vibe),
             "capturePreview": capture_preview,
             "savedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "generatedAt": str(meta.get("generatedAt", "")),

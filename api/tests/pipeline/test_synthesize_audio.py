@@ -13,7 +13,7 @@ class FakeAudio(MeditationAudioProvider):
     name = "fake"
 
     def __init__(self) -> None:
-        self.synthesize = AsyncMock(
+        self.synthesize = AsyncMock(  # type: ignore[method-assign]
             return_value=AudioResult(
                 audio_bytes=b"audio",
                 mime_type="audio/mpeg",
@@ -25,7 +25,7 @@ class FakeAudio(MeditationAudioProvider):
             )
         )
 
-    async def synthesize(
+    async def synthesize(  # pragma: no cover
         self,
         *,
         script: str,
@@ -42,32 +42,21 @@ class FakeAudio(MeditationAudioProvider):
 @pytest.mark.asyncio
 async def test_passes_writer_style_and_lyrics_verbatim_to_provider() -> None:
     fake = FakeAudio()
-    voice_presets = {
-        "mira": {"persona_id": "persona-mira", "style_hint": "soft female voice"},
-        "brad": {"persona_id": "", "style_hint": "deep voice"},
-        "aiko": {"persona_id": "", "style_hint": "gentle voice"},
-        "sage": {"persona_id": "", "style_hint": "neutral voice"},
-    }
-
     result = await synthesize_audio(
         SynthesizeAudioInput(
             lyrics="[Intro: ambient, no singing]\n[Spoken word, slow]\nHi.",
             style="Russian spoken-word guided meditation, no singing, no chorus",
-            voice_id="mira",
             target_duration_sec=60,
             reference_track_urls=["https://x/r.mp3"],
             locale="en",
         ),
         fake,
-        voice_presets,
     )
-
     assert result.audio_bytes == b"audio"
     fake.synthesize.assert_awaited_once()
     kwargs = fake.synthesize.await_args.kwargs
-    assert kwargs["voice_persona_id"] == "persona-mira"
-    # The writer's style is passed verbatim — orchestrator no longer
-    # concatenates voice preset hints into it.
+    # No persona system any more — the reference clip drives the voice.
+    assert kwargs["voice_persona_id"] == ""
     assert kwargs["music_style_prompt"] == (
         "Russian spoken-word guided meditation, no singing, no chorus"
     )
@@ -75,40 +64,3 @@ async def test_passes_writer_style_and_lyrics_verbatim_to_provider() -> None:
     assert kwargs["reference_track_urls"] == ["https://x/r.mp3"]
     assert kwargs["target_duration_sec"] == 60
     assert kwargs["candidates"] == 2
-
-
-@pytest.mark.asyncio
-async def test_allows_empty_persona_when_preset_exists() -> None:
-    fake = FakeAudio()
-    await synthesize_audio(
-        SynthesizeAudioInput(
-            lyrics="x",
-            style="spoken-word, no singing",
-            voice_id="mira",
-            target_duration_sec=60,
-            reference_track_urls=[],
-            locale="en",
-        ),
-        fake,
-        {"mira": {"persona_id": "", "style_hint": "soft female voice"}},
-    )
-    kwargs = fake.synthesize.await_args.kwargs
-    assert kwargs["voice_persona_id"] == ""
-
-
-@pytest.mark.asyncio
-async def test_throws_if_voice_preset_missing() -> None:
-    fake = FakeAudio()
-    with pytest.raises(RuntimeError, match="voice preset"):
-        await synthesize_audio(
-            SynthesizeAudioInput(
-                lyrics="x",
-                style="spoken-word, no singing",
-                voice_id="mira",
-                target_duration_sec=60,
-                reference_track_urls=[],
-                locale="en",
-            ),
-            fake,
-            {},
-        )

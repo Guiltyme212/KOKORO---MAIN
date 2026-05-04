@@ -2,62 +2,33 @@ from __future__ import annotations
 
 import pytest
 
-from kokoro_api.pipeline.select_template import SelectInput, select_template
+from kokoro_api.pipeline.select_template import select_template
 from kokoro_api.types import Template
 
 
-def _t(id: str, ct: str, modes: list[str]) -> Template:
+def _tpl(vibe: str, id_: str | None = None) -> Template:
     return Template(
-        id=id,
-        content_type=ct,  # type: ignore[arg-type]
-        modes=modes,  # type: ignore[arg-type]
-        target_duration_sec=360,
-        music_style_prompt="warm ambient pad, spoken-word friendly",
-        reference_track_urls=[],
+        id=id_ or f"vibe_{vibe}_01",
+        vibe=vibe,  # type: ignore[arg-type]
+        target_duration_sec=300,
+        music_style_prompt="ambient pad, no melody",
+        reference_track_urls=[f"{vibe}.mp3"],
+        transcript="dummy transcript content",
+        writer_directive="dummy directive",
     )
 
 
-@pytest.fixture
-def fixtures() -> list[Template]:
-    return [
-        _t("unwind_a", "unwind", ["soft", "sharp"]),
-        _t("attract_a", "attract", ["soft", "sharp"]),
-        _t("lockin_a", "lockin", ["soft", "sharp"]),
-    ]
+def test_returns_template_for_matching_vibe() -> None:
+    templates = [_tpl("raw"), _tpl("zen"), _tpl("sleep")]
+    assert select_template(templates, "zen").id == "vibe_zen_01"
 
 
-def test_picks_by_content_type(fixtures: list[Template]) -> None:
-    template = select_template(
-        fixtures,
-        SelectInput(content_type="attract", mode="soft"),
-    )
-    assert template.id == "attract_a"
+def test_first_match_wins_when_multiple() -> None:
+    templates = [_tpl("zen", "vibe_zen_01"), _tpl("zen", "vibe_zen_02")]
+    assert select_template(templates, "zen").id == "vibe_zen_01"
 
 
-def test_returns_first_template_matching_mode() -> None:
-    templates = [
-        _t("unwind_a", "unwind", ["sharp"]),
-        _t("unwind_b", "unwind", ["soft", "sharp"]),
-    ]
-    template = select_template(
-        templates,
-        SelectInput(content_type="unwind", mode="soft"),
-    )
-    assert template.id == "unwind_b"
-
-
-def test_throws_when_no_template_for_content_type(fixtures: list[Template]) -> None:
-    with pytest.raises(ValueError, match="no template"):
-        select_template(
-            [t for t in fixtures if t.content_type != "lockin"],
-            SelectInput(content_type="lockin", mode="soft"),
-        )
-
-
-def test_throws_when_no_template_for_mode() -> None:
-    templates = [_t("unwind_a", "unwind", ["sharp"])]
-    with pytest.raises(ValueError, match="no template"):
-        select_template(
-            templates,
-            SelectInput(content_type="unwind", mode="soft"),
-        )
+def test_raises_when_no_match() -> None:
+    templates = [_tpl("zen")]
+    with pytest.raises(ValueError, match="no template for vibe"):
+        select_template(templates, "raw")

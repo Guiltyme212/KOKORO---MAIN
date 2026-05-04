@@ -7,21 +7,15 @@ from datetime import UTC, datetime
 
 import structlog
 
-from kokoro_api.library.loader import ReferenceMeditation
 from kokoro_api.pipeline.generate_meditation import (
     GenerateMeditationInput as WriterInput,
 )
 from kokoro_api.pipeline.generate_meditation import generate_meditation
 from kokoro_api.pipeline.persist import PersistInput, persist
-from kokoro_api.pipeline.pick_references import (
-    PickReferencesInput,
-    pick_references,
-)
 from kokoro_api.pipeline.resolve_capture import resolve_capture
-from kokoro_api.pipeline.select_template import SelectInput, select_template
+from kokoro_api.pipeline.select_template import select_template
 from kokoro_api.pipeline.synthesize_audio import (
     SynthesizeAudioInput,
-    VoicePreset,
     synthesize_audio,
 )
 from kokoro_api.prompt.user import HistoryDict
@@ -45,13 +39,10 @@ log = structlog.get_logger()
 @dataclass(slots=True)
 class PipelineDeps:
     templates: list[Template]
-    library: list[ReferenceMeditation]
     stt: TranscriptionProvider
-    llm_picker: ScriptGenerator
-    llm_writer: ScriptGenerator
+    llm: ScriptGenerator
     audio: MeditationAudioProvider
     blob: BlobStore
-    voice_presets: dict[str, VoicePreset]
 
 
 async def run_pipeline(
@@ -66,10 +57,7 @@ async def run_pipeline(
         meditation_id=meditation_id,
         request_id=str(input.request_id),
         call_me=input.call_me,
-        mode=input.mode,
-        content_type=input.content_type,
-        becoming=input.becoming,
-        voice_id=input.voice_id,
+        vibe=input.vibe,
         locale=input.locale,
         capture_kind=input.capture.kind,
         source=client.source if client else "unknown",
@@ -91,34 +79,11 @@ async def run_pipeline(
         ),
     )
 
-    picked = await pick_references(
-        PickReferencesInput(
-            capture_text=captured.text,
-            call_me=input.call_me,
-            mode=input.mode,
-            content_type=input.content_type,
-            becoming=input.becoming,
-            locale=input.locale,
-        ),
-        deps.llm_picker,
-        deps.library,
-    )
-    bound.info(
-        "pipeline.references_picked",
-        picked_reference_ids=[ref.id for ref in picked.picked],
-        picker_latency_ms=picked.meta.latency_ms,
-        picker_tokens_in=picked.meta.tokens_in,
-        picker_tokens_out=picked.meta.tokens_out,
-        picker_cache_read_tokens=picked.meta.cache_read_tokens,
-    )
-
-    template = select_template(
-        deps.templates,
-        SelectInput(content_type=input.content_type, mode=input.mode),
-    )
+    template = select_template(deps.templates, input.vibe)
     bound.info(
         "pipeline.template_selected",
         template_id=template.id,
+        vibe=template.vibe,
         target_duration_sec=template.target_duration_sec,
         refs_count=len(template.reference_track_urls),
     )
@@ -127,21 +92,19 @@ async def run_pipeline(
     if input.history is not None:
         history_dict = {
             "previous_scripts": input.history.previous_scripts or [],
-            "last_becoming": input.history.last_becoming or "",
         }
+        if input.history.last_vibe is not None:
+            history_dict["last_vibe"] = input.history.last_vibe
 
     written = await generate_meditation(
         WriterInput(
             call_me=input.call_me,
-            mode=input.mode,
             capture_text=captured.text,
-            becoming=input.becoming,
-            references=picked.picked,
-            target_duration_sec=template.target_duration_sec,
+            template=template,
             history=history_dict,
             locale=input.locale,
         ),
-        deps.llm_writer,
+        deps.llm,
     )
     bound.info(
         "pipeline.script_done",
@@ -160,13 +123,11 @@ async def run_pipeline(
         SynthesizeAudioInput(
             lyrics=written.lyrics,
             style=written.style,
-            voice_id=input.voice_id,
             target_duration_sec=template.target_duration_sec,
             reference_track_urls=[str(u) for u in template.reference_track_urls],
             locale=input.locale,
         ),
         deps.audio,
-        deps.voice_presets,
     )
     bound.info(
         "pipeline.audio_done",
@@ -192,7 +153,7 @@ async def run_pipeline(
             "capture": capture_for_meta,
         },
         "templateUsedId": template.id,
-        "pickedReferenceIds": [ref.id for ref in picked.picked],
+        "vibe": template.vibe,
         "style": written.style,
         "lyrics": written.lyrics,
         "estimatedDurationSec": written.estimated_duration_sec,
@@ -236,7 +197,8 @@ async def run_pipeline(
         duration_sec=audio.duration_sec,
         style=written.style,
         lyrics=written.lyrics,
-        picked_reference_ids=[ref.id for ref in picked.picked],
+        vibe=template.vibe,
+        template_id=template.id,
         generated_at=generated_at,
         provider_meta=provider_meta,
     )

@@ -6,20 +6,9 @@ from uuid import UUID
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-Mode = Literal["soft", "sharp"]
-ContentType = Literal["unwind", "attract", "lockin"]
-VoiceId = Literal["mira", "brad", "aiko", "sage"]
-Becoming = Literal[
-    "calm",
-    "sleep",
-    "focus",
-    "detachment",
-    "confidence",
-    "softness",
-    "power",
-    "future",
-    "action",
-]
+# The single dimension the user picks on the Mode screen. Each value maps
+# 1:1 to a vibe template (audio + transcript + writer directive + music style).
+Vibe = Literal["raw", "cosmic", "iron", "zen", "sleep"]
 Locale = Literal["en", "ru"]
 
 
@@ -35,9 +24,8 @@ class CaptureVoice(_CamelModel):
     kind: Literal["voice"]
     audio_url: AnyHttpUrl
     mime_type: str
-    # When the frontend already transcribed the audio (Web Speech API),
-    # it can pass the result here so the backend doesn't burn an extra
-    # STT call. Empty string / missing → server runs STT.
+    # Frontend may have already transcribed via Web Speech; trust it unless
+    # missing. Saves the server STT call when set.
     transcribed_text: str | None = None
 
 
@@ -59,7 +47,7 @@ Capture = Annotated[
 
 class History(_CamelModel):
     previous_scripts: Annotated[list[str], Field(max_length=2)] | None = None
-    last_becoming: str | None = None
+    last_vibe: Vibe | None = None
 
 
 ClientSource = Literal["telegram", "web"]
@@ -72,19 +60,14 @@ class ClientInfo(_CamelModel):
     tg_first_name: str | None = None
     tg_language_code: str | None = None
     tg_is_premium: bool | None = None
-    # Raw signed initData; we don't verify it server-side yet (no bot token wired in),
-    # but we keep it so HMAC verification can be added later without a frontend change.
     tg_init_data: str | None = None
 
 
 class GenerateMeditationInput(_CamelModel):
     call_me: Annotated[str, Field(min_length=1, max_length=24, pattern=r"^[^\n\r]+$")]
     real_name: Annotated[str, Field(max_length=60)] | None = None
-    mode: Mode
     capture: Capture
-    content_type: ContentType
-    becoming: Becoming | None = None
-    voice_id: VoiceId
+    vibe: Vibe
     history: History | None = None
     locale: Locale
     request_id: UUID
@@ -133,7 +116,8 @@ class GenerateMeditationOutput(_CamelModel):
     duration_sec: float
     style: str
     lyrics: str
-    picked_reference_ids: list[str]
+    vibe: Vibe
+    template_id: str
     generated_at: str
     provider_meta: ProviderMeta
 
@@ -146,9 +130,7 @@ class LibraryItem(_CamelModel):
     duration_sec: float
     call_me: str
     real_name: str | None = None
-    content_type: ContentType
-    becoming: Becoming | None = None
-    mode: Mode
+    vibe: Vibe
     capture_preview: str | None = None
     saved_at: str
     generated_at: str
@@ -183,19 +165,20 @@ class FeedbackOutput(_CamelModel):
 
 
 class Template(BaseModel):
-    """Loaded from JSON in /templates. Internal-only, not part of the public API.
+    """Loaded from JSON in api/templates/vibe_<vibe>_NN.json.
 
-    Slimmed: the writer LLM now generates the Suno style string per request, and
-    the picker LLM selects reference transcripts from meditation_scripts/. The
-    template only carries the music/duration profile per (content_type, mode)
-    and the optional reference audio used by Suno's upload-cover endpoint.
+    Each vibe template is the single source of truth for one mode: the
+    full reference transcript that the writer rewrites, the writer-style
+    directive, the Suno music-style prompt, and the reference audio that
+    Suno uses with upload-cover. Internal-only; never sent to the user.
     """
 
     id: str
-    content_type: ContentType = Field(alias="contentType")
-    modes: list[Mode] = Field(min_length=1)
+    vibe: Vibe
     target_duration_sec: int = Field(alias="targetDurationSec", gt=0)
     music_style_prompt: str = Field(alias="musicStylePrompt", min_length=10)
-    reference_track_urls: list[str] = Field(alias="referenceTrackUrls", max_length=2)
+    reference_track_urls: list[str] = Field(alias="referenceTrackUrls", min_length=1, max_length=2)
+    transcript: str = Field(min_length=1)
+    writer_directive: str = Field(alias="writerDirective", min_length=1)
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")

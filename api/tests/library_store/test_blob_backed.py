@@ -29,16 +29,21 @@ class FakeBlob(BlobStore):
         return self.store.get(key)
 
 
-def _seed_meta(blob: FakeBlob, meditation_id: str, *, call_me: str = "зай") -> None:
+def _seed_meta(
+    blob: FakeBlob,
+    meditation_id: str,
+    *,
+    call_me: str = "зай",
+    vibe: str = "zen",
+) -> None:
     meta: dict[str, Any] = {
         "meditationId": meditation_id,
         "generatedAt": "2026-05-04T10:00:00Z",
         "audioDurationSec": 360,
+        "vibe": vibe,
         "input": {
             "callMe": call_me,
-            "mode": "soft",
-            "contentType": "unwind",
-            "becoming": "calm",
+            "vibe": vibe,
             "capture": {"kind": "text", "text": "long day, need rest"},
         },
     }
@@ -62,9 +67,7 @@ async def test_add_persists_summary_from_meta() -> None:
     item = items[0]
     assert item.meditation_id == "med-1"
     assert item.call_me == "зай"
-    assert item.content_type == "unwind"
-    assert item.becoming == "calm"
-    assert item.mode == "soft"
+    assert item.vibe == "zen"
     assert item.duration_sec == 360.0
     assert item.capture_preview == "long day, need rest"
     # Audio URL is freshly signed, not the empty stub stored in JSON.

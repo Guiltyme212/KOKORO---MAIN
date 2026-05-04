@@ -4,15 +4,17 @@ import { useAnimationTime } from '../lib/hooks';
 import { useAnswers } from '../state/answers';
 import { haptic } from '../lib/telegram';
 import { Glow, TopBar, Display } from '../components/atoms';
-import type { ContentType } from '../types';
+import type { Vibe } from '../types';
 import { useGeneratedMeditation } from '../state/generatedMeditation';
 import { useLibrary } from '../state/library';
 import { isLibraryAvailable } from '../lib/library';
 
-const META: Record<ContentType, { tag: string; name: string; kanji: string }> = {
-  unwind: { tag: 'heart · Unwind', name: 'Vent. Then breathe.', kanji: '心' },
-  attract: { tag: 'future · Attract', name: 'A scene you can enter.', kanji: '未' },
-  lockin: { tag: 'will · Lock In', name: 'One rep of being him.', kanji: '志' },
+const META: Record<Vibe, { tag: string; name: string; kanji: string }> = {
+  raw:    { tag: 'Gen Z · raw',        name: 'no notes. just real shit.',         kanji: '!?' },
+  cosmic: { tag: 'Spiritual · cosmic', name: 'Align with your higher frequency.', kanji: '✦' },
+  iron:   { tag: 'Hard mode · iron',   name: 'NO EXCUSES. ONLY REPS.',            kanji: '力' },
+  zen:    { tag: 'Zen · 禅',           name: 'Sit. Breathe. Watch it pass.',      kanji: '無' },
+  sleep:  { tag: 'Bedtime · 夢',        name: 'Drift. Let the day go.',            kanji: '夢' },
 };
 
 const fmt = (s: number) => {
@@ -24,11 +26,10 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
   const { answers } = useAnswers();
   const { generated } = useGeneratedMeditation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const ct: ContentType = answers.contentType || 'unwind';
-  const becoming = answers.becoming || 'calm';
-  const isCinematic = ct === 'attract';
+  const vibe: Vibe = answers.vibe || 'zen';
+  const isCinematic = vibe === 'cosmic';
 
-  const meta = META[ct];
+  const meta = META[vibe];
   const total = Math.max(1, Math.round(generated?.durationSec ?? 1));
 
   const [elapsed, setElapsed] = useState(0);
@@ -158,7 +159,7 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
           }} />
         </>
       ) : (
-        <Glow intensity={ct === 'lockin' ? 0.22 : 0.10} />
+        <Glow intensity={vibe === 'iron' || vibe === 'raw' ? 0.22 : 0.10} />
       )}
 
       <TopBar
@@ -188,13 +189,6 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
           </div>
           <div style={{ textAlign: 'center' }}>
             <Display size={25}>{meta.name}</Display>
-            <div style={{
-              marginTop: 10,
-              fontFamily: 'var(--mono)', fontSize: 10.5,
-              letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--stone)',
-            }}>
-              toward {becoming}
-            </div>
           </div>
         </div>
       </div>

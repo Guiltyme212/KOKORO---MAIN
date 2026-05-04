@@ -23,7 +23,8 @@ def _ok_output() -> GenerateMeditationOutput:
         duration_sec=60,
         style="Russian spoken-word guided meditation, no singing",
         lyrics="[Intro: ambient, no singing]\n[Spoken word, slow]\nЗай.",
-        picked_reference_ids=["ref-1", "ref-2"],
+        vibe="zen",
+        template_id="vibe_zen_01",
         generated_at="now",
         provider_meta=ProviderMeta(
             llm=LlmMeta(
@@ -58,11 +59,8 @@ async def test_returns_200_with_valid_output() -> None:
             "/meditations",
             json={
                 "callMe": "Зай",
-                "mode": "soft",
                 "capture": {"kind": "text", "text": "tired"},
-                "contentType": "unwind",
-                "becoming": "calm",
-                "voiceId": "mira",
+                "vibe": "zen",
                 "locale": "ru",
                 "requestId": "11111111-1111-1111-1111-111111111111",
             },
@@ -72,7 +70,8 @@ async def test_returns_200_with_valid_output() -> None:
         assert body["audioUrl"] == "https://cdn/x.mp3"
         assert body["lyrics"].startswith("[Intro: ambient, no singing]")
         assert "spoken-word" in body["style"]
-        assert body["pickedReferenceIds"] == ["ref-1", "ref-2"]
+        assert body["vibe"] == "zen"
+        assert body["templateId"] == "vibe_zen_01"
 
 
 @pytest.mark.asyncio
@@ -82,6 +81,6 @@ async def test_returns_400_on_invalid_input() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://x") as client:
-        response = await client.post("/meditations", json={"callMe": "", "mode": "soft"})
+        response = await client.post("/meditations", json={"callMe": "", "vibe": "zen"})
         assert response.status_code == 400
         assert response.json()["error"] == "INVALID_INPUT"
