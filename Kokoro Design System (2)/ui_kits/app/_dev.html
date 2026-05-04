@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kokoro · UI Kit</title>
+<link rel="stylesheet" href="kit.css">
+<link rel="stylesheet" href="modes.css">
+<link rel="stylesheet" href="v2.css">
+<style data-screen-label-styles>
+  .kit-shell{display:flex;flex-direction:column;align-items:center;gap:18px}
+  .kit-nav{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:520px}
+  .kit-nav button{font:500 10px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-muted);background:transparent;border:1px solid var(--ink-faint);border-radius:999px;padding:8px 12px;cursor:pointer}
+  .kit-nav button.on{color:#fff;background:var(--primary);border-color:var(--primary)}
+  .kit-title{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-muted);letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="Components.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="ScreensV2.jsx"></script>
+
+<script type="text/babel">
+  const { useState } = React;
+  function App(){
+    const [step, setStep] = useState("v1");
+    const [history, setHistory] = useState([]);
+    const [mode, setMode] = useState("raw"); // shared: chosen meditation mode
+    const goTo = (next) => {
+      setHistory(h => [...h, step]);
+      setStep(next);
+    };
+    const back = () => {
+      setHistory(h => {
+        if (h.length === 0) return h;
+        const prev = h[h.length - 1];
+        setStep(prev);
+        return h.slice(0, -1);
+      });
+    };
+    const SCREENS = [
+      ["01 Welcome ✦",  "v1", ScreenWelcomeV2],
+      ["03 Capture",    3,    ScreenCapture],
+      ["04 Mode ✦",     "v4", ScreenModeV2],
+      ["02 Name ✦",     "v2", ScreenNameV2],
+      ["05 Mirror",     5,    ScreenMirror],
+      ["06 Composing",  6,    ScreenComposing],
+      ["07 Player",     7,    ScreenPlayer],
+      ["08 Reflect ✦",  "v8", ScreenReflectV2],
+      ["— old —",       "sep", () => null],
+      ["01 Welcome",  1, ScreenWelcome],
+      ["02 Name",     2, ScreenName],
+      ["04 Shape",    4, ScreenShape],
+      ["08 Reflect",  8, ScreenReflect],
+      ["Library", "library", ScreenLibrary],
+    ];
+    const Active = (SCREENS.find(s => s[1] === step) || SCREENS[0])[2];
+    const activeLabel = (SCREENS.find(s => s[1] === step) || SCREENS[0])[0];
+
+    // New flow: v1 Welcome → 3 Capture → v4 Mode → v2 Name → 5 Mirror → 6 Composing → 7 Player → v8 Reflect
+    const FLOW_NEXT = {
+      "v1": 3,     // Welcome → Capture
+      3:    "v4",  // Capture → Mode
+      "v4": "v2",  // Mode → Name (now context-aware)
+      "v2": 5,     // Name → Mirror
+      5:    6,     // Mirror → Composing
+      6:    7,     // Composing → Player
+      7:    "v8",  // Player → Reflect
+      "v8": "v1",  // Reflect → Welcome (loop)
+    };
+
+    const next = (k) => {
+      // Capture mode selection from the Mode screen (it calls go with mode key)
+      if (step === "v4" && typeof k === "string" && ["raw","cosmic","iron","zen","sleep"].includes(k)) {
+        setMode(k);
+        goTo(FLOW_NEXT["v4"]);
+        return;
+      }
+      // If caller passed an explicit target that matches a known screen, honor it
+      const isKnownScreen = SCREENS.some(s => s[1] === k);
+      if (isKnownScreen) { goTo(k); return; }
+      // Otherwise fall back to the linear flow
+      goTo(FLOW_NEXT[step] ?? k);
+    };
+
+    return (
+      <div className="kit-shell">
+        <div className="kit-nav">
+          {SCREENS.map(([label, key]) => (
+            <button key={key} className={step===key?"on":""} onClick={()=>{ setHistory([]); setStep(key); }}>{label}</button>
+          ))}
+        </div>
+        <div className="phone" data-screen-label={activeLabel}>
+          <Active go={next} back={back} mode={mode} setMode={setMode} />
+        </div>
+        <div className="kit-title">Kokoro · Telegram WebApp · 440 × 900 · mode: {mode}</div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 :root {
+  /* Legacy tokens (kept so existing screens don't shift). */
   --sumi: #0a0908;
   --sumi-deep: #07060a;
   --washi: #f4efe6;
@@ -6,10 +7,33 @@
   --graphite: #3a3833;
   --stone: #7a736a;
 
-  --serif: 'Fraunces', Georgia, serif;
-  --sans: 'Geist', -apple-system, system-ui, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --jp: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', serif;
+  /* Kokoro Design System v2 — backed onto the same hex values; see
+     `Kokoro Design System (2)/colors_and_type.css` for the spec. The
+     two-name aliasing lets new screens use the canonical names without
+     forcing a full sweep of the existing inline-style call sites. */
+  --bg: #0a0908;
+  --bg-1: #110b09;
+  --bg-glow: #27130d;
+  --ink: #f3ece3;
+  --ink-soft: #b8aea5;
+  --ink-muted: #7a716a;
+  --ink-faint: #3a322d;
+  --primary: #c84c2b;
+  --primary-hot: #e25a36;
+  --primary-dim: #7a3520;
+  --danger: #b04a3c;
 
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --font-serif: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-cjk: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', serif;
+  /* Aliases for the legacy code paths. */
+  --serif: var(--font-serif);
+  --sans: 'Geist', -apple-system, system-ui, sans-serif;
+  --mono: var(--font-mono);
+  --jp: var(--font-cjk);
+
+  --r-pill: 999px;
+  --r-card: 20px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }

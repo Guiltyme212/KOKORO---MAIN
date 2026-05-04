@@ -1,0 +1,173 @@
+/* Modes — 4 distinct visual treatments for meditation styles
+   Each mode card has its OWN aesthetic so the user can feel the tone
+   before committing. This is the divergent/personality layer that
+   sits on top of the calm Kokoro shell. */
+
+/* ========== shared mode-card chrome ========== */
+.mode-list{display:flex;flex-direction:column;gap:14px}
+.mode-card{
+  position:relative; cursor:pointer; text-align:left; width:100%;
+  border:none; padding:0; background:transparent;
+  border-radius:22px; overflow:hidden;
+  transition:transform .15s var(--ease), box-shadow .25s var(--ease);
+}
+.mode-card:hover{transform:translateY(-2px)}
+.mode-card.sel{box-shadow:0 0 28px -8px rgba(200,76,43,.4)}
+.mode-card-inner{padding:16px 18px;display:flex;gap:14px;align-items:flex-start;border-radius:22px;border:1px solid var(--ink-faint);min-height:96px;position:relative;overflow:hidden}
+.mode-card.sel .mode-card-inner{border-color:transparent}
+
+.mode-tag{
+  font:600 9px/1 var(--font-mono); letter-spacing:.2em; text-transform:uppercase;
+  display:inline-flex; align-items:center; gap:6px; margin-bottom:6px;
+}
+.mode-title{font-weight:500; font-size:18px; line-height:1.2; margin:0 0 4px}
+.mode-desc{font:400 11px/1.4 var(--font-mono); opacity:.7; margin:0}
+.mode-glyph{font-size:34px; line-height:1; flex-shrink:0; width:40px; text-align:center}
+.mode-meta{position:absolute; right:14px; top:14px; font:500 9px/1 var(--font-mono); letter-spacing:.16em; text-transform:uppercase; opacity:.55}
+
+/* ========== mode 1 · RAW (Gen Z) ========== */
+/* Aesthetic: chaotic, internet-poisoned, off-white spray, glitch tape */
+.mode-raw .mode-card-inner{
+  background:#dfe6dc;
+  color:#0a0908;
+  border:none;
+  font-family:"Courier New",var(--font-mono);
+  transform:rotate(-.6deg);
+}
+.mode-raw .mode-card-inner::before{
+  content:""; position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,.04) 8px 9px),
+    radial-gradient(120% 80% at 80% 20%, #ff5530 0%, transparent 40%);
+  pointer-events:none;
+}
+.mode-raw .mode-tag{
+  color:#0a0908; background:#ff5530; padding:3px 6px; transform:rotate(-2deg);
+}
+.mode-raw .mode-title{
+  font-family:"Arial Black","Helvetica",sans-serif; font-style:normal;
+  font-weight:900; font-size:22px; letter-spacing:-.02em; text-transform:lowercase;
+}
+.mode-raw .mode-title em{font-style:italic;color:#ff2d00}
+.mode-raw .mode-desc{font-family:"Courier New",monospace; color:#0a0908; opacity:.85; text-transform:lowercase}
+.mode-raw .mode-glyph{font-family:"Arial Black",sans-serif;font-weight:900;font-size:38px;color:#0a0908}
+.mode-raw .mode-meta{color:#0a0908}
+.mode-raw.sel .mode-card-inner{outline:3px solid #ff2d00; outline-offset:-1px; transform:rotate(-.6deg) scale(1.01)}
+
+/* ========== mode 2 · COSMIC (Spiritual) ========== */
+/* Aesthetic: deep-purple cosmos, gold glyphs, art-nouveau italics */
+.mode-cosmic .mode-card-inner{
+  background:radial-gradient(140% 100% at 30% 0%, #2b1054 0%, #0d0521 70%);
+  color:#f4e6c2;
+  border:1px solid #4d2a8a;
+}
+.mode-cosmic .mode-card-inner::before{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(2px 2px at 20% 40%, #f4e6c2 0%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 60% 70%, #f4e6c2 0%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 85% 30%, #c9b8ff 0%, transparent 50%),
+    radial-gradient(1px 1px at 40% 80%, #f4e6c2 0%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 75% 55%, #f4e6c2 0%, transparent 50%);
+  opacity:.85; pointer-events:none;
+}
+.mode-cosmic .mode-tag{color:#d4af37}
+.mode-cosmic .mode-tag::before{content:"☽"; font-size:11px; letter-spacing:0}
+.mode-cosmic .mode-title{font-family:var(--font-serif); font-style:italic; color:#f4e6c2}
+.mode-cosmic .mode-desc{color:#c9b8ff; opacity:.8}
+.mode-cosmic .mode-glyph{font-family:var(--font-serif); font-style:italic; color:#d4af37; font-size:32px}
+.mode-cosmic .mode-meta{color:#d4af37}
+.mode-cosmic.sel .mode-card-inner{border-color:#d4af37; box-shadow:inset 0 0 30px -5px rgba(212,175,55,.3)}
+
+/* ========== mode 3 · IRON (Hard motivation) ========== */
+/* Aesthetic: brutalist, blood-red & gunmetal, knife-edge condensed type */
+.mode-iron .mode-card-inner{
+  background:linear-gradient(180deg, #181513 0%, #0a0807 100%);
+  color:#f3ece3;
+  border:1px solid #2a0a05;
+  border-left:4px solid #c01a0c;
+}
+.mode-iron .mode-card-inner::before{
+  content:""; position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 22px, rgba(255,255,255,.02) 22px 23px),
+    linear-gradient(90deg, transparent 60%, rgba(192,26,12,.18) 100%);
+  pointer-events:none;
+}
+.mode-iron .mode-tag{
+  color:#c01a0c; font-weight:700; letter-spacing:.28em;
+  border:1px solid #c01a0c; padding:3px 6px; background:rgba(192,26,12,.08);
+}
+.mode-iron .mode-title{
+  font-family:"Impact","Arial Narrow",sans-serif; font-weight:900;
+  text-transform:uppercase; letter-spacing:.01em; font-size:22px;
+  font-stretch:condensed;
+}
+.mode-iron .mode-desc{font-family:var(--font-mono); color:#9a8e85; text-transform:uppercase; letter-spacing:.06em; font-size:10px}
+.mode-iron .mode-glyph{font-family:"Impact",sans-serif; font-weight:900; color:#c01a0c; font-size:48px; line-height:.9}
+.mode-iron .mode-meta{color:#c01a0c}
+.mode-iron.sel .mode-card-inner{border-left-width:6px; box-shadow:inset 0 0 0 1px #c01a0c}
+
+/* ========== mode 4 · ZEN (Buddhist) ========== */
+/* Aesthetic: rice-paper cream, sumi-e ink, single brush-stroke, vast whitespace */
+.mode-zen .mode-card-inner{
+  background:#f4ecd8;
+  color:#1a1612;
+  border:none;
+  padding:24px 22px 26px;
+}
+.mode-zen .mode-card-inner::before{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(60% 80% at 95% 50%, rgba(0,0,0,.04) 0%, transparent 60%),
+    repeating-linear-gradient(90deg, transparent 0 3px, rgba(120,90,40,.025) 3px 4px);
+  pointer-events:none;
+}
+.mode-zen .mode-tag{color:#7a4a1a; opacity:.8}
+.mode-zen .mode-title{
+  font-family:var(--font-serif); font-style:italic; font-weight:400;
+  color:#1a1612; font-size:19px;
+}
+.mode-zen .mode-desc{font-family:var(--font-serif); font-style:italic; font-weight:400; color:#5a4a3a; font-size:13px; line-height:1.5}
+.mode-zen .mode-glyph{font-family:var(--font-cjk); color:#1a1612; font-size:42px; opacity:.9}
+.mode-zen .mode-meta{color:#7a4a1a}
+.mode-zen.sel .mode-card-inner{box-shadow:inset 0 0 0 1px #1a1612}
+/* ========== mode 5 · BEDTIME (sleep) ========== */
+/* Aesthetic: deep midnight blue, moonlight, soft glow */
+.mode-sleep .mode-card-inner{
+  background:linear-gradient(160deg, #0c1530 0%, #060a1c 70%, #02040d 100%);
+  color:#e4eaff;
+  border:1px solid #1a2855;
+  position:relative;
+}
+.mode-sleep .mode-card-inner::before{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(140px 80px at 85% 20%, rgba(180,200,255,.18) 0%, transparent 60%),
+    radial-gradient(1.5px 1.5px at 25% 35%, #c8d4ff, transparent 50%),
+    radial-gradient(1px 1px at 55% 70%, #c8d4ff, transparent 50%),
+    radial-gradient(1.2px 1.2px at 75% 50%, #e4eaff, transparent 50%),
+    radial-gradient(1px 1px at 35% 80%, #c8d4ff, transparent 50%);
+  pointer-events:none;
+}
+.mode-sleep .mode-card-inner::after{
+  content:""; position:absolute; right:-20px; top:50%; transform:translateY(-50%);
+  width:120px; height:120px; border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, #e4eaff 0%, #a8b8e0 40%, transparent 70%);
+  opacity:.18; filter:blur(8px); pointer-events:none;
+}
+.mode-sleep .mode-tag{color:#a8b8e0}
+.mode-sleep .mode-title{
+  font-family:var(--font-serif); font-style:italic; font-weight:400;
+  color:#e4eaff;
+}
+.mode-sleep .mode-desc{color:#7a85a8}
+.mode-sleep .mode-glyph{
+  color:#a8b8e0; font-family:var(--font-cjk); font-weight:300;
+  text-shadow:0 0 16px rgba(180,200,255,.4);
+}
+.mode-sleep .mode-meta{color:#a8b8e0}
+.mode-sleep.sel .mode-card-inner{
+  border-color:#a8b8e0;
+  box-shadow:0 0 30px -8px rgba(168,184,224,.4), inset 0 0 30px -5px rgba(168,184,224,.15);
+}

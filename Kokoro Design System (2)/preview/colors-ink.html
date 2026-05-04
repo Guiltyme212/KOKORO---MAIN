@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Colors — Ink scale</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font-mono)}
+  .card{padding:24px 28px;width:700px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;align-items:center;gap:16px}
+  .chip{width:36px;height:36px;border-radius:999px;border:1px solid rgba(255,255,255,.05)}
+  .name{font:500 11px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;width:120px}
+  .hex{font:400 11px/1 var(--font-mono);letter-spacing:.08em;color:var(--ink-muted);width:80px}
+  .demo{font-family:var(--font-serif);font-style:italic;font-size:18px;flex:1}
+</style></head>
+<body><div class="card">
+  <div class="row"><div class="chip" style="background:#f3ece3"></div><span class="name" style="color:#f3ece3">ink</span><span class="hex">#F3ECE3</span><span class="demo" style="color:#f3ece3">Headline serif text</span></div>
+  <div class="row"><div class="chip" style="background:#b8aea5"></div><span class="name" style="color:#b8aea5">ink · soft</span><span class="hex">#B8AEA5</span><span class="demo" style="color:#b8aea5">Body and descriptive prose</span></div>
+  <div class="row"><div class="chip" style="background:#7a716a"></div><span class="name" style="color:#7a716a">ink · muted</span><span class="hex">#7A716A</span><span class="demo" style="color:#7a716a">Mono labels, fine print</span></div>
+  <div class="row"><div class="chip" style="background:#3a322d"></div><span class="name" style="color:#7a716a">ink · faint</span><span class="hex">#3A322D</span><span class="demo" style="color:#3a322d">Hairlines, kanji watermark</span></div>
+</div></body></html>

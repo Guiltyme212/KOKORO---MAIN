@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kokoro · Final Flow</title>
+<link rel="stylesheet" href="kit.css">
+<link rel="stylesheet" href="modes.css">
+<link rel="stylesheet" href="v2.css">
+<style>
+  body{margin:0;background:#0a0807;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;gap:14px}
+  .hint{font:500 10px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-muted)}
+  .restart{font:500 10px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-muted);background:transparent;border:1px solid var(--ink-faint);border-radius:999px;padding:8px 14px;cursor:pointer}
+  .restart:hover{color:var(--ink);border-color:var(--primary)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="Components.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="ScreensV2.jsx"></script>
+
+<script type="text/babel">
+  const { useState } = React;
+
+  // The final flow — only screens the real user sees.
+  const FLOW = [
+    { key: "welcome",  label: "Welcome",   Comp: ScreenWelcomeV2 },
+    { key: "capture",  label: "Capture",   Comp: ScreenCapture   },
+    { key: "mode",     label: "Mode",      Comp: ScreenModeV2    },
+    { key: "name",     label: "Name",      Comp: ScreenNameV2    },
+    { key: "mirror",   label: "Mirror",    Comp: ScreenMirror    },
+    { key: "composing",label: "Composing", Comp: ScreenComposing },
+    { key: "player",   label: "Player",    Comp: ScreenPlayer    },
+    { key: "reflect",  label: "Reflect",   Comp: ScreenReflectV2 },
+  ];
+
+  function App(){
+    const [idx, setIdx] = useState(0);     // index into FLOW
+    const [history, setHistory] = useState([]);
+    const [mode, setMode] = useState("raw");
+    const [showLibrary, setShowLibrary] = useState(false);
+
+    const goNext = (target) => {
+      // If Mode screen passed a mode key — capture it
+      if (FLOW[idx].key === "mode" && typeof target === "string"
+          && ["raw","cosmic","iron","zen","sleep"].includes(target)) {
+        setMode(target);
+      }
+      // Library jump from Welcome
+      if (target === "library") { setShowLibrary(true); return; }
+      // Reflect → loop back to Welcome
+      if (FLOW[idx].key === "reflect") {
+        setHistory([]); setIdx(0); return;
+      }
+      // Default: linear next
+      setHistory(h => [...h, idx]);
+      setIdx(i => Math.min(FLOW.length - 1, i + 1));
+    };
+
+    const goBack = () => {
+      if (showLibrary) { setShowLibrary(false); return; }
+      setHistory(h => {
+        if (h.length === 0) return h;
+        setIdx(h[h.length - 1]);
+        return h.slice(0, -1);
+      });
+    };
+
+    const restart = () => { setHistory([]); setIdx(0); setShowLibrary(false); };
+
+    const Active = showLibrary ? ScreenLibrary : FLOW[idx].Comp;
+    const label  = showLibrary ? "Library" : FLOW[idx].label;
+
+    return (
+      <React.Fragment>
+        <div className="phone" data-screen-label={label}>
+          <Active go={goNext} back={goBack} mode={mode} setMode={setMode} />
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center",marginTop:8}}>
+          <button className="restart" onClick={restart}>↻ Restart flow</button>
+          <span className="hint">{showLibrary ? "Library" : `${idx+1} / ${FLOW.length} · ${FLOW[idx].label}`}{!showLibrary && ` · mode: ${mode}`}</span>
+        </div>
+      </React.Fragment>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
