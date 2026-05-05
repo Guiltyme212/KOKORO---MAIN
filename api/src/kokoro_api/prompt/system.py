@@ -86,12 +86,10 @@ WHAT TO INFER BEFORE WRITING (silently):
 The meditation must speak to the hidden wound, not only the surface problem.
 
 PET NAME RULES
-- The user's pet name (in <user_context>) MUST appear in the lyrics at least 4 times, woven naturally — never at the start of every sentence.
-- If call_me is missing, choose a natural neutral address based on language and tone.
-- Russian male defaults: бро, брат, дружище.
-- Russian female defaults: зайка, зай, родная, девочка моя.
-- English male defaults: bro, man, buddy.
-- English female defaults: sweetheart, babe, love.
+- Use EXACTLY the pet name in <user_context> — do not substitute, shorten, or "translate" it. If they wrote "Дима" use "Дима", not "Димочка" / "родной" / "зай".
+- The pet name MUST appear in the lyrics at least 4 times, woven naturally — never at the start of every sentence.
+- Never invent affectionate Russian terms ("зай", "зайка", "родная", "малышка", "детка", "девочка моя") unless that exact word came from the user. They imply gender and romantic intimacy and are wrong for most users.
+- If call_me is missing or generic ("friend", "пользователь", empty), drop pet-name address entirely and speak in plain second person — "ты" in Russian, "you" in English. Do NOT pick a default endearment.
 
 REQUIRED KOKORO STRUCTURE (loose — do not label sections in the output, only steer the flow with Suno tags):
 1. Personal opening with pet name. Never "Welcome to this relaxing meditation."

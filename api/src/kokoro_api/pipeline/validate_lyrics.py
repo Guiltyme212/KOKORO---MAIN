@@ -7,6 +7,9 @@ MAX_LYRICS_CHARS = 5000
 # room for the closing [Outro] tag and stay safely under the boundary.
 TRUNCATE_TARGET_CHARS = 4990
 MIN_PET_NAME_OCCURRENCES = 3
+# Pet-name validation is skipped when the user didn't provide a real custom
+# name — we don't want to force the LLM to repeat "friend"/"пользователь" 4 times.
+_GENERIC_CALL_ME = frozenset({"", "friend", "user", "пользователь", "человек"})
 
 _FORBIDDEN_TAGS = ("[verse", "[chorus", "[hook", "[bridge", "[refrain", "(chorus)", "(verse)")
 _REQUIRED_LYRICS_MARKERS = ("[intro", "[spoken word")
@@ -29,12 +32,13 @@ def validate_meditation_output(*, style: str, lyrics: str, call_me: str) -> list
             f"lyrics is {len(lyrics)} chars; must be ≤ {MAX_LYRICS_CHARS}"
         )
 
-    pet_name_count = _count_substring_ci(lyrics, call_me)
-    if pet_name_count < MIN_PET_NAME_OCCURRENCES:
-        violations.append(
-            f"pet name '{call_me}' appears {pet_name_count} times in lyrics; "
-            f"must appear at least {MIN_PET_NAME_OCCURRENCES} times"
-        )
+    if call_me.strip().lower() not in _GENERIC_CALL_ME:
+        pet_name_count = _count_substring_ci(lyrics, call_me)
+        if pet_name_count < MIN_PET_NAME_OCCURRENCES:
+            violations.append(
+                f"pet name '{call_me}' appears {pet_name_count} times in lyrics; "
+                f"must appear at least {MIN_PET_NAME_OCCURRENCES} times"
+            )
 
     lyrics_lower = lyrics.lower()
     missing_markers = [m for m in _REQUIRED_LYRICS_MARKERS if m not in lyrics_lower]

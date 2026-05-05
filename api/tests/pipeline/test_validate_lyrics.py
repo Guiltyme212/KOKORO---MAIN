@@ -81,6 +81,18 @@ def test_does_not_false_positive_on_substring_genres() -> None:
     )
 
 
+def test_skips_pet_name_check_when_call_me_is_generic() -> None:
+    # Lyrics never mention "friend" but that's fine — we don't force the LLM
+    # to repeat a generic placeholder. Other rules still apply.
+    lyrics = (
+        "[Intro: ambient, no singing]\n[Spoken word, slow]\n"
+        "Ты здесь. Ты дышишь.\n[Outro: fading]"
+    )
+    assert validate_meditation_output(style=GOOD_STYLE, lyrics=lyrics, call_me="friend") == []
+    assert validate_meditation_output(style=GOOD_STYLE, lyrics=lyrics, call_me="") == []
+    assert validate_meditation_output(style=GOOD_STYLE, lyrics=lyrics, call_me="пользователь") == []
+
+
 def test_enforce_max_lyrics_length_passes_through_when_under_cap() -> None:
     assert enforce_max_lyrics_length(GOOD_LYRICS) == GOOD_LYRICS
 
