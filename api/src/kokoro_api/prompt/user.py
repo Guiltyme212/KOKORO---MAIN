@@ -17,6 +17,7 @@ class BuildUserArgs:
     capture_text: str
     template: Template
     history: HistoryDict | None
+    real_name: str | None = None
 
 
 _GENERIC_CALL_ME = {"", "friend", "user", "пользователь", "человек"}
@@ -53,6 +54,12 @@ def build_user_prompt(args: BuildUserArgs) -> str:
         if generic
         else "use their pet name ≥3 times naturally"
     )
+    real_name = (args.real_name or "").strip()
+    real_name_line = (
+        "real_name: (not provided)"
+        if not real_name
+        else f"real_name: {real_name}"
+    )
 
     source_block = (
         "<source_meditation>\n"
@@ -65,6 +72,7 @@ def build_user_prompt(args: BuildUserArgs) -> str:
 
     return f"""<user_context>
 {pet_name_line}
+{real_name_line}
 vibe: {template.vibe}
 target_duration_sec: {template.target_duration_sec}
 what_they_said: "{capture_text}"
@@ -78,4 +86,4 @@ what_they_said: "{capture_text}"
 
 Aim for roughly {template.target_duration_sec} seconds of spoken content (rough guide, not strict).
 
-Follow ALL the rules in the system prompt AND the vibe-specific style in <vibe_directive>. First line `[Intro: ambient, no singing]`, second line `[Spoken word, slow]`, no `[Verse]`/`[Chorus]`/`[Hook]`/`[Bridge]`, no rhyming. Return strict JSON only with `style`, `lyrics`, `estimatedDurationSec`."""
+Follow ALL the rules in the system prompt AND the vibe-specific style in <vibe_directive>. First line MUST be `[Narration over ambient music. Do not sing. Speak naturally, like a calm podcast voice.]`. Use `[slow breath]` and `[short pause]` cues between paragraphs. End with a `[Outro. Calm spoken voice. No singing.]` block before the final 1–2 closing paragraphs. Capitalized sentences in normal paragraph form (the vibe's tone lives in word choice, not in typography). No `[Verse]`/`[Chorus]`/`[Hook]`/`[Bridge]`, no `[Intro:]`/`[Spoken word]`/`[Breath]`/`[Pause]`, no rhyming. Return strict JSON only with `style`, `lyrics`, `estimatedDurationSec`."""

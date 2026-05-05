@@ -27,7 +27,7 @@ POLL_INTERVAL_SEC = 4
 # returning 504, so cap below that.
 POLL_TIMEOUT_SEC = 270
 ACEDATA_MODEL = "chirp-v5"
-SUNOAPI_MODEL = "V5"
+SUNOAPI_MODEL = "V5_5"
 SUNOAPI_FILE_BASE_URL = "https://sunoapiorg.redpandaai.co"
 FAILED_STATUSES = {
     "create_task_failed",

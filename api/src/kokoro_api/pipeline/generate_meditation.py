@@ -24,6 +24,7 @@ class GenerateMeditationInput:
     template: Template
     history: HistoryDict | None
     locale: Locale
+    real_name: str | None = None
 
 
 class GenerateMeditationResult(BaseModel):
@@ -45,6 +46,7 @@ async def generate_meditation(
             capture_text=input.capture_text,
             template=input.template,
             history=input.history,
+            real_name=input.real_name,
         )
     )
 
@@ -55,6 +57,7 @@ async def generate_meditation(
         target_duration_sec=input.template.target_duration_sec,
         locale=input.locale,
         call_me=input.call_me,
+        real_name=input.real_name,
         system_prompt_length=len(system_prompt),
         user_prompt_length=len(user_prompt),
         capture_text_preview=input.capture_text[:200],

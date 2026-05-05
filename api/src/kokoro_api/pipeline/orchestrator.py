@@ -63,6 +63,7 @@ async def run_pipeline(
         meditation_id=meditation_id,
         request_id=str(input.request_id),
         call_me=input.call_me,
+        real_name=input.real_name,
         vibe=input.vibe,
         locale=input.locale,
         capture_kind=input.capture.kind,
@@ -109,6 +110,7 @@ async def run_pipeline(
             template=template,
             history=history_dict,
             locale=input.locale,
+            real_name=input.real_name,
         ),
         deps.llm,
     )
@@ -226,6 +228,7 @@ async def run_pipeline_streaming(
         meditation_id=meditation_id,
         request_id=str(input.request_id),
         call_me=input.call_me,
+        real_name=input.real_name,
         vibe=input.vibe,
         locale=input.locale,
         capture_kind=input.capture.kind,
@@ -272,6 +275,7 @@ async def run_pipeline_streaming(
             template=template,
             history=history_dict,
             locale=input.locale,
+            real_name=input.real_name,
         ),
         deps.llm,
     )

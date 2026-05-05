@@ -112,7 +112,7 @@ export function Reflect({ goto }: { goto: (r: Route) => void }) {
 
       <div style={{
         position: 'absolute', inset: 0,
-        padding: '120px 32px 280px',
+        padding: '290px 32px 280px',
         display: 'flex', flexDirection: 'column', justifyContent: 'flex-start',
       }}>
         <div style={{ textAlign: 'center' }}>

@@ -14,6 +14,7 @@ import type {
   Locale,
 } from '../lib/types-meditation';
 import { generatedMeditationApi } from '../state/generatedMeditation';
+import { makeRequestId } from '../lib/requestId';
 
 // Player auto-advances on the 'streaming' event (~20-40s after submit).
 // This estimate now drives only the visual progress carousel until phase
@@ -29,11 +30,6 @@ const VIBE_NAME: Record<Vibe, string> = {
   iron: 'Iron',
   zen: 'Zen',
   sleep: 'Sleep',
-};
-
-const makeRequestId = () => {
-  if ('randomUUID' in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
 const resolveLocale = (): Locale => {

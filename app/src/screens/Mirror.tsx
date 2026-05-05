@@ -3,6 +3,7 @@ import type { Route } from '../lib/router';
 import { useAnswers } from '../state/answers';
 import { haptic } from '../lib/telegram';
 import { Glow, TopBar, Eyebrow, Btn } from '../components/atoms';
+import { kickoffAllMeditations } from '../state/meditationProgress';
 
 const HIGHLIGHTS = ['anger', 'pressure', 'effort'];
 
@@ -12,8 +13,15 @@ const FALLBACK_REFLECTION =
 export function Mirror({ goto }: { goto: (r: Route) => void }) {
   const { answers } = useAnswers();
   const reflection = (answers.carry && answers.carry.length > 32)
-    ? `What I heard: ${answers.carry}`
+    ? `What I heard: ${answers.carry.replace(/\s+/g, ' ').trim()}`
     : FALLBACK_REFLECTION;
+
+  // responsive serif size — long reflections shrink slightly, but stay generous
+  const reflectionFontSize =
+    reflection.length > 170 ? 22 :
+    reflection.length > 120 ? 24 :
+    reflection.length > 70  ? 26 :
+    28;
 
   const [reveal, setReveal] = useState(0);
   useEffect(() => {
@@ -25,11 +33,28 @@ export function Mirror({ goto }: { goto: (r: Route) => void }) {
 
   const advance = () => {
     haptic.light();
+    kickoffAllMeditations(answers, answers.vibe || 'zen');
     goto('composing');
   };
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)' }}>
+      <style>{`
+        .mirror-reflection {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(200,76,43,0.4) transparent;
+          scroll-behavior: smooth;
+          overscroll-behavior: contain;
+        }
+        .mirror-reflection::-webkit-scrollbar { width: 3px; }
+        .mirror-reflection::-webkit-scrollbar-track { background: transparent; }
+        .mirror-reflection::-webkit-scrollbar-thumb {
+          background: rgba(200,76,43,0.35);
+          border-radius: 4px;
+          transition: background 220ms var(--ease);
+        }
+        .mirror-reflection:hover::-webkit-scrollbar-thumb { background: rgba(200,76,43,0.6); }
+      `}</style>
       <Glow intensity={0.10} />
       <TopBar onBack={() => goto('contentType')} center="02 · what kokoro heard" />
 
@@ -56,11 +81,21 @@ export function Mirror({ goto }: { goto: (r: Route) => void }) {
         </div>
         <div style={{ height: 18 }} />
 
-        <p style={{
-          fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
-          fontSize: 26, lineHeight: 1.35, letterSpacing: -0.3,
-          margin: 0, color: 'var(--washi)', textWrap: 'pretty',
-        }}>
+        <p
+          className="mirror-reflection"
+          style={{
+            fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
+            fontSize: reflectionFontSize, lineHeight: 1.35, letterSpacing: -0.3,
+            margin: 0, color: 'var(--washi)', textWrap: 'pretty',
+            maxHeight: 380, overflowY: 'auto',
+            paddingRight: 12,
+            // soft fade at top + bottom so scrollable content dissolves cleanly
+            maskImage:
+              'linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 32px), transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 32px), transparent 100%)',
+          }}
+        >
           {reflection.split(' ').map((w, i) => {
             const lower = w.toLowerCase();
             const isHighlight = HIGHLIGHTS.some((k) => lower.includes(k));

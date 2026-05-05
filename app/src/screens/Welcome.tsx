@@ -1,30 +1,87 @@
-import { Fragment, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Route } from '../lib/router';
 import { useAnimationTime } from '../lib/hooks';
 import { haptic } from '../lib/telegram';
 
-const AMBIENT_KANJI = [
-  { ch: '感', x: 12, y: 18, size: 64, delay: 0,   rot: -4 },
-  { ch: '思', x: 78, y: 26, size: 52, delay: 1.4, rot:  2 },
-  { ch: '志', x: 18, y: 70, size: 56, delay: 2.7, rot:  3 },
-  { ch: '静', x: 80, y: 74, size: 48, delay: 0.7, rot: -2 },
-  { ch: '夢', x: 50, y: 12, size: 36, delay: 2.0, rot:  1 },
-  { ch: '道', x: 86, y: 50, size: 32, delay: 1.1, rot: -3 },
-  { ch: '光', x:  8, y: 46, size: 30, delay: 3.2, rot:  4 },
-];
+const ROTATING_WORDS = ['kokoro', 'heart', 'mind', 'spirit'] as const;
+const WORD_HOLD_MS = 5200;
+const WORD_FADE_MS = 1100;
+const WORD_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-const PILLARS = [
-  { kanji: '感', en: 'Heart'  },
-  { kanji: '思', en: 'Mind'   },
-  { kanji: '志', en: 'Spirit' },
-];
+function CyclingWord() {
+  const [idx, setIdx] = useState(0);
+  const [phase, setPhase] = useState<'in' | 'out'>('in');
+
+  useEffect(() => {
+    let swap: ReturnType<typeof setTimeout> | undefined;
+    const tick = setInterval(() => {
+      setPhase('out');
+      swap = setTimeout(() => {
+        setIdx(i => (i + 1) % ROTATING_WORDS.length);
+        setPhase('in');
+      }, WORD_FADE_MS);
+    }, WORD_HOLD_MS);
+    return () => {
+      clearInterval(tick);
+      if (swap) clearTimeout(swap);
+    };
+  }, []);
+
+  return (
+    <span style={{
+      display: 'inline-grid',
+      verticalAlign: 'baseline',
+      lineHeight: 'inherit',
+    }}>
+      {ROTATING_WORDS.map((w, i) => {
+        const isActive = i === idx;
+        const visible = isActive && phase === 'in';
+        const transform = visible
+          ? 'translateY(0)'
+          : isActive
+            ? 'translateY(-12px)'
+            : 'translateY(12px)';
+        return (
+          <span
+            key={w}
+            aria-hidden={!visible}
+            style={{
+              gridArea: '1 / 1',
+              whiteSpace: 'nowrap',
+              opacity: visible ? 1 : 0,
+              transform,
+              filter: visible ? 'blur(0)' : 'blur(4px)',
+              letterSpacing: visible ? 0 : '0.04em',
+              transition: [
+                `opacity ${WORD_FADE_MS}ms ${WORD_EASE}`,
+                `transform ${WORD_FADE_MS}ms ${WORD_EASE}`,
+                `filter ${WORD_FADE_MS}ms ${WORD_EASE}`,
+                `letter-spacing ${WORD_FADE_MS}ms ${WORD_EASE}`,
+              ].join(', '),
+              willChange: 'opacity, transform, filter',
+            }}
+          >
+            {w}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export function Welcome({ goto }: { goto: (r: Route) => void }) {
   const t = useAnimationTime();
   const [hover, setHover] = useState(false);
 
-  const breath = 0.86 + Math.sin(t * 0.6) * 0.08;
-  const drift = Math.sin(t * 0.25) * 6;
+  // slow meditative breath: -1..1, eased so peaks linger
+  const pulseRaw = Math.sin(t * 0.42);
+  const pulse = Math.sign(pulseRaw) * Math.pow(Math.abs(pulseRaw), 0.7);
+  const pulseN = (pulse + 1) / 2;                         // 0..1
+  const pulseOpacity = 0.55 + pulseN * 0.45;              // 0.55..1.00
+  const pulseScale = 1 + pulse * 0.022;                    // 0.978..1.022
+  const haloOpacity = 0.10 + pulseN * 0.30;               // 0.10..0.40
+  const haloScale = 1 + pulse * 0.05;
+  const drift = Math.sin(t * 0.22) * 3;
 
   const onBegin = () => {
     haptic.light();
@@ -33,54 +90,41 @@ export function Welcome({ goto }: { goto: (r: Route) => void }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)', overflow: 'hidden' }}>
-      {/* ambient persimmon glow */}
+      {/* faint floor glow at the bottom */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(60% 50% at 50% 45%, rgba(200,76,43,0.18) 0%, transparent 65%)',
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(40% 30% at 50% 100%, rgba(200,76,43,0.12) 0%, transparent 70%)',
+        background: 'radial-gradient(40% 28% at 50% 100%, rgba(200,76,43,0.10) 0%, transparent 70%)',
       }} />
 
-      {/* ambient floating kanji */}
-      {AMBIENT_KANJI.map((a, i) => {
-        const float = Math.sin(t * 0.4 + a.delay) * 6;
-        const fade = 0.04 + 0.04 * Math.sin(t * 0.3 + a.delay);
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: `${a.x}%`, top: `${a.y}%`,
-              fontFamily: 'var(--jp)', fontWeight: 300,
-              fontSize: a.size, lineHeight: 1,
-              color: `rgba(244,239,230,${0.08 + fade})`,
-              transform: `translate(-50%,-50%) translateY(${float}px) rotate(${a.rot}deg)`,
-              userSelect: 'none', pointerEvents: 'none',
-            }}
-          >
-            {a.ch}
-          </div>
-        );
-      })}
-
-      {/* huge breathing 心 */}
+      {/* breathing 心 with soft pulsing halo */}
       <div style={{
-        position: 'absolute', inset: 0, overflow: 'hidden',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'none', contain: 'strict',
+        position: 'absolute', top: 200, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        pointerEvents: 'none',
       }}>
-        <div style={{
-          fontFamily: 'var(--jp)', fontWeight: 300,
-          fontSize: 340, lineHeight: 1,
-          color: 'var(--persimmon)',
-          opacity: breath * 0.26,
-          transform: `translateY(${drift}px)`,
-          textShadow: '0 0 60px rgba(200,76,43,0.45)',
-          userSelect: 'none',
-        }}>
-          心
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* soft halo that breathes with the pulse — no blur for clarity */}
+          <div style={{
+            position: 'absolute',
+            width: 280, height: 280,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(200,76,43,0.28) 0%, rgba(200,76,43,0.04) 45%, transparent 72%)',
+            opacity: haloOpacity,
+            transform: `scale(${haloScale}) translateY(${drift}px)`,
+            willChange: 'opacity, transform',
+          }} />
+          {/* the 心 itself — clean, no harsh textShadow */}
+          <div style={{
+            position: 'relative',
+            fontFamily: 'var(--jp)', fontWeight: 300,
+            fontSize: 180, lineHeight: 1,
+            color: 'var(--persimmon)',
+            opacity: pulseOpacity,
+            transform: `scale(${pulseScale}) translateY(${drift}px)`,
+            userSelect: 'none',
+          }}>
+            心
+          </div>
         </div>
       </div>
 
@@ -107,7 +151,7 @@ export function Welcome({ goto }: { goto: (r: Route) => void }) {
           color: 'var(--stone)',
         }}>
           <span style={{ width: 18, height: 1, background: 'rgba(244,239,230,0.18)' }} />
-          <span>心 · the heart-mind</span>
+          <span>heart · mind · spirit</span>
           <span style={{ width: 18, height: 1, background: 'rgba(244,239,230,0.18)' }} />
         </div>
       </div>
@@ -115,8 +159,8 @@ export function Welcome({ goto }: { goto: (r: Route) => void }) {
       {/* center column */}
       <div style={{
         position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '0 28px', zIndex: 5,
+        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+        padding: '0 28px 140px', zIndex: 5,
       }}>
         <div style={{
           fontFamily: 'var(--mono)', fontSize: 10,
@@ -135,123 +179,40 @@ export function Welcome({ goto }: { goto: (r: Route) => void }) {
           textShadow: '0 2px 30px rgba(0,0,0,0.6)',
         }}>
           What is your<br />
-          <span style={{ color: 'var(--persimmon)' }}>kokoro holding?</span>
+          <span style={{ color: 'var(--persimmon)' }}><CyclingWord /></span> holding?
         </h1>
-
-        <p style={{
-          fontFamily: 'var(--serif)', fontStyle: 'italic', fontWeight: 300,
-          fontSize: 16.5, lineHeight: 1.55,
-          color: 'rgba(244,239,230,0.7)',
-          margin: '40px auto 0', maxWidth: 320,
-          textAlign: 'center', textWrap: 'balance',
-        }}>
-          Speak it, type it, or just let go. We'll build tonight's ritual around it.
-        </p>
-
-        {/* three-pillar legend */}
-        <div style={{
-          marginTop: 40,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        }}>
-          {PILLARS.map((p, i) => (
-            <Fragment key={p.en}>
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                width: 78,
-              }}>
-                <div style={{
-                  fontFamily: 'var(--jp)', fontWeight: 300,
-                  fontSize: 30, lineHeight: 1,
-                  color: 'var(--persimmon)',
-                  textShadow: '0 0 18px rgba(200,76,43,0.35)',
-                }}>
-                  {p.kanji}
-                </div>
-                <div style={{
-                  fontFamily: 'var(--mono)', fontSize: 9,
-                  letterSpacing: '0.28em', textTransform: 'uppercase',
-                  color: 'rgba(244,239,230,0.78)',
-                }}>
-                  {p.en}
-                </div>
-              </div>
-              {i < PILLARS.length - 1 && (
-                <div style={{
-                  width: 16, height: 1, marginTop: 14,
-                  background: 'rgba(244,239,230,0.18)',
-                }} />
-              )}
-            </Fragment>
-          ))}
-        </div>
-
-        <div style={{
-          marginTop: 32,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-        }}>
-          <button
-            onClick={onBegin}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            style={{
-              position: 'relative',
-              background: hover ? 'var(--washi)' : 'transparent',
-              color: hover ? 'var(--sumi)' : 'var(--washi)',
-              border: '1px solid rgba(244,239,230,0.85)',
-              padding: '16px 56px',
-              fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
-              letterSpacing: '0.36em', textTransform: 'uppercase',
-              transition: 'all 280ms var(--ease)',
-              borderRadius: 100,
-              backdropFilter: 'blur(6px)',
-              boxShadow: hover
-                ? '0 14px 40px rgba(244,239,230,0.18)'
-                : '0 8px 24px rgba(0,0,0,0.4)',
-            }}
-          >
-            Begin
-          </button>
-
-          <button
-            onClick={() => goto('quickReset')}
-            style={{
-              color: 'var(--stone)',
-              fontFamily: 'var(--mono)', fontSize: 9.5,
-              letterSpacing: '0.28em', textTransform: 'uppercase',
-              padding: '4px 8px',
-            }}
-          >
-            No story · just reset me
-          </button>
-
-          <button
-            onClick={() => goto('library')}
-            style={{
-              color: 'var(--stone)',
-              fontFamily: 'var(--mono)', fontSize: 9.5,
-              letterSpacing: '0.28em', textTransform: 'uppercase',
-              padding: '4px 8px',
-            }}
-          >
-            Library
-          </button>
-        </div>
       </div>
 
-      {/* footer */}
+      {/* Begin button pinned to bottom */}
       <div style={{
-        position: 'absolute', bottom: 28, left: 0, right: 0,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        position: 'absolute', bottom: 56, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center',
         zIndex: 5,
       }}>
-        <div style={{ width: 28, height: 1, background: 'rgba(244,239,230,0.25)' }} />
-        <div style={{
-          fontFamily: 'var(--mono)', fontSize: 10,
-          letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--stone)',
-        }}>
-          Takes 90 seconds · Private
-        </div>
+        <button
+          onClick={onBegin}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          style={{
+            position: 'relative',
+            background: hover ? 'var(--washi)' : 'transparent',
+            color: hover ? 'var(--sumi)' : 'var(--washi)',
+            border: '1px solid rgba(244,239,230,0.85)',
+            padding: '16px 56px',
+            fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
+            letterSpacing: '0.36em', textTransform: 'uppercase',
+            transition: 'all 280ms var(--ease)',
+            borderRadius: 100,
+            backdropFilter: 'blur(6px)',
+            boxShadow: hover
+              ? '0 14px 40px rgba(244,239,230,0.18)'
+              : '0 8px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          Begin
+        </button>
       </div>
+
     </div>
   );
 }
