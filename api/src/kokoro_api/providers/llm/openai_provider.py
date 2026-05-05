@@ -47,7 +47,9 @@ class OpenAIScriptGenerator(ScriptGenerator):
                         {"role": "user", "content": user_prompt},
                     ],
                     "response_format": {"type": "json_object"},
-                    "max_tokens": 4000,
+                    # Newer OpenAI models (o-series, gpt-5, latest gpt-4o) reject
+                    # `max_tokens` and require this name instead.
+                    "max_completion_tokens": 4000,
                 },
             )
         if res.status_code >= 400:
