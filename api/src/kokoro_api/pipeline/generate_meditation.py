@@ -5,7 +5,10 @@ from dataclasses import dataclass
 import structlog
 from pydantic import BaseModel
 
-from kokoro_api.pipeline.validate_lyrics import validate_meditation_output
+from kokoro_api.pipeline.validate_lyrics import (
+    enforce_max_lyrics_length,
+    validate_meditation_output,
+)
 from kokoro_api.prompt.parse import parse_llm_output
 from kokoro_api.prompt.system import build_system_prompt
 from kokoro_api.prompt.user import BuildUserArgs, HistoryDict, build_user_prompt
@@ -117,7 +120,7 @@ async def generate_meditation(
         if not violations:
             return GenerateMeditationResult(
                 style=parsed.style,
-                lyrics=parsed.lyrics,
+                lyrics=enforce_max_lyrics_length(parsed.lyrics),
                 estimated_duration_sec=parsed.estimated_duration_sec,
                 validation_warnings=[],
                 meta=LlmMeta(
@@ -150,7 +153,7 @@ async def generate_meditation(
         )
         return GenerateMeditationResult(
             style=last_parsed.style,
-            lyrics=last_parsed.lyrics,
+            lyrics=enforce_max_lyrics_length(last_parsed.lyrics),
             estimated_duration_sec=last_parsed.estimated_duration_sec,
             validation_warnings=last_validation_warnings,
             meta=LlmMeta(

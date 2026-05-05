@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from kokoro_api.pipeline.validate_lyrics import (
     MAX_LYRICS_CHARS,
+    enforce_max_lyrics_length,
     validate_meditation_output,
 )
 
@@ -78,3 +79,29 @@ def test_does_not_false_positive_on_substring_genres() -> None:
     assert (
         validate_meditation_output(style=style, lyrics=GOOD_LYRICS, call_me="Зай") == []
     )
+
+
+def test_enforce_max_lyrics_length_passes_through_when_under_cap() -> None:
+    assert enforce_max_lyrics_length(GOOD_LYRICS) == GOOD_LYRICS
+
+
+def test_enforce_max_lyrics_length_truncates_oversize_keeping_outro() -> None:
+    body = "Зай. " * 1500
+    lyrics = (
+        "[Intro: ambient, no singing]\n[Spoken word, slow]\n"
+        + body
+        + "\n[Outro: fading slowly into silence]"
+    )
+    assert len(lyrics) > MAX_LYRICS_CHARS
+
+    truncated = enforce_max_lyrics_length(lyrics)
+    assert len(truncated) <= MAX_LYRICS_CHARS
+    assert truncated.endswith("[Outro: fading slowly into silence]")
+    assert truncated.startswith("[Intro: ambient, no singing]")
+
+
+def test_enforce_max_lyrics_length_synthesizes_outro_when_missing() -> None:
+    lyrics = "[Intro: ambient, no singing]\n[Spoken word, slow]\n" + ("Зай. " * 2000)
+    truncated = enforce_max_lyrics_length(lyrics)
+    assert len(truncated) <= MAX_LYRICS_CHARS
+    assert truncated.endswith("[Outro: fading]")

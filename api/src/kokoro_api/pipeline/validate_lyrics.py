@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 
 MAX_LYRICS_CHARS = 5000
+# Suno's custom-mode hard cap is 5000 chars; we trim a hair below to leave
+# room for the closing [Outro] tag and stay safely under the boundary.
+TRUNCATE_TARGET_CHARS = 4990
 MIN_PET_NAME_OCCURRENCES = 3
 
 _FORBIDDEN_TAGS = ("[verse", "[chorus", "[hook", "[bridge", "[refrain", "(chorus)", "(verse)")
@@ -70,6 +73,28 @@ def validate_meditation_output(*, style: str, lyrics: str, call_me: str) -> list
         )
 
     return violations
+
+
+def enforce_max_lyrics_length(lyrics: str) -> str:
+    """Defense-in-depth: if the LLM still came back with > 5000 chars after
+    retries, hard-trim at the last newline before TRUNCATE_TARGET_CHARS and
+    re-append the original [Outro] tag (or a fallback) so the track has a
+    proper close. Returns the input unchanged when already within budget."""
+    if len(lyrics) <= MAX_LYRICS_CHARS:
+        return lyrics
+
+    outro_match = re.search(r"\[Outro:[^\]]*\]", lyrics)
+    outro_tag = outro_match.group(0) if outro_match else "[Outro: fading]"
+
+    budget = TRUNCATE_TARGET_CHARS - len(outro_tag) - 1
+    if budget <= 0:
+        return outro_tag[:MAX_LYRICS_CHARS]
+
+    cut = lyrics.rfind("\n", 0, budget)
+    if cut <= 0:
+        cut = budget
+
+    return lyrics[:cut].rstrip() + "\n" + outro_tag
 
 
 def _count_substring_ci(haystack: str, needle: str) -> int:
