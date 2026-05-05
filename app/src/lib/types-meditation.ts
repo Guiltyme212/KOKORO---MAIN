@@ -72,7 +72,51 @@ export type GenerateMeditationOutput = {
   templateId: string;
   generatedAt: string;
   providerMeta: ProviderMeta;
+  // Suno's progressive-streaming MP3, available ~20-40s after submit (well
+  // before the final mastered `audioUrl` is persisted). Player uses this
+  // for first listen; the persisted `audioUrl` arrives later for replay.
+  streamAudioUrl?: string;
 };
+
+// Mirror of api/src/kokoro_api/types.py StreamScriptEvent / StreamStreamingEvent
+// / StreamReadyEvent / StreamErrorEvent. Wire format is NDJSON over
+// POST /meditations/stream.
+export type StreamScriptEvent = {
+  event: 'script';
+  meditationId: string;
+  lyrics: string;
+  style: string;
+  vibe: Vibe;
+  templateId: string;
+  generatedAt: string;
+};
+
+export type StreamStreamingEvent = {
+  event: 'streaming';
+  meditationId: string;
+  streamAudioUrl: string;
+  durationSec: number;
+};
+
+export type StreamReadyEvent = {
+  event: 'ready';
+  meditationId: string;
+  audioUrl: string;
+  durationSec: number;
+  providerMeta: ProviderMeta;
+};
+
+export type StreamErrorEvent = {
+  event: 'error';
+  error: string;
+  details: Record<string, unknown>;
+};
+
+export type StreamEvent =
+  | StreamScriptEvent
+  | StreamStreamingEvent
+  | StreamReadyEvent
+  | StreamErrorEvent;
 
 export type LibraryItem = {
   meditationId: string;

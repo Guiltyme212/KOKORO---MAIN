@@ -22,7 +22,12 @@ from fastapi.staticfiles import StaticFiles
 
 from kokoro_api.config import load_config
 from kokoro_api.library_store.blob_backed import BlobLibraryStore
-from kokoro_api.pipeline.orchestrator import PipelineDeps, run_pipeline
+from kokoro_api.pipeline.orchestrator import (
+    PipelineDeps,
+    PipelineStreamEvent,
+    run_pipeline,
+    run_pipeline_streaming,
+)
 from kokoro_api.providers.audio.suno import SunoAudioProvider
 from kokoro_api.providers.blob.base import BlobStore
 from kokoro_api.providers.blob.filesystem import FilesystemBlobStore
@@ -181,6 +186,19 @@ async def _run(input: GenerateMeditationInput) -> GenerateMeditationOutput:
     return await run_pipeline(input, deps)
 
 
+async def _run_stream(input: GenerateMeditationInput) -> AsyncIterator[PipelineStreamEvent]:
+    templates = await _ensure_templates_loaded()
+    deps = PipelineDeps(
+        templates=templates,
+        stt=stt,
+        llm=llm,
+        audio=audio,
+        blob=blob,
+    )
+    async for event in run_pipeline_streaming(input, deps):
+        yield event
+
+
 @app.get("/health")
 async def health() -> dict[str, object]:
     return {"ok": True, "ts": int(time.time() * 1000)}
@@ -192,7 +210,7 @@ async def suno_callback(payload: dict[str, object]) -> dict[str, bool]:
     return {"ok": True}
 
 
-register_meditations_route(app, run_pipeline=_run)
+register_meditations_route(app, run_pipeline=_run, run_pipeline_streaming=_run_stream)
 register_library_routes(app, store=BlobLibraryStore(blob))
 register_uploads_route(app, blob=blob)
 register_feedback_routes(app, blob=blob)

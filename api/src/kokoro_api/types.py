@@ -122,6 +122,38 @@ class GenerateMeditationOutput(_CamelModel):
     provider_meta: ProviderMeta
 
 
+# Streaming pipeline events emitted by `POST /meditations/stream` as NDJSON.
+class StreamScriptEvent(_CamelModel):
+    event: Literal["script"] = "script"
+    meditation_id: str
+    lyrics: str
+    style: str
+    vibe: Vibe
+    template_id: str
+    generated_at: str
+
+
+class StreamStreamingEvent(_CamelModel):
+    event: Literal["streaming"] = "streaming"
+    meditation_id: str
+    stream_audio_url: str
+    duration_sec: float
+
+
+class StreamReadyEvent(_CamelModel):
+    event: Literal["ready"] = "ready"
+    meditation_id: str
+    audio_url: str
+    duration_sec: float
+    provider_meta: ProviderMeta
+
+
+class StreamErrorEvent(_CamelModel):
+    event: Literal["error"] = "error"
+    error: str
+    details: dict[str, object] = Field(default_factory=dict)
+
+
 class LibraryItem(_CamelModel):
     """Summary of a saved meditation. Stored per-user in the blob store."""
 

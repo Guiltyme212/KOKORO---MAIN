@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -9,7 +10,13 @@ from urllib.parse import unquote, urlparse
 import httpx
 import structlog
 
-from kokoro_api.providers.audio.base import AudioResult, MeditationAudioProvider
+from kokoro_api.providers.audio.base import (
+    AudioResult,
+    MeditationAudioProvider,
+    StreamReady,
+    SynthesizeEvent,
+)
+from kokoro_api.providers.audio.suno_ref_cache import get_cached_url, put_cached_url
 from kokoro_api.types import Locale
 
 log = structlog.get_logger()
@@ -72,6 +79,90 @@ class SunoAudioProvider(MeditationAudioProvider):
             locale=locale,
             candidates=candidates,
         )
+
+    async def synthesize_streaming(
+        self,
+        *,
+        script: str,
+        voice_persona_id: str,
+        music_style_prompt: str,
+        reference_track_urls: list[str],
+        target_duration_sec: int,
+        locale: Locale,
+        candidates: int,
+    ) -> AsyncIterator[SynthesizeEvent]:
+        """Yield ('stream', StreamReady) as soon as a playable streamAudioUrl
+        appears, then ('final', AudioResult) once the mastered audio is ready.
+        sunoapi.org only — acedata path falls through to one 'final' yield."""
+        if not self._uses_sunoapi_org:
+            result = await self._synthesize_acedata(
+                script=script,
+                voice_persona_id=voice_persona_id,
+                music_style_prompt=music_style_prompt,
+                reference_track_urls=reference_track_urls,
+                target_duration_sec=target_duration_sec,
+                locale=locale,
+                candidates=candidates,
+            )
+            yield ("final", result)
+            return
+
+        _ = locale
+        t0 = time.monotonic()
+
+        async with httpx.AsyncClient(timeout=POLL_TIMEOUT_SEC + 30) as client:
+            if reference_track_urls:
+                upload_url = await self._prepare_reference_upload_url(
+                    client,
+                    reference_track_urls[0],
+                )
+                task_id = await self._start_sunoapi_org_upload_cover_job(
+                    client,
+                    upload_url=upload_url,
+                    script=script,
+                    voice_persona_id=voice_persona_id,
+                    music_style_prompt=music_style_prompt,
+                )
+            else:
+                task_id = await self._start_sunoapi_org_job(
+                    client,
+                    script=script,
+                    voice_persona_id=voice_persona_id,
+                    music_style_prompt=music_style_prompt,
+                )
+
+            stream_pick = await self._poll_for_stream(
+                client, task_id, target_duration_sec
+            )
+            yield (
+                "stream",
+                StreamReady(
+                    stream_audio_url=str(stream_pick["stream_audio_url"]),
+                    duration_sec=int(stream_pick["duration_sec"]),
+                    candidate_id=str(stream_pick["id"]),
+                    job_id=task_id,
+                ),
+            )
+
+            final = await self._poll_for_final(
+                client, task_id, str(stream_pick["id"]), target_duration_sec
+            )
+            audio_url = str(final["audio_url"])
+            audio_res = await client.get(audio_url)
+            audio_res.raise_for_status()
+
+            yield (
+                "final",
+                AudioResult(
+                    audio_bytes=audio_res.content,
+                    mime_type="audio/mpeg",
+                    duration_sec=int(float(final.get("duration") or target_duration_sec)),
+                    job_ids=[task_id],
+                    candidate_count=int(final.get("candidate_count") or 1),
+                    chosen_candidate=int(final.get("chosen_index") or 0),
+                    latency_ms=int((time.monotonic() - t0) * 1000),
+                ),
+            )
 
     async def _synthesize_acedata(
         self,
@@ -248,6 +339,12 @@ class SunoAudioProvider(MeditationAudioProvider):
         if not local_path.exists():
             raise RuntimeError(f"suno reference track not found: {local_path}")
 
+        cached = await get_cached_url(local_path)
+        if cached:
+            log.info("suno.ref.cache_hit", ref=local_path.name, upload_url=cached)
+            return cached
+
+        log.info("suno.ref.cache_miss", ref=local_path.name)
         res = await client.post(
             f"{SUNOAPI_FILE_BASE_URL}/api/file-stream-upload",
             headers={"authorization": f"Bearer {self._api_key}"},
@@ -262,7 +359,9 @@ class SunoAudioProvider(MeditationAudioProvider):
         file_url = data.get("downloadUrl") or data.get("fileUrl")
         if not payload.get("success") or not file_url:
             raise RuntimeError(f"suno reference upload failed: {payload}")
-        return str(file_url)
+        upload_url = str(file_url)
+        await put_cached_url(local_path, upload_url)
+        return upload_url
 
     @staticmethod
     def _local_ref_path(ref: str) -> Path | None:
@@ -413,6 +512,115 @@ class SunoAudioProvider(MeditationAudioProvider):
 
             await asyncio.sleep(POLL_INTERVAL_SEC)
         raise TimeoutError(f"sunoapi task {task_id} timed out after {POLL_TIMEOUT_SEC}s")
+
+    async def _poll_for_stream(
+        self,
+        client: httpx.AsyncClient,
+        task_id: str,
+        target_duration_sec: int,
+    ) -> dict[str, Any]:
+        """Phase 1: return the moment any candidate has a streamAudioUrl set.
+        If multiple candidates have one ready in the same poll, pick by
+        duration closest to target. Records the chosen item's id so phase 2
+        can wait on the same candidate."""
+        deadline = time.monotonic() + POLL_TIMEOUT_SEC
+        while time.monotonic() < deadline:
+            res = await client.get(
+                f"{self._base_url}/api/v1/generate/record-info",
+                headers={"authorization": f"Bearer {self._api_key}"},
+                params={"taskId": task_id},
+            )
+            res.raise_for_status()
+            payload = res.json()
+            if payload.get("code") != 200:
+                raise RuntimeError(f"sunoapi record-info failed: {payload}")
+
+            data = payload.get("data") or {}
+            status = str(data.get("status") or "").lower()
+            if status in FAILED_STATUSES:
+                raise RuntimeError(f"sunoapi task {task_id} errored: {data}")
+
+            response = data.get("response") or {}
+            suno_data = response.get("sunoData") if isinstance(response, dict) else None
+            if isinstance(suno_data, list) and suno_data:
+                streamables: list[dict[str, Any]] = []
+                for item in suno_data:
+                    if not isinstance(item, dict):
+                        continue
+                    stream_url = item.get("streamAudioUrl") or item.get("audioUrl")
+                    if not stream_url:
+                        continue
+                    streamables.append(
+                        {
+                            "id": item.get("id"),
+                            "stream_audio_url": stream_url,
+                            "duration_sec": int(
+                                float(item.get("duration") or target_duration_sec)
+                            ),
+                        }
+                    )
+                if streamables:
+
+                    def distance(c: dict[str, Any]) -> float:
+                        return abs(int(c["duration_sec"]) - target_duration_sec)
+
+                    return min(streamables, key=distance)
+
+            await asyncio.sleep(POLL_INTERVAL_SEC)
+        raise TimeoutError(f"sunoapi task {task_id} stream timed out after {POLL_TIMEOUT_SEC}s")
+
+    async def _poll_for_final(
+        self,
+        client: httpx.AsyncClient,
+        task_id: str,
+        chosen_id: str,
+        target_duration_sec: int,
+    ) -> dict[str, Any]:
+        """Phase 2: keep polling until status==success AND the chosen
+        candidate has a final audioUrl. Returns that candidate's normalized
+        dict (audio_url + duration + id)."""
+        deadline = time.monotonic() + POLL_TIMEOUT_SEC
+        while time.monotonic() < deadline:
+            res = await client.get(
+                f"{self._base_url}/api/v1/generate/record-info",
+                headers={"authorization": f"Bearer {self._api_key}"},
+                params={"taskId": task_id},
+            )
+            res.raise_for_status()
+            payload = res.json()
+            if payload.get("code") != 200:
+                raise RuntimeError(f"sunoapi record-info failed: {payload}")
+
+            data = payload.get("data") or {}
+            status = str(data.get("status") or "").lower()
+            if status in FAILED_STATUSES:
+                raise RuntimeError(f"sunoapi task {task_id} errored: {data}")
+
+            response = data.get("response") or {}
+            suno_data = response.get("sunoData") if isinstance(response, dict) else None
+            # Accept both FIRST_SUCCESS (chosen candidate's audioUrl is
+            # populated as soon as Suno finishes its first track) and
+            # SUCCESS (all tracks final). For our purposes the chosen
+            # candidate's mastered audioUrl at FIRST_SUCCESS is identical
+            # to what arrives at SUCCESS — waiting for SUCCESS just adds
+            # 30-60s while the OTHER candidate finishes.
+            if isinstance(suno_data, list) and status in ("first_success", "success"):
+                normalized = self._normalize_sunoapi_candidates(suno_data)
+                same_id = next(
+                    (c for c in normalized if str(c.get("id")) == chosen_id),
+                    None,
+                )
+                if same_id and same_id.get("audio_url"):
+                    same_id["candidate_count"] = len(normalized)
+                    same_id["chosen_index"] = next(
+                        (i for i, c in enumerate(normalized) if str(c.get("id")) == chosen_id),
+                        0,
+                    )
+                    same_id["target_duration_sec"] = target_duration_sec
+                    return same_id
+
+            await asyncio.sleep(POLL_INTERVAL_SEC)
+        raise TimeoutError(f"sunoapi task {task_id} final timed out after {POLL_TIMEOUT_SEC}s")
 
     @staticmethod
     def _normalize_sunoapi_candidates(raw: list[Any]) -> list[dict[str, Any]]:

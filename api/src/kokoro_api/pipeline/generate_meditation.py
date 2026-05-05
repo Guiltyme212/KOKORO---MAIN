@@ -5,10 +5,7 @@ from dataclasses import dataclass
 import structlog
 from pydantic import BaseModel
 
-from kokoro_api.pipeline.validate_lyrics import (
-    enforce_max_lyrics_length,
-    validate_meditation_output,
-)
+from kokoro_api.pipeline.validate_lyrics import coerce_meditation_output
 from kokoro_api.prompt.parse import parse_llm_output
 from kokoro_api.prompt.system import build_system_prompt
 from kokoro_api.prompt.user import BuildUserArgs, HistoryDict, build_user_prompt
@@ -69,10 +66,11 @@ async def generate_meditation(
     total_out = 0
     total_cache = 0
 
-    last_validation_warnings: list[str] = []
     prompt_for_attempt = user_prompt
-    last_parsed = None
 
+    # We retry only on JSON parse failure (a real LLM error). Formatting
+    # violations are handled deterministically by `coerce_meditation_output`
+    # in the parsed branch — no LLM re-call needed.
     for attempt in range(2):
         result = await llm.generate(
             system_prompt=system_prompt,
@@ -111,51 +109,14 @@ async def generate_meditation(
             )
             continue
 
-        violations = validate_meditation_output(
-            style=parsed.style, lyrics=parsed.lyrics, call_me=input.call_me
-        )
-        last_parsed = parsed
-        last_validation_warnings = violations
-
-        if not violations:
-            return GenerateMeditationResult(
-                style=parsed.style,
-                lyrics=enforce_max_lyrics_length(parsed.lyrics),
-                estimated_duration_sec=parsed.estimated_duration_sec,
-                validation_warnings=[],
-                meta=LlmMeta(
-                    provider=llm.name,
-                    model=llm.model,
-                    latency_ms=total_latency,
-                    tokens_in=total_in,
-                    tokens_out=total_out,
-                    cache_read_tokens=total_cache,
-                ),
-            )
-
-        log.warning(
-            "writer.validation_failed",
-            attempt=attempt,
-            violations=violations,
-        )
-        prompt_for_attempt = (
-            f"{user_prompt}\n\n"
-            "Your previous output failed these MEDITATION rules (this is a SPOKEN MEDITATION, "
-            "NOT a song — re-read the system prompt):\n- "
-            + "\n- ".join(violations)
-            + "\n\nFix every violation. Re-emit the full JSON object."
-        )
-
-    if last_parsed is not None:
-        log.warning(
-            "writer.shipping_with_warnings",
-            violations=last_validation_warnings,
+        coerced_style, coerced_lyrics = coerce_meditation_output(
+            style=parsed.style, lyrics=parsed.lyrics
         )
         return GenerateMeditationResult(
-            style=last_parsed.style,
-            lyrics=enforce_max_lyrics_length(last_parsed.lyrics),
-            estimated_duration_sec=last_parsed.estimated_duration_sec,
-            validation_warnings=last_validation_warnings,
+            style=coerced_style,
+            lyrics=coerced_lyrics,
+            estimated_duration_sec=parsed.estimated_duration_sec,
+            validation_warnings=[],
             meta=LlmMeta(
                 provider=llm.name,
                 model=llm.model,

@@ -4,21 +4,23 @@ import { useAnswers } from '../state/answers';
 import { haptic, isInTelegram, tgUser, tgInitData } from '../lib/telegram';
 import { Glow, TopBar } from '../components/atoms';
 import type { Vibe } from '../types';
-import { generateMeditation } from '../lib/api';
+import { generateMeditationStreaming } from '../lib/api';
 import { uploadCapture } from '../lib/uploads';
 import { captureAudioApi } from '../state/captureAudio';
 import type {
   Capture,
   ClientInfo,
   GenerateMeditationInput,
-  GenerateMeditationOutput,
   Locale,
 } from '../lib/types-meditation';
 import { generatedMeditationApi } from '../state/generatedMeditation';
 
-const ESTIMATED_DURATION_MS = 90000;
+// Player auto-advances on the 'streaming' event (~20-40s after submit).
+// This estimate now drives only the visual progress carousel until phase
+// flips to 'ready'.
+const ESTIMATED_DURATION_MS = 40000;
 let inFlight:
-  | { key: string; promise: Promise<GenerateMeditationOutput> }
+  | { key: string; promise: Promise<void> }
   | null = null;
 
 const VIBE_NAME: Record<Vibe, string> = {
@@ -119,26 +121,70 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
       };
       const key = JSON.stringify({ ...input, requestId: undefined });
 
-      const promise = inFlight?.key === key
-        ? inFlight.promise
-        : generateMeditation(input);
-      inFlight = { key, promise };
+      // Drain the stream once per input. Cancellation only blocks setState
+      // calls — the loop keeps running so the persisted audioUrl lands in
+      // the store even if the user has already navigated to Player.
+      const drain = inFlight?.key === key ? inFlight.promise : (async () => {
+        let scriptVibe: Vibe = vibe;
+        let templateId = '';
+        let lyrics = '';
+        let style = '';
+        let generatedAt = '';
+        let scriptMeditationId = '';
 
-      promise
-        .then((out) => {
-          if (cancelled) return;
-          if (inFlight?.promise === promise) inFlight = null;
-          generatedMeditationApi.set(out);
-          setPhase('ready');
-          haptic.success();
-          window.setTimeout(() => goto('player'), 650);
-        })
-        .catch((err: unknown) => {
-          if (cancelled) return;
-          if (inFlight?.promise === promise) inFlight = null;
+        for await (const ev of generateMeditationStreaming(input)) {
+          if (ev.event === 'script') {
+            scriptMeditationId = ev.meditationId;
+            scriptVibe = ev.vibe;
+            templateId = ev.templateId;
+            lyrics = ev.lyrics;
+            style = ev.style;
+            generatedAt = ev.generatedAt;
+          } else if (ev.event === 'streaming') {
+            generatedMeditationApi.set({
+              meditationId: ev.meditationId || scriptMeditationId,
+              audioUrl: '',
+              streamAudioUrl: ev.streamAudioUrl,
+              durationSec: ev.durationSec,
+              style,
+              lyrics,
+              vibe: scriptVibe,
+              templateId,
+              generatedAt,
+              providerMeta: {
+                llm: { provider: '', model: '', latencyMs: 0, tokensIn: 0, tokensOut: 0, cacheReadTokens: 0 },
+                audio: { provider: '', jobId: '', latencyMs: 0, candidates: 0, chosenCandidate: 0 },
+                persistence: { provider: '', latencyMs: 0 },
+                totalLatencyMs: 0,
+              },
+            });
+            if (!cancelled) {
+              setPhase('ready');
+              haptic.success();
+              window.setTimeout(() => goto('player'), 650);
+            }
+          } else if (ev.event === 'ready') {
+            generatedMeditationApi.update({
+              audioUrl: ev.audioUrl,
+              durationSec: ev.durationSec,
+              providerMeta: ev.providerMeta,
+            });
+          }
+        }
+      })();
+
+      inFlight = { key, promise: drain };
+
+      try {
+        await drain;
+      } catch (err: unknown) {
+        if (!cancelled) {
           setError(err instanceof Error ? err.message : 'generation failed');
           setPhase('error');
-        });
+        }
+      } finally {
+        if (inFlight?.promise === drain) inFlight = null;
+      }
     })();
 
     return () => {
@@ -166,11 +212,28 @@ export function Composing({ goto }: { goto: (r: Route) => void }) {
   ];
 
   const activeLines = phase === 'error' ? errorLines : lines;
-  const thresholds = phase === 'error'
-    ? [0, 0.33, 0.66]
-    : [0, 0.12, 0.28, 0.48, 0.68, 0.88];
+  // Error phase uses threshold-driven progression. Working phase advances
+  // through the 6 lines at the start, then loops on the last 3 ("Composing
+  // the script", "Voicing it into music", "Saving the audio") every 6s
+  // until the streaming event fires — the previous behavior pinned at
+  // "Saving the audio" forever, which felt broken when Suno was slow.
   let activeIdx = 0;
-  for (let k = 0; k < thresholds.length; k++) if (progress >= thresholds[k]) activeIdx = k;
+  if (phase === 'error') {
+    const thresholds = [0, 0.33, 0.66];
+    for (let k = 0; k < thresholds.length; k++) if (progress >= thresholds[k]) activeIdx = k;
+  } else {
+    const thresholds = [0, 0.12, 0.28, 0.48, 0.68, 0.88];
+    for (let k = 0; k < thresholds.length; k++) if (progress >= thresholds[k]) activeIdx = k;
+    // Once we've reached the last line and audio still isn't ready, keep
+    // cycling through the last three every 6s so the screen feels alive.
+    if (activeIdx === thresholds.length - 1) {
+      const overflowMs = t * 1000 - ESTIMATED_DURATION_MS * thresholds[thresholds.length - 1];
+      if (overflowMs > 6000) {
+        const cycleStart = thresholds.length - 3;
+        activeIdx = cycleStart + (Math.floor(overflowMs / 6000) % 3);
+      }
+    }
+  }
 
   const retry = () => {
     haptic.medium();

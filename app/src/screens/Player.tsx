@@ -31,6 +31,15 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
 
   const meta = META[vibe];
   const total = Math.max(1, Math.round(generated?.durationSec ?? 1));
+  // Freeze the audio src on first render. Streaming URL plays first; the
+  // persisted audioUrl arrives later but we don't swap mid-listen — that
+  // would interrupt playback. Replay (e.g. from library) reads the
+  // persisted audioUrl from the store on a fresh Player mount.
+  const initialSrc = useMemo(
+    () => generated?.streamAudioUrl || generated?.audioUrl || '',
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -139,7 +148,7 @@ export function Player({ goto }: { goto: (r: Route) => void }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sumi)', color: 'var(--washi)', overflow: 'hidden' }}>
-      <audio ref={audioRef} src={generated.audioUrl} preload="auto" />
+      <audio ref={audioRef} src={initialSrc} preload="auto" />
 
       {isCinematic ? (
         <>
@@ -315,13 +324,20 @@ function SaveButton() {
     );
   }
 
+  // The persisted audioUrl arrives ~60-140s after the stream URL. Saving
+  // before then would persist a soon-expiring stream URL — gate the
+  // button until the 'ready' event has filled in audioUrl.
+  const persisted = !!generated.audioUrl;
   const saved = items.some((item) => item.meditationId === generated.meditationId);
-  const label = pending
-    ? (saved ? 'Removing…' : 'Saving…')
-    : (saved ? 'Saved · tap to remove' : 'Save to library');
+  const disabled = pending || !persisted;
+  const label = !persisted
+    ? 'Preparing…'
+    : pending
+      ? (saved ? 'Removing…' : 'Saving…')
+      : (saved ? 'Saved · tap to remove' : 'Save to library');
 
   const onClick = async () => {
-    if (pending) return;
+    if (disabled) return;
     setPending(true);
     try {
       haptic.light();
@@ -342,12 +358,12 @@ function SaveButton() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
       <button
         onClick={onClick}
-        disabled={pending}
+        disabled={disabled}
         style={{
           color: saved ? 'var(--washi)' : 'var(--persimmon)',
           fontFamily: 'var(--sans)', fontSize: 12,
           padding: 8,
-          opacity: pending ? 0.5 : 1,
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         {label}

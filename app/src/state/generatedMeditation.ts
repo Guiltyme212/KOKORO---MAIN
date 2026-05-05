@@ -34,10 +34,15 @@ function set(value: GenerateMeditationOutput | null) {
   subs.forEach((fn) => fn());
 }
 
+function update(partial: Partial<GenerateMeditationOutput>) {
+  if (!state) return;
+  set({ ...state, ...partial });
+}
+
 export function useGeneratedMeditation() {
   const generated = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const setGenerated = useCallback((value: GenerateMeditationOutput | null) => set(value), []);
   return { generated, setGenerated };
 }
 
-export const generatedMeditationApi = { set, getSnapshot };
+export const generatedMeditationApi = { set, update, getSnapshot };
