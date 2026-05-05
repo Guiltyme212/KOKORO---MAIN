@@ -15,7 +15,10 @@ from kokoro_api.types import Locale
 log = structlog.get_logger()
 
 POLL_INTERVAL_SEC = 4
-POLL_TIMEOUT_SEC = 180
+# Suno V5 + upload-cover routinely takes 90-180s but tail latency can exceed
+# 4 minutes for longer scripts. Railway's edge proxy gives ~5 min before
+# returning 504, so cap below that.
+POLL_TIMEOUT_SEC = 270
 ACEDATA_MODEL = "chirp-v5"
 SUNOAPI_MODEL = "V5"
 SUNOAPI_FILE_BASE_URL = "https://sunoapiorg.redpandaai.co"
