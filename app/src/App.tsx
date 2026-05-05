@@ -9,10 +9,10 @@ import { Name } from './screens/Name';
 import { Capture } from './screens/Capture';
 import { Mirror } from './screens/Mirror';
 import { ModeSelect } from './screens/ModeSelect';
-import { Composing } from './screens/Composing';
 import { Player } from './screens/Player';
 import { Reflect } from './screens/Reflect';
 import { Library } from './screens/Library';
+import { PickWhatLands } from './screens/PickWhatLands';
 import './App.css';
 
 type ScreenProps = { goto: (r: Route) => void };
@@ -23,9 +23,10 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   capture: Capture,
   mirror: Mirror,
   contentType: ModeSelect,
-  composing: Composing,
+  composing: PickWhatLands,
   player: Player,
   reflect: Reflect,
+  pickwhatlands: PickWhatLands,
   home: Welcome,
   library: Library,
   quickReset: Welcome,
