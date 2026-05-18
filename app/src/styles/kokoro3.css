@@ -1952,8 +1952,8 @@ body,
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 44px 24px 130px;
-    gap: 18px;
+    padding: 40px 24px 112px;
+    gap: 14px;
   }
   .k3-name .k3-name-mascot {
     position: relative;
@@ -1962,9 +1962,11 @@ body,
     top: auto;
     transform: none;
     margin: 0 auto;
-    width: 200px;
-    height: 200px;
+    width: 240px;
+    height: 240px;
     flex: 0 0 auto;
+    -webkit-mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 50%, transparent 86%);
+            mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 50%, transparent 86%);
   }
   .k3-name .k3-name-copy {
     position: relative;
