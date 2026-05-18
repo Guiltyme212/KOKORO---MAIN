@@ -47,14 +47,12 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement;
+    const tg = window.Telegram?.WebApp;
+    const isTGMA = !!(tg && tg.initData);
+    if (isTGMA) root.classList.add('tg-mini-app');
     function trackKeyboard() {
-      const tg = window.Telegram?.WebApp;
       let kbH = 0;
-      if (tg && tg.initData) {
-        const stable = tg.viewportStableHeight || tg.viewportHeight || 0;
-        const current = tg.viewportHeight || 0;
-        kbH = Math.max(0, stable - current);
-      } else if (window.visualViewport) {
+      if (!isTGMA && window.visualViewport) {
         kbH = Math.max(0, window.innerHeight - window.visualViewport.height);
       }
       kbH = Math.min(500, kbH);
@@ -68,7 +66,6 @@ export default function App() {
     window.visualViewport?.addEventListener('resize', trackKeyboard);
     window.addEventListener('focusin', trackKeyboard);
     window.addEventListener('focusout', trackKeyboard);
-    const tg = window.Telegram?.WebApp;
     tg?.onEvent?.('viewportChanged', trackKeyboard);
     return () => {
       window.visualViewport?.removeEventListener('resize', trackKeyboard);

@@ -2026,6 +2026,25 @@ body,
   .k3-chat-frame .k3-bubble-slot-user {
     top: auto;
     bottom: calc(320px + var(--k3-kb-h, 0px));
+    left: 22px;
+    right: auto;
+    max-width: 220px;
+  }
+
+  /* Telegram Mini App: TG resizes the webview when keyboard opens, so
+     we don't apply our own --k3-kb-h offset. Instead shrink the chat
+     peek + tighten things so the input bar doesn't crash into the
+     mascot in the smaller viewport. */
+  .tg-mini-app .k3-chat-peek.is-compact {
+    top: 80px;
+    height: 240px;
+    width: 220px;
+  }
+  .tg-mini-app .k3-chat-frame .k3-chat-log {
+    bottom: 200px;
+  }
+  .tg-mini-app .k3-chat-frame .k3-bubble-slot-user {
+    bottom: 280px;
   }
   .k3-chat-compose.is-open {
     bottom: calc(26px + var(--k3-kb-h, 0px));
