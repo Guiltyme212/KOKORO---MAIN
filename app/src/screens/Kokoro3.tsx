@@ -1014,7 +1014,7 @@ export function Chat3({ goto }: ScreenProps) {
 
       <section className={`k3-chat-log ${showStyles ? 'has-panel' : ''} ${typeOpen ? 'is-typing-mode' : ''}`} aria-live="polite">
 
-        {selectedVibe && phase !== 'idle' && phase !== 'error' && (
+        {selectedVibe && phase !== 'idle' && phase !== 'error' && !result && (
           <div className="k3-making-card">
             <div style={{ flex: 1, minWidth: 0 }}>
               <span>{phaseLabel(phase)}</span>
@@ -1082,11 +1082,6 @@ export function Chat3({ goto }: ScreenProps) {
       <form className={`k3-chat-compose ${typeOpen ? 'is-open' : ''}`} onSubmit={submitTyped}>
         {!typeOpen && (
           <>
-            <div className="k3-voice-status">
-              {status === 'connected'
-                ? (isMuted ? 'mic muted - tap mic to unmute' : 'Kokoro is listening - tap mic to mute')
-                : 'tap to speak'}
-            </div>
             <div className="k3-voice-controls">
               {status === 'connected' && (
                 <button
@@ -1109,6 +1104,11 @@ export function Chat3({ goto }: ScreenProps) {
                 {status === 'connected' && isMuted ? <MicOff size={30} /> : <Mic size={32} />}
               </button>
               {status === 'connected' && <span className="k3-end-btn k3-end-btn--ghost" aria-hidden="true" />}
+            </div>
+            <div className="k3-voice-status">
+              {status === 'connected'
+                ? (isMuted ? 'mic muted - tap mic to unmute' : 'Kokoro is listening - tap mic to mute')
+                : 'tap to speak'}
             </div>
             <button type="button" className="k3-type-toggle" onClick={() => setTypeOpen(true)}>
               Or type instead
