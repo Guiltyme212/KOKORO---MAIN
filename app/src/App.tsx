@@ -53,9 +53,7 @@ export default function App() {
         return;
       }
       const w = window.visualViewport?.width ?? window.innerWidth;
-      const h = window.visualViewport?.height ?? window.innerHeight;
-      const scale = Math.min(w / 390, h / 844);
-      root.style.setProperty('--k3-frame-scale', String(scale));
+      root.style.setProperty('--k3-frame-scale', String(w / 390));
     }
     fit();
     window.addEventListener('resize', fit);
