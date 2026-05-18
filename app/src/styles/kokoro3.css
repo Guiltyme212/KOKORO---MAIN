@@ -1946,10 +1946,50 @@ body,
   .k3-bottom-cta {
     padding-bottom: max(26px, env(safe-area-inset-bottom, 0px));
   }
-  .k3-name .k3-name-mascot {
-    bottom: auto;
-    top: clamp(0px, calc(100svh - 800px), 60px);
+
+  /* Name3 — natural flex flow with clear gaps between sections. */
+  .k3-name {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px 24px 160px;
+    gap: 20px;
   }
+  .k3-name .k3-name-mascot {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    top: auto;
+    transform: none;
+    margin: 0 auto;
+    width: 220px;
+    height: 220px;
+    flex: 0 0 auto;
+  }
+  .k3-name .k3-name-copy {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    padding: 0;
+    flex: 0 0 auto;
+  }
+  .k3-name .k3-name-input {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    flex: 0 0 auto;
+  }
+  .k3-name .k3-chip-section {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    margin-top: 12px;
+    flex: 0 0 auto;
+  }
+
   .k3-tea-mascot,
   .k3-heart-mascot {
     bottom: auto;
