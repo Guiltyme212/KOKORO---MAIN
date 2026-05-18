@@ -105,33 +105,77 @@ function installViewportSync(): void {
   if (typeof window === 'undefined') return;
   const root = document.documentElement;
   const vv = window.visualViewport;
+  // The pre-keyboard "natural" viewport height. We capture this lazily on
+  // first call and update it ONLY when no input is focused — that way we
+  // always have a reference for "how tall the viewport is when there is no
+  // keyboard", which we can subtract from to estimate keyboard occlusion
+  // even when iOS shrinks both innerHeight and visualViewport.height.
+  let baselineH = 0;
+
+  const isEditableFocused = (): boolean => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  };
 
   const update = () => {
     const innerH = window.innerHeight;
     const visH = vv?.height ?? innerH;
     const offsetTop = vv?.offsetTop ?? 0;
-    const keyboard = Math.max(0, innerH - visH - offsetTop);
+    const editable = isEditableFocused();
+
+    if (!editable) {
+      // Refresh baseline whenever nothing is focused — keeps us correct
+      // across orientation changes, Telegram header show/hide, etc.
+      baselineH = Math.max(baselineH, visH, innerH);
+    }
+
+    // Two signals: (1) visualViewport math (works on most browsers),
+    // (2) baseline-minus-current (works when iOS shrinks innerH too).
+    const vvKeyboard = Math.max(0, innerH - visH - offsetTop);
+    const baseKeyboard = editable && baselineH > 0 ? Math.max(0, baselineH - visH) : 0;
+    let keyboardH = Math.max(vvKeyboard, baseKeyboard);
+    if (editable && keyboardH < 60) keyboardH = 290; // sensible default if we still can't measure
+
     root.style.setProperty('--tg-vh', `${visH}px`);
-    root.style.setProperty('--tg-keyboard-height', `${keyboard}px`);
-    root.classList.toggle('tg-keyboard-open', keyboard > 60);
+    root.style.setProperty('--tg-keyboard-height', `${keyboardH}px`);
+    root.classList.toggle('tg-keyboard-open', editable || keyboardH > 60);
   };
 
   update();
+
+  let pending = 0;
+  const schedule = () => {
+    if (pending) cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => {
+      pending = 0;
+      update();
+    });
+  };
+
   if (vv) {
-    let pending = 0;
-    const schedule = () => {
-      if (pending) cancelAnimationFrame(pending);
-      pending = requestAnimationFrame(() => {
-        pending = 0;
-        update();
-      });
-    };
     vv.addEventListener('resize', schedule);
     vv.addEventListener('scroll', schedule);
   } else {
-    window.addEventListener('resize', update);
+    window.addEventListener('resize', schedule);
   }
-  window.addEventListener('orientationchange', update);
+  window.addEventListener('orientationchange', schedule);
+  // Focus tracking is the iOS-Telegram-WebView-reliable signal: when an
+  // <input>/<textarea> gains focus, the keyboard is opening; on blur it
+  // closes. Schedule with a small delay so visualViewport has time to settle.
+  document.addEventListener('focusin', () => {
+    schedule();
+    setTimeout(update, 120);
+    setTimeout(update, 320);
+  });
+  document.addEventListener('focusout', () => {
+    schedule();
+    setTimeout(update, 120);
+    setTimeout(update, 320);
+  });
 }
 
 const safe = (fn: (app: TgWebApp) => void) => {
