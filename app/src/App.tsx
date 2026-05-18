@@ -45,6 +45,22 @@ export default function App() {
     initTelegram();
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    function trackKeyboard() {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const kbH = Math.max(0, window.innerHeight - vv.height);
+      root.style.setProperty('--k3-kb-h', `${Math.round(kbH)}px`);
+      root.classList.toggle('k3-kb-open', kbH > 120);
+    }
+    trackKeyboard();
+    window.visualViewport?.addEventListener('resize', trackKeyboard);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', trackKeyboard);
+    };
+  }, []);
+
   const Active = SCREENS[route];
 
   const content = (
