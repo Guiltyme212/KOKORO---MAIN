@@ -44,6 +44,8 @@ type TgWebApp = {
   };
   setHeaderColor(color: string): void;
   setBackgroundColor(color: string): void;
+  onEvent(eventType: string, eventHandler: () => void): void;
+  offEvent(eventType: string, eventHandler: () => void): void;
 };
 
 declare global {

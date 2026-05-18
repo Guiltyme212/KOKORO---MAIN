@@ -2006,7 +2006,7 @@ body,
   }
   .k3-chat-log {
     top: auto;
-    bottom: 280px;
+    bottom: 220px;
     max-height: 80px;
     z-index: 8;
     overflow: visible;
@@ -2023,7 +2023,7 @@ body,
     overflow-y: auto;
   }
   .k3-bubble-slot-user {
-    bottom: 220px;
+    bottom: 320px;
   }
   .k3-chat-frame:has(.k3-chat-compose.is-open) .k3-bubble-slot-user {
     bottom: 110px;

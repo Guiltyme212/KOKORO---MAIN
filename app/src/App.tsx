@@ -48,9 +48,16 @@ export default function App() {
   useEffect(() => {
     const root = document.documentElement;
     function trackKeyboard() {
-      const vv = window.visualViewport;
-      if (!vv) return;
-      const kbH = Math.max(0, window.innerHeight - vv.height);
+      const tg = window.Telegram?.WebApp;
+      let kbH = 0;
+      if (tg && tg.initData) {
+        const stable = tg.viewportStableHeight || tg.viewportHeight || 0;
+        const current = tg.viewportHeight || 0;
+        kbH = Math.max(0, stable - current);
+      } else if (window.visualViewport) {
+        kbH = Math.max(0, window.innerHeight - window.visualViewport.height);
+      }
+      kbH = Math.min(500, kbH);
       const inputFocused =
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA';
@@ -61,10 +68,13 @@ export default function App() {
     window.visualViewport?.addEventListener('resize', trackKeyboard);
     window.addEventListener('focusin', trackKeyboard);
     window.addEventListener('focusout', trackKeyboard);
+    const tg = window.Telegram?.WebApp;
+    tg?.onEvent?.('viewportChanged', trackKeyboard);
     return () => {
       window.visualViewport?.removeEventListener('resize', trackKeyboard);
       window.removeEventListener('focusin', trackKeyboard);
       window.removeEventListener('focusout', trackKeyboard);
+      tg?.offEvent?.('viewportChanged', trackKeyboard);
     };
   }, []);
 
