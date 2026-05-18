@@ -1965,8 +1965,11 @@ body,
     width: 280px;
     height: 280px;
     flex: 0 0 auto;
-    -webkit-mask-image: radial-gradient(ellipse 54% 54% at 50% 50%, #000 48%, transparent 82%);
-            mask-image: radial-gradient(ellipse 54% 54% at 50% 50%, #000 48%, transparent 82%);
+    -webkit-mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 66%, transparent 88%);
+            mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 66%, transparent 88%);
+  }
+  .k3-name .k3-name-mascot .k3-mascot {
+    filter: contrast(1.04) saturate(1.08);
   }
   .k3-name .k3-name-input {
     scroll-margin-top: 320px;
@@ -1978,6 +1981,7 @@ body,
     left: auto;
     right: auto;
     padding: 0;
+    margin-top: -36px;
     flex: 0 0 auto;
   }
   .k3-name .k3-name-input {
@@ -1985,6 +1989,7 @@ body,
     bottom: auto;
     left: auto;
     right: auto;
+    margin-top: -2px;
     flex: 0 0 auto;
   }
   .k3-name .k3-chip-section {
