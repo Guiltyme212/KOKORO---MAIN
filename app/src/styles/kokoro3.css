@@ -2004,10 +2004,11 @@ body,
     bottom: auto;
     top: 200px;
   }
-  .k3-chat-log {
+  .k3-chat-frame .k3-chat-log {
     top: auto;
-    bottom: 220px;
+    bottom: calc(220px + var(--k3-kb-h, 0px));
     max-height: 80px;
+    height: auto;
     z-index: 8;
     overflow: visible;
   }
@@ -2022,11 +2023,9 @@ body,
     max-height: 220px;
     overflow-y: auto;
   }
-  .k3-bubble-slot-user {
-    bottom: 320px;
-  }
-  .k3-chat-frame:has(.k3-chat-compose.is-open) .k3-bubble-slot-user {
-    bottom: 110px;
+  .k3-chat-frame .k3-bubble-slot-user {
+    top: auto;
+    bottom: calc(320px + var(--k3-kb-h, 0px));
   }
   .k3-chat-compose.is-open {
     bottom: calc(26px + var(--k3-kb-h, 0px));
