@@ -2,6 +2,8 @@
 
 > The personalized meditation app that talks to you by name.
 
+Current frontend work is the Kokoro 3.0 cream/moss/mustard migration: a companion-style ElevenLabs chat that can trigger one personalized meditation generation from inside the conversation. Incoming agents should read `CLAUDE.md` and `docs/plans/HANDOFF-2026-05-16-kokoro-3.md` before changing the visual system.
+
 Voice-first AI meditations. Every meditation addresses the user by a chosen pet name. Two tonal modes (soft / sharp), three content types (心 Unwind / 未 Attract / 志 Lock In). Web + Telegram Mini App first; iOS App Store later.
 
 ## Repository layout
@@ -10,6 +12,7 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 - [app/](app/) - Vite + React + TypeScript frontend. Doubles as the Telegram Mini App.
 - [api/](api/) - Python 3.12 + FastAPI backend for `/meditations`.
 - [templates/](templates/) - JSON meditation skeletons used by the backend selector.
+- [docs/plans/HANDOFF-2026-05-16-kokoro-3.md](docs/plans/HANDOFF-2026-05-16-kokoro-3.md) - current Kokoro 3.0 handoff for future agents.
 
 ## Dev
 
@@ -34,6 +37,16 @@ pnpm build        # production build → app/dist/
 Set `VITE_API_BASE=http://localhost:8787` for local frontend builds if you do not want the default.
 
 The frontend works in plain browsers and inside Telegram WebView. Telegram-specific calls (haptics, header colour, etc.) no-op outside Telegram via [`isInTelegram()`](app/src/lib/telegram.ts).
+
+## Kokoro 3.0 notes
+
+The active frontend flow is:
+
+`welcome -> name -> feeling -> source -> promise -> chat -> player/home/library`
+
+The design source lives in `Kokoro Design System (2)/kokoro-3-0/project/`. The Kokoro MP4s are not truly transparent; their cutout effect uses an opaque cream background, `mix-blend-mode: multiply`, and wrapper masks. See `CLAUDE.md` and the May 16 handoff before changing the visual system.
+
+ElevenLabs agent chat uses a backend-issued private conversation token. Configure `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, and `ELEVENLABS_BRANCH_ID` in environment only; never commit keys.
 
 ## Speech-to-text
 

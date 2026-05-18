@@ -28,3 +28,8 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Large design / handoff artifacts kept local only
+Kokoro 3.0-handoff.zip
+Kokoro Design System (2)/kokoro-3-0/
+docs/mascot-generations/

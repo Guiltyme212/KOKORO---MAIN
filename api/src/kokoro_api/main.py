@@ -39,6 +39,7 @@ from kokoro_api.providers.stt.base import TranscriptionProvider
 from kokoro_api.providers.stt.disabled import DisabledTranscriptionProvider
 from kokoro_api.providers.stt.elevenlabs import ElevenLabsTranscriptionProvider
 from kokoro_api.providers.stt.whisper import WhisperProvider
+from kokoro_api.routes.elevenlabs import register_elevenlabs_routes
 from kokoro_api.routes.feedback import register_feedback_routes
 from kokoro_api.routes.library import register_library_routes
 from kokoro_api.routes.meditations import register_meditations_route
@@ -211,6 +212,14 @@ async def suno_callback(payload: dict[str, object]) -> dict[str, bool]:
 
 
 register_meditations_route(app, run_pipeline=_run, run_pipeline_streaming=_run_stream)
+register_elevenlabs_routes(
+    app,
+    api_key=config.elevenlabs_api_key,
+    base_url=str(config.elevenlabs_base_url),
+    agent_id=config.elevenlabs_agent_id,
+    branch_id=config.elevenlabs_branch_id,
+    environment=config.elevenlabs_environment,
+)
 register_library_routes(app, store=BlobLibraryStore(blob))
 register_uploads_route(app, blob=blob)
 register_feedback_routes(app, blob=blob)

@@ -11,6 +11,8 @@ export type Answers = {
   carry: string;
   chips: string[];
   vibe: Vibe | '';
+  feeling?: string;
+  source?: string;
 };
 
 export const ANSWERS_DEFAULT: Answers = {
@@ -18,4 +20,22 @@ export const ANSWERS_DEFAULT: Answers = {
   carry: '',
   chips: [],
   vibe: '',
+};
+
+/**
+ * Cross-session memory. Persisted under `kokoro_persona` in localStorage.
+ * Survives the welcome-screen reset that clears `answers`, so the ElevenLabs
+ * agent can address a returning user without restarting from scratch.
+ */
+export type Persona = {
+  callMe: string;
+  realName?: string;
+  themes: string;
+  meditations: string;
+};
+
+export const PERSONA_DEFAULT: Persona = {
+  callMe: '',
+  themes: '',
+  meditations: '',
 };

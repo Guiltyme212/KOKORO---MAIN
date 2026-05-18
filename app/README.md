@@ -1,73 +1,41 @@
-# React + TypeScript + Vite
+# Kokoro Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React + TypeScript frontend for Kokoro. The active UI is the Kokoro 3.0 cream/moss/mustard flow in `src/screens/Kokoro3.tsx` and `src/styles/kokoro3.css`.
 
-Currently, two official plugins are available:
+## Current Flow
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+`welcome -> name -> feeling -> source -> promise -> chat -> player/home/library`
 
-## React Compiler
+Design reference:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `../Kokoro Design System (2)/kokoro-3-0/project/Kokoro Welcome Screen.html`
+- `../Kokoro Design System (2)/kokoro-3-0/project/tokens.css`
+- `../Kokoro Design System (2)/kokoro-3-0/project/assets/`
 
-## Expanding the ESLint configuration
+Assets used by the app are copied to `public/kokoro3/`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Commands
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+pnpm install
+pnpm dev
+pnpm build
+pnpm lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Important Visual Note
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The Kokoro MP4s are regular videos with cream backgrounds, not true alpha video. The cutout illusion needs:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- an opaque cream parent background
+- `mix-blend-mode: multiply` on the child video
+- wrapper `mask-image` plus `-webkit-mask-image`
+- `autoplay loop muted playsinline`
+
+Copy the wrapper/video structure from the original handoff HTML when fixing mascot placement. Do not approximate this effect from screenshots.
+
+## Chat + Generation
+
+Chat uses `@elevenlabs/react`. The frontend fetches a private conversation token from the API via `src/lib/elevenlabs.ts`.
+
+Meditation generation still calls `/meditations/stream`, but the 3.0 flow should generate one selected vibe from inside chat, not all five at once.

@@ -114,7 +114,7 @@ def register_meditations_route(
                         details={"traceId": trace_id, "message": msg},
                     )
                 yield (err.model_dump_json(by_alias=True) + "\n").encode("utf-8")
-            except Exception as exc:  # noqa: BLE001 - convert to wire error
+            except Exception as exc:
                 trace_id = str(uuid.uuid4())
                 log.exception("meditations.stream.unhandled", trace_id=trace_id)
                 err = StreamErrorEvent(

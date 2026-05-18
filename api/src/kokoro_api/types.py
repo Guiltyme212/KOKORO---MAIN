@@ -209,7 +209,7 @@ class Template(BaseModel):
     vibe: Vibe
     target_duration_sec: int = Field(alias="targetDurationSec", gt=0)
     music_style_prompt: str = Field(alias="musicStylePrompt", min_length=10)
-    reference_track_urls: list[str] = Field(alias="referenceTrackUrls", min_length=1, max_length=2)
+    reference_track_urls: list[str] = Field(alias="referenceTrackUrls", min_length=0, max_length=2)
     transcript: str = Field(min_length=1)
     writer_directive: str = Field(alias="writerDirective", min_length=1)
 

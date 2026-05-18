@@ -31,6 +31,9 @@ class Config(BaseSettings):
     elevenlabs_api_key: str | None = Field(default=None, min_length=20)
     elevenlabs_base_url: AnyHttpUrl = AnyHttpUrl("https://api.elevenlabs.io")
     elevenlabs_model: str = "scribe_v2"
+    elevenlabs_agent_id: str | None = None
+    elevenlabs_branch_id: str | None = None
+    elevenlabs_environment: str = "production"
 
     suno_base_url: AnyHttpUrl = AnyHttpUrl("https://api.sunoapi.org")
     suno_api_key: str = Field(min_length=20)

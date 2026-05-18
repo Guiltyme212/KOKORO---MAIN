@@ -12,6 +12,7 @@ dependencies = [
     "anthropic>=0.40",
     "structlog>=24.4",
     "python-multipart>=0.0.27",
+    "mutagen>=1.47.0",
 ]
 
 [project.optional-dependencies]

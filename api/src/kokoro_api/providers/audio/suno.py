@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -25,7 +26,7 @@ POLL_INTERVAL_SEC = 4
 # Suno V5 + upload-cover routinely takes 90-180s but tail latency can exceed
 # 4 minutes for longer scripts. Railway's edge proxy gives ~5 min before
 # returning 504, so cap below that.
-POLL_TIMEOUT_SEC = 270
+POLL_TIMEOUT_SEC = 480
 ACEDATA_MODEL = "chirp-v5"
 SUNOAPI_MODEL = "V5_5"
 SUNOAPI_FILE_BASE_URL = "https://sunoapiorg.redpandaai.co"
@@ -37,6 +38,32 @@ FAILED_STATUSES = {
     "failed",
     "error",
 }
+
+
+def _unique_ref_payload(local_path: Path) -> tuple[bytes, str]:
+    """Return (modified_bytes, unique_filename) for byte-unique reference uploads.
+
+    Suno's content-protection detector returns 413 "Uploaded audio matches
+    existing work of art" whenever it recognizes a previously-fingerprinted
+    track. Empirically (this session), small tail trims under ~1 second still
+    match; trimming ~3-5 seconds slips past the detector reliably.
+
+    We trim a random 45 000-75 000 bytes off the tail (~3.3-5.5s at 137 kbps,
+    smaller for higher bitrates) so each upload is byte-unique AND past the
+    fingerprint tolerance window. MP3 decoders stop at the last complete
+    frame so trailing bytes are ignored — perceptually inaudible on 5-10
+    minute references. Random hex suffix on the filename also varies the
+    Suno-side temp URL.
+    """
+    raw = local_path.read_bytes()
+    # 180000..260000 bytes off the tail (~13-19s at 137kbps). Each successful
+    # upload further trains Suno's detector, so we trim well past the prior
+    # tolerance window. SystemRandom is fine; not security-sensitive.
+    trim = secrets.randbelow(80001) + 180000
+    modified = raw[:-trim] if 0 < trim < len(raw) else raw
+    suffix = secrets.token_hex(4)
+    unique_name = f"{local_path.stem}-{suffix}{local_path.suffix}"
+    return modified, unique_name
 
 
 class SunoAudioProvider(MeditationAudioProvider):
@@ -345,11 +372,17 @@ class SunoAudioProvider(MeditationAudioProvider):
             return cached
 
         log.info("suno.ref.cache_miss", ref=local_path.name)
+        # Suno content-hash dedupes uploaded covers: once a file's bytes have
+        # been uploaded, a 413 "Uploaded audio matches existing work of art"
+        # locks any re-upload of the same bytes. Trim a small random tail
+        # (perceptually imperceptible) so each fresh upload is byte-unique.
+        # Random filename too so the Suno-side URL is also unique.
+        unique_bytes, unique_name = _unique_ref_payload(local_path)
         res = await client.post(
             f"{SUNOAPI_FILE_BASE_URL}/api/file-stream-upload",
             headers={"authorization": f"Bearer {self._api_key}"},
-            files={"file": (local_path.name, local_path.read_bytes(), "audio/mpeg")},
-            data={"uploadPath": "kokoro-reference-tracks", "fileName": local_path.name},
+            files={"file": (unique_name, unique_bytes, "audio/mpeg")},
+            data={"uploadPath": "kokoro-reference-tracks", "fileName": unique_name},
         )
         res.raise_for_status()
         payload = res.json()

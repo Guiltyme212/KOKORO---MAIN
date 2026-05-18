@@ -2,6 +2,86 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current status — Kokoro 3.0 integration, May 16 2026
+
+The active frontend is now the **Kokoro 3.0 cream/moss/mustard design**, not the older dark/orange ritual described in some older docs below.
+
+Source-of-truth design handoff:
+
+- `Kokoro Design System (2)/kokoro-3-0/project/Kokoro Welcome Screen.html`
+- `Kokoro Design System (2)/kokoro-3-0/project/tokens.css`
+- `Kokoro Design System (2)/kokoro-3-0/project/assets/`
+
+When matching visuals, copy the CSS mechanics from `Kokoro Welcome Screen.html` first. Do not eyeball positions from screenshots unless the prototype is missing the screen.
+
+### Active 3.0 frontend flow
+
+`welcome -> name -> feeling -> source -> promise -> chat -> player/home/library`
+
+Implementation lives mostly in:
+
+- `app/src/screens/Kokoro3.tsx`
+- `app/src/styles/kokoro3.css`
+- `app/public/kokoro3/`
+- `app/src/App.tsx`
+- `app/src/lib/router.ts`
+
+Legacy route names still exist for compatibility, but most map into the 3.0 flow. The old dark screens are still in the repo but are no longer the normal user path.
+
+### ElevenLabs agent + generation flow
+
+Kokoro 3.0 uses an ElevenLabs conversational agent in the chat screen.
+
+- Frontend SDK: `@elevenlabs/react`.
+- Token fetcher: `app/src/lib/elevenlabs.ts`.
+- Backend token route: `api/src/kokoro_api/routes/elevenlabs.py`.
+- Backend config: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_BRANCH_ID`, `ELEVENLABS_ENVIRONMENT`.
+- Current agent ID: `agent_3101krqbh19mezt9t835q2f7s5ds`.
+- Current branch ID: `agtbrch_8101krqbh39jefytppvjqqth40c5`.
+- Never commit or print the API key. It belongs only in local/Railway env.
+
+Meditation generation still uses the existing backend `/meditations/stream` API. The old `kickoffAllMeditations()` behavior generated all five vibes at once; Kokoro 3.0 should instead start **one selected vibe** from inside chat via `kickoffMeditationFor(vibe, answers, null)`.
+
+Style selection is not gone. It is shown inside chat as five style cards:
+
+- `raw` / Gen Z
+- `cosmic` / Spiritual
+- `iron` / Drive
+- `sleep` / Wind down
+- `zen` / Zen
+
+### Video transparency gotcha
+
+The Kokoro MP4s are **not truly transparent**. They are regular rectangular MP4s on a cream background. The cutout effect only works when all of these are true:
+
+- The immediate screen/background is opaque cream.
+- The `<video>` has `mix-blend-mode: multiply`.
+- The wrapper has both `-webkit-mask-image` and `mask-image`.
+- The `<video>` includes `autoplay loop muted playsinline`.
+
+For peeking videos, keep the structure close to:
+
+```tsx
+<div className="k3-peek-wrap k3-peek-wrap--right">
+  <video autoPlay loop muted playsInline>
+    <source src="/kokoro3/kokoro-peak.mp4" type="video/mp4" />
+  </video>
+</div>
+```
+
+The mask belongs on the wrapper; `mix-blend-mode` belongs on the child video. This is important for browser compositing. If a box appears, first compare against the original `.peek-wrap`, `.peek-wrap--right`, `.kokoro-stage`, and `kokoro-slot` CSS in `Kokoro Welcome Screen.html`.
+
+### Verification snapshot
+
+Recent checks:
+
+- `cd app && pnpm build` passes.
+- `cd app && pnpm lint` passes.
+- `cd api && uv run pytest tests/routes/test_elevenlabs.py` passes.
+- Changed backend route/config ruff + mypy checks pass.
+
+Known unrelated test caveat: full `uv run pytest` currently fails during collection because `api/tests/pipeline/test_validate_lyrics.py` imports `validate_meditation_output`, which no longer exists.
+
 ## Repository shape
 
 Three-tier repo:

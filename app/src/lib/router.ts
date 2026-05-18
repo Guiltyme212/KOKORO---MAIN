@@ -3,6 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 export type Route =
   | 'welcome'
   | 'name'
+  | 'feeling'
+  | 'source'
+  | 'promise'
+  | 'chat'
   | 'capture'
   | 'mirror'
   | 'contentType'
@@ -16,7 +20,8 @@ export type Route =
   | 'sleep';
 
 const VALID: Route[] = [
-  'welcome', 'name', 'capture', 'mirror',
+  'welcome', 'name', 'feeling', 'source', 'promise', 'chat',
+  'capture', 'mirror',
   'contentType', 'composing', 'player', 'reflect',
   'pickwhatlands',
   'home', 'library', 'quickReset', 'sleep',
