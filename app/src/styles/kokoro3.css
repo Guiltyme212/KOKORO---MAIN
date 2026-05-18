@@ -2004,18 +2004,24 @@ body,
     bottom: auto;
     top: 200px;
   }
+  .k3-chat-peek {
+    top: 110px;
+    height: 280px;
+  }
   .k3-chat-log {
-    top: 70px;
-    bottom: auto;
-    max-height: 110px;
+    top: auto;
+    bottom: 280px;
+    max-height: 80px;
     z-index: 8;
+    overflow: visible;
   }
   .k3-bubble-slot-kokoro {
     bottom: auto;
-    top: 200px;
+    top: 70px;
   }
   .k3-bubble-slot-kokoro .k3-message {
-    max-height: calc(100svh - 560px);
+    max-width: calc(100vw - 60px);
+    max-height: 200px;
     overflow-y: auto;
   }
 }
