@@ -51,13 +51,20 @@ export default function App() {
       const vv = window.visualViewport;
       if (!vv) return;
       const kbH = Math.max(0, window.innerHeight - vv.height);
+      const inputFocused =
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA';
       root.style.setProperty('--k3-kb-h', `${Math.round(kbH)}px`);
-      root.classList.toggle('k3-kb-open', kbH > 120);
+      root.classList.toggle('k3-kb-open', inputFocused && kbH > 200);
     }
     trackKeyboard();
     window.visualViewport?.addEventListener('resize', trackKeyboard);
+    window.addEventListener('focusin', trackKeyboard);
+    window.addEventListener('focusout', trackKeyboard);
     return () => {
       window.visualViewport?.removeEventListener('resize', trackKeyboard);
+      window.removeEventListener('focusin', trackKeyboard);
+      window.removeEventListener('focusout', trackKeyboard);
     };
   }, []);
 

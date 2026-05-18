@@ -2004,11 +2004,6 @@ body,
     bottom: auto;
     top: 200px;
   }
-  .k3-chat-peek {
-    top: 110px;
-    height: 280px;
-    width: 260px;
-  }
   .k3-chat-log {
     top: auto;
     bottom: 280px;
