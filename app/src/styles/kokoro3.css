@@ -2029,11 +2029,28 @@ body,
     opacity: 0;
     transform: translateY(8px);
     pointer-events: none;
+    /* Collapse flex contribution so we don't leave an empty band */
+    max-height: 0;
+    margin: 0;
+    overflow: hidden;
   }
   html.tg-keyboard-open .k3-name .k3-ornament-bonsai,
   html.tg-keyboard-open .k3-name .k3-ornament-lantern,
-  html.tg-keyboard-open .k3-name .k3-sakura {
+  html.tg-keyboard-open .k3-name .k3-sakura,
+  html.tg-keyboard-open .k3-name .k3-cloud,
+  html.tg-keyboard-open .k3-name .k3-petal {
     opacity: 0;
+    transition: opacity 240ms ease;
+  }
+  .k3-name .k3-chip-section {
+    transition: opacity 240ms ease,
+                transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                margin 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    max-height: 800px;
+    overflow: visible;
+  }
+  .k3-name .k3-cloud {
     transition: opacity 240ms ease;
   }
   html.tg-keyboard-open .k3-bottom-cta {
