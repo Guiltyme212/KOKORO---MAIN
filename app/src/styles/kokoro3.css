@@ -25,7 +25,8 @@ body,
 .k3-frame {
   position: relative;
   width: min(390px, 100vw);
-  height: min(844px, 100dvh);
+  height: min(844px, 100vh);
+  height: min(844px, 100svh);
   overflow: hidden;
   border-radius: 44px;
   background: var(--k3-cream);
@@ -1931,6 +1932,7 @@ body,
 @media (max-width: 500px) {
   .k3-frame {
     width: min(390px, calc(100vw - 2px));
-    height: min(844px, calc(100dvh - 2px));
+    height: min(844px, calc(100vh - 2px));
+    height: min(844px, calc(100svh - 2px));
   }
 }
