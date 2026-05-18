@@ -1930,9 +1930,22 @@ body,
 }
 
 @media (max-width: 500px) {
+  .stage {
+    overflow: hidden;
+    background: var(--k3-cream);
+  }
+  .page-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .k3-frame {
-    width: min(390px, calc(100vw - 2px));
-    height: min(844px, calc(100vh - 2px));
-    height: min(844px, calc(100svh - 2px));
+    width: 390px;
+    height: 844px;
+    border-radius: 0;
+    box-shadow: none;
+    transform: scale(var(--k3-frame-scale, 1));
+    transform-origin: center center;
+    flex: 0 0 auto;
   }
 }

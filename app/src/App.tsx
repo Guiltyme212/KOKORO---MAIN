@@ -45,6 +45,29 @@ export default function App() {
     initTelegram();
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    function fit() {
+      if (window.innerWidth > 500) {
+        root.style.removeProperty('--k3-frame-scale');
+        return;
+      }
+      const w = window.visualViewport?.width ?? window.innerWidth;
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      const scale = Math.min(w / 390, h / 844);
+      root.style.setProperty('--k3-frame-scale', String(scale));
+    }
+    fit();
+    window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+    window.visualViewport?.addEventListener('resize', fit);
+    return () => {
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('orientationchange', fit);
+      window.visualViewport?.removeEventListener('resize', fit);
+    };
+  }, []);
+
   const Active = SCREENS[route];
 
   const content = (
