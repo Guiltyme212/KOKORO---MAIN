@@ -1944,11 +1944,23 @@ body,
     box-shadow: none;
   }
   .k3-bottom-cta {
-    bottom: var(--k3-kb-h, 0px);
     padding-bottom: max(26px, env(safe-area-inset-bottom, 0px));
   }
   .k3-name .k3-name-mascot {
     bottom: auto;
     top: clamp(0px, calc(100svh - 800px), 60px);
+  }
+  .k3-tea-mascot,
+  .k3-heart-mascot {
+    bottom: auto;
+    top: 200px;
+  }
+  .k3-bubble-slot-kokoro {
+    bottom: auto;
+    top: 70px;
+  }
+  .k3-bubble-slot-kokoro .k3-message {
+    max-height: calc(100svh - 480px);
+    overflow-y: auto;
   }
 }
