@@ -1952,8 +1952,8 @@ body,
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 40px 24px 112px;
-    gap: 14px;
+    padding: 24px 24px 104px;
+    gap: 12px;
   }
   .k3-name .k3-name-mascot {
     position: relative;
@@ -1962,11 +1962,15 @@ body,
     top: auto;
     transform: none;
     margin: 0 auto;
-    width: 240px;
-    height: 240px;
+    width: 280px;
+    height: 280px;
     flex: 0 0 auto;
-    -webkit-mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 50%, transparent 86%);
-            mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 50%, transparent 86%);
+    -webkit-mask-image: radial-gradient(ellipse 54% 54% at 50% 50%, #000 48%, transparent 82%);
+            mask-image: radial-gradient(ellipse 54% 54% at 50% 50%, #000 48%, transparent 82%);
+  }
+  .k3-name .k3-name-input {
+    scroll-margin-top: 320px;
+    scroll-margin-bottom: 24px;
   }
   .k3-name .k3-name-copy {
     position: relative;
