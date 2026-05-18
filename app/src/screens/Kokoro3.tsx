@@ -705,8 +705,22 @@ export function Chat3({ goto }: ScreenProps) {
     },
   ]);
   const [draft, setDraft] = useState('');
-  const [showStyles, setShowStyles] = useState(false);
-  const [suggestedVibe, setSuggestedVibe] = useState<Vibe | null>(null);
+  const [showStyles, setShowStyles] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('kokoro_chat_show_styles') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [suggestedVibe, setSuggestedVibe] = useState<Vibe | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('kokoro_chat_suggested_vibe');
+      if (!raw) return null;
+      return (ALL_VIBES as readonly string[]).includes(raw) ? (raw as Vibe) : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedVibe, setSelectedVibe] = useState<Vibe | ''>(answers.vibe || '');
   const [agentError, setAgentError] = useState<string | null>(null);
   const [, setStartingVoice] = useState(false);
@@ -723,6 +737,23 @@ export function Chat3({ goto }: ScreenProps) {
       stylePanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [showStyles]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('kokoro_chat_show_styles', showStyles ? '1' : '0');
+    } catch {
+      /* session storage unavailable */
+    }
+  }, [showStyles]);
+
+  useEffect(() => {
+    try {
+      if (suggestedVibe) sessionStorage.setItem('kokoro_chat_suggested_vibe', suggestedVibe);
+      else sessionStorage.removeItem('kokoro_chat_suggested_vibe');
+    } catch {
+      /* session storage unavailable */
+    }
+  }, [suggestedVibe]);
 
   const progress = useMeditationProgress();
   const byVibe = useGeneratedMeditationsByVibe();

@@ -27,13 +27,51 @@ const idleSlot = (): VibeProgress => ({ phase: 'idle', error: null, startedAt: n
 
 type State = Record<Vibe, VibeProgress>;
 
-let state: State = {
+const KEY = 'kokoro_meditation_progress';
+
+// Any phase that requires a live NDJSON stream to advance is a lie after a
+// reload — the fetch is dead and `ready` will never land. Demote them to
+// `error` on rehydrate so the card stays visible with a clean retry button
+// instead of spinning forever. Terminal phases (`idle`, `ready`, `error`)
+// survive untouched.
+const rehydratePhase = (slot: VibeProgress): VibeProgress => {
+  if (slot.phase === 'starting' || slot.phase === 'script' || slot.phase === 'streaming') {
+    return { ...slot, phase: 'error', error: 'interrupted' };
+  }
+  return slot;
+};
+
+const blankState = (): State => ({
   raw: idleSlot(),
   cosmic: idleSlot(),
   iron: idleSlot(),
   sleep: idleSlot(),
   zen: idleSlot(),
+});
+
+const loadState = (): State => {
+  try {
+    const raw = sessionStorage.getItem(KEY);
+    if (!raw) return blankState();
+    const parsed = JSON.parse(raw) as Partial<State>;
+    const next = blankState();
+    for (const vibe of ALL_VIBES) {
+      const slot = parsed[vibe];
+      if (slot && typeof slot === 'object' && 'phase' in slot) {
+        next[vibe] = rehydratePhase({
+          phase: slot.phase as PipelinePhase,
+          error: typeof slot.error === 'string' ? slot.error : null,
+          startedAt: typeof slot.startedAt === 'number' ? slot.startedAt : null,
+        });
+      }
+    }
+    return next;
+  } catch {
+    return blankState();
+  }
 };
+
+let state: State = loadState();
 const subs = new Set<() => void>();
 
 const subscribe = (fn: () => void) => {
@@ -44,8 +82,17 @@ const subscribe = (fn: () => void) => {
 };
 const getSnapshot = () => state;
 
+const persist = () => {
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    /* session storage unavailable */
+  }
+};
+
 const setVibe = (vibe: Vibe, next: Partial<VibeProgress>) => {
   state = { ...state, [vibe]: { ...state[vibe], ...next } };
+  persist();
   subs.forEach((fn) => fn());
 };
 
@@ -55,13 +102,8 @@ export function useMeditationProgress() {
 
 export const meditationProgressApi = {
   reset: () => {
-    state = {
-      raw: idleSlot(),
-      cosmic: idleSlot(),
-      iron: idleSlot(),
-      sleep: idleSlot(),
-      zen: idleSlot(),
-    };
+    state = blankState();
+    persist();
     subs.forEach((fn) => fn());
   },
   getSnapshot,
