@@ -47,22 +47,18 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement;
-    function fit() {
-      if (window.innerWidth > 500) {
-        root.style.removeProperty('--k3-frame-scale');
-        return;
-      }
-      const w = window.visualViewport?.width ?? window.innerWidth;
-      root.style.setProperty('--k3-frame-scale', String(w / 390));
+    function trackKeyboard() {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const kbH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty('--k3-kb-h', `${Math.round(kbH)}px`);
     }
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
-    window.visualViewport?.addEventListener('resize', fit);
+    trackKeyboard();
+    window.visualViewport?.addEventListener('resize', trackKeyboard);
+    window.visualViewport?.addEventListener('scroll', trackKeyboard);
     return () => {
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('orientationchange', fit);
-      window.visualViewport?.removeEventListener('resize', fit);
+      window.visualViewport?.removeEventListener('resize', trackKeyboard);
+      window.visualViewport?.removeEventListener('scroll', trackKeyboard);
     };
   }, []);
 
