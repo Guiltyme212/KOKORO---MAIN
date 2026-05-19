@@ -25,7 +25,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kokoro listens to your voice so it can write a meditation that matches how you actually feel.
+	<string>Kokoro listens to your voice and problems. You can talk to him so it can write a meditation that matches how you actually feel.
 </string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Kokoro uses speech recognition to turn what you say into the meditation it writes for you.
