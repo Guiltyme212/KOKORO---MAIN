@@ -2,6 +2,7 @@ import { useEffect, type ComponentType } from 'react';
 import { ConversationProvider } from '@elevenlabs/react';
 import { useRouter, type Route } from './lib/router';
 import { initTelegram } from './lib/telegram';
+import { initNative } from './lib/native';
 import {
   Chat3,
   Feeling3,
@@ -43,6 +44,7 @@ export default function App() {
 
   useEffect(() => {
     initTelegram();
+    initNative();
   }, []);
 
   useEffect(() => {

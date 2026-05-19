@@ -42,8 +42,15 @@ declare global {
   }
 }
 
-const ctor = (): SpeechRecognitionConstructor | null =>
-  window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+import { isNative } from './native';
+
+const ctor = (): SpeechRecognitionConstructor | null => {
+  // Web Speech API is unreliable in iOS WKWebView. Force the caller's
+  // fallback path (MediaRecorder upload to backend transcription) on
+  // native Capacitor builds.
+  if (isNative()) return null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+};
 
 export const isSttSupported = (): boolean => ctor() !== null;
 

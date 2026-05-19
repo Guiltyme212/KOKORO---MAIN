@@ -8,15 +8,29 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}"
+    "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
+    "ios:add": "cap add ios",
+    "ios:sync": "pnpm build && cap sync ios",
+    "ios:open": "cap open ios",
+    "ios:icons": "capacitor-assets generate --ios"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/keyboard": "^6.0.3",
+    "@capacitor/preferences": "^6.0.3",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2",
     "@elevenlabs/react": "^1.6.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.2.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",

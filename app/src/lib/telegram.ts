@@ -1,3 +1,5 @@
+import { nativeHaptic } from './native';
+
 export type TgUser = {
   id: number;
   is_bot?: boolean;
@@ -184,10 +186,10 @@ const safe = (fn: (app: TgWebApp) => void) => {
 };
 
 export const haptic = {
-  light:     () => safe((a) => a.HapticFeedback.impactOccurred('light')),
-  medium:    () => safe((a) => a.HapticFeedback.impactOccurred('medium')),
-  selection: () => safe((a) => a.HapticFeedback.selectionChanged()),
-  success:   () => safe((a) => a.HapticFeedback.notificationOccurred('success')),
+  light:     () => { safe((a) => a.HapticFeedback.impactOccurred('light')); nativeHaptic.light(); },
+  medium:    () => { safe((a) => a.HapticFeedback.impactOccurred('medium')); nativeHaptic.medium(); },
+  selection: () => { safe((a) => a.HapticFeedback.selectionChanged()); nativeHaptic.selection(); },
+  success:   () => { safe((a) => a.HapticFeedback.notificationOccurred('success')); nativeHaptic.success(); },
 };
 
 /**
