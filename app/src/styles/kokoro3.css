@@ -903,12 +903,24 @@ body,
   bottom: 100px;
 }
 
-.k3-bubble-slot {
+.k3-bubble-stack {
   position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 2;
+  top: 92px;
+  left: 24px;
+  right: 140px;
+  z-index: 7;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  pointer-events: none;
+  transition: top 220ms ease, right 220ms ease, gap 220ms ease;
+}
+
+.k3-bubble-slot {
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
   pointer-events: none;
 }
 
@@ -916,21 +928,12 @@ body,
   pointer-events: auto;
 }
 
-.k3-bubble-slot-kokoro {
-  top: auto;
-  bottom: 580px;
-  left: 24px;
-  right: 24px;
-  justify-content: flex-start;
-  z-index: 7;
+.k3-bubble-slot:empty {
+  display: none;
 }
 
+.k3-bubble-slot-kokoro,
 .k3-bubble-slot-user {
-  top: auto;
-  bottom: 210px;
-  left: 24px;
-  right: 24px;
-  justify-content: flex-start;
   z-index: 7;
 }
 
@@ -2085,23 +2088,21 @@ body,
     z-index: 8;
     overflow: visible;
   }
-  .k3-bubble-slot-kokoro {
-    bottom: auto;
+  .k3-bubble-stack {
     top: 110px;
     left: 22px;
     right: 130px;
+    gap: 14px;
   }
   .k3-bubble-slot-kokoro .k3-message {
     max-width: 100%;
     max-height: 220px;
     overflow-y: auto;
   }
-  .k3-chat-frame .k3-bubble-slot-user {
-    top: auto;
-    bottom: calc(320px + var(--k3-kb-h, 0px));
-    left: 22px;
-    right: auto;
-    max-width: 220px;
+  .k3-bubble-slot-user .k3-message {
+    max-width: 100%;
+    max-height: 140px;
+    overflow-y: auto;
   }
 
   /* Telegram Mini App: TG resizes the webview when keyboard opens, so
@@ -2116,28 +2117,34 @@ body,
   .tg-mini-app .k3-chat-frame .k3-chat-log {
     bottom: 200px;
   }
-  .tg-mini-app .k3-chat-frame .k3-bubble-slot-user {
-    bottom: 280px;
-  }
   .k3-chat-compose.is-open {
     bottom: calc(26px + var(--k3-kb-h, 0px));
     transition: bottom 0.18s ease-out;
   }
 
   /* Keyboard open: compress sakura + Kokoro + bubble together. */
-  .k3-kb-open .k3-chat-peek {
+  .k3-kb-open .k3-chat-peek,
+  html.tg-keyboard-open .k3-chat-peek {
     top: 60px;
     height: 200px;
     width: 200px;
   }
-  .k3-kb-open .k3-bubble-slot-kokoro {
+  .k3-kb-open .k3-bubble-stack,
+  html.tg-keyboard-open .k3-bubble-stack {
     top: 60px;
     right: 150px;
+    gap: 10px;
   }
-  .k3-kb-open .k3-bubble-slot-kokoro .k3-message {
-    max-height: 140px;
+  .k3-kb-open .k3-bubble-slot-kokoro .k3-message,
+  html.tg-keyboard-open .k3-bubble-slot-kokoro .k3-message {
+    max-height: 130px;
   }
-  .k3-kb-open .k3-sakura {
+  .k3-kb-open .k3-bubble-slot-user .k3-message,
+  html.tg-keyboard-open .k3-bubble-slot-user .k3-message {
+    max-height: 90px;
+  }
+  .k3-kb-open .k3-sakura,
+  html.tg-keyboard-open .k3-sakura {
     transform: scale(0.78);
     transform-origin: top right;
   }

@@ -1014,33 +1014,35 @@ export function Chat3({ goto }: ScreenProps) {
         className={`k3-chat-peek ${isSpeaking ? 'is-speaking' : ''} ${showStyles || typeOpen ? 'is-compact' : ''}`}
       />
 
-      <div className="k3-bubble-slot k3-bubble-slot-kokoro">
-        {showStyles ? (
-          <div className="k3-message k3-message-kokoro k3-message-picker">
-            <div className="k3-style-heading">
-              <Sparkles size={17} />
-              <span>Choose how it should land</span>
+      <div className="k3-bubble-stack">
+        <div className="k3-bubble-slot k3-bubble-slot-kokoro">
+          {showStyles ? (
+            <div className="k3-message k3-message-kokoro k3-message-picker">
+              <div className="k3-style-heading">
+                <Sparkles size={17} />
+                <span>Choose how it should land</span>
+              </div>
+              <div className="k3-style-grid">
+                {ALL_VIBES.map((vibe) => (
+                  <button
+                    key={vibe}
+                    className={`k3-style-card ${suggestedVibe === vibe ? 'is-suggested' : ''}`}
+                    style={{ '--accent': VIBE_CARDS[vibe].accent } as CSSProperties}
+                    onClick={() => startMeditation(vibe)}
+                  >
+                    <span>{VIBE_CARDS[vibe].eyebrow}</span>
+                    <strong>{VIBE_CARDS[vibe].title}</strong>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="k3-style-grid">
-              {ALL_VIBES.map((vibe) => (
-                <button
-                  key={vibe}
-                  className={`k3-style-card ${suggestedVibe === vibe ? 'is-suggested' : ''}`}
-                  style={{ '--accent': VIBE_CARDS[vibe].accent } as CSSProperties}
-                  onClick={() => startMeditation(vibe)}
-                >
-                  <span>{VIBE_CARDS[vibe].eyebrow}</span>
-                  <strong>{VIBE_CARDS[vibe].title}</strong>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <FadingBubble role="kokoro" message={latestKokoro} />
-        )}
-      </div>
-      <div className="k3-bubble-slot k3-bubble-slot-user">
-        <FadingBubble role="user" message={latestUser} />
+          ) : (
+            <FadingBubble role="kokoro" message={latestKokoro} />
+          )}
+        </div>
+        <div className="k3-bubble-slot k3-bubble-slot-user">
+          <FadingBubble role="user" message={latestUser} />
+        </div>
       </div>
 
       <section className={`k3-chat-log ${showStyles ? 'has-panel' : ''} ${typeOpen ? 'is-typing-mode' : ''}`} aria-live="polite">
