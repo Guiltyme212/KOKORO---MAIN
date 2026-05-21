@@ -35,6 +35,7 @@ def _seed_meta(
     *,
     call_me: str = "зай",
     vibe: str = "zen",
+    capture_text: str = "long day, need rest",
 ) -> None:
     meta: dict[str, Any] = {
         "meditationId": meditation_id,
@@ -44,7 +45,7 @@ def _seed_meta(
         "input": {
             "callMe": call_me,
             "vibe": vibe,
-            "capture": {"kind": "text", "text": "long day, need rest"},
+            "capture": {"kind": "text", "text": capture_text},
         },
     }
     blob.store[f"meditations/{meditation_id}/meta.json"] = json.dumps(meta).encode("utf-8")
@@ -72,6 +73,27 @@ async def test_add_persists_summary_from_meta() -> None:
     assert item.capture_preview == "long day, need rest"
     # Audio URL is freshly signed, not the empty stub stored in JSON.
     assert item.audio_url == "https://cdn/meditations/med-1/audio.mp3?sig=x"
+
+
+@pytest.mark.asyncio
+async def test_add_strips_internal_capture_fields_from_preview() -> None:
+    blob = FakeBlob()
+    _seed_meta(
+        blob,
+        "med-1",
+        capture_text=(
+            "User name: Denis Ivanov.\n"
+            "Call them: Denis.\n"
+            "How they are carrying today: Give me confidence.\n"
+            "Where it seems to be coming from: My head.\n"
+            "What they told Kokoro: ... Make a meditation about my dog now. Just make it."
+        ),
+    )
+    store = BlobLibraryStore(blob)
+
+    items = await store.add(123, "med-1")
+
+    assert items[0].capture_preview == "About my dog."
 
 
 @pytest.mark.asyncio

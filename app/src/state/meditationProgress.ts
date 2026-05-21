@@ -169,11 +169,68 @@ export function kickoffMeditationFor(
     }
   };
 
+  const isTransientStreamError = (err: unknown): boolean => {
+    const msg = err instanceof Error ? err.message : String(err || '');
+    // Suno hiccups, Railway proxy resets, and any other unhandled exception
+    // on the backend all surface as `stream INTERNAL: {...}`. They're usually
+    // not deterministic — a silent retry recovers most of the time.
+    if (msg.startsWith('stream INTERNAL')) return true;
+    if (msg.startsWith('stream UPSTREAM_TIMEOUT')) return true;
+    return false;
+  };
+
+  const runOnce = async (input: GenerateMeditationInput): Promise<void> => {
+    let scriptVibe: Vibe = vibe;
+    let templateId = '';
+    let lyrics = '';
+    let style = '';
+    let generatedAt = '';
+    let scriptMeditationId = '';
+
+    for await (const ev of generateMeditationStreaming(input)) {
+      if (ev.event === 'script') {
+        scriptMeditationId = ev.meditationId;
+        scriptVibe = ev.vibe;
+        templateId = ev.templateId;
+        lyrics = ev.lyrics;
+        style = ev.style;
+        generatedAt = ev.generatedAt;
+        setVibe(vibe, { phase: 'script' });
+      } else if (ev.event === 'streaming') {
+        generatedMeditationApi.setForVibe(vibe, {
+          meditationId: ev.meditationId || scriptMeditationId,
+          audioUrl: '',
+          streamAudioUrl: ev.streamAudioUrl,
+          durationSec: ev.durationSec,
+          style,
+          lyrics,
+          vibe: scriptVibe,
+          templateId,
+          generatedAt,
+          providerMeta: {
+            llm: { provider: '', model: '', latencyMs: 0, tokensIn: 0, tokensOut: 0, cacheReadTokens: 0 },
+            audio: { provider: '', jobId: '', latencyMs: 0, candidates: 0, chosenCandidate: 0 },
+            persistence: { provider: '', latencyMs: 0 },
+            totalLatencyMs: 0,
+          },
+        });
+        setVibe(vibe, { phase: 'streaming' });
+      } else if (ev.event === 'ready') {
+        generatedMeditationApi.updateForVibe(vibe, {
+          audioUrl: ev.audioUrl,
+          durationSec: ev.durationSec,
+          providerMeta: ev.providerMeta,
+        });
+        setVibe(vibe, { phase: 'ready' });
+      }
+    }
+  };
+
   const promise = (async () => {
     try {
       const capture = await buildCaptureWithUpload();
 
-      const input: GenerateMeditationInput = {
+      const baseInput: GenerateMeditationInput = {
         callMe: answers.callMe.trim() || 'friend',
         realName: answers.realName?.trim() || undefined,
         capture,
@@ -183,49 +240,15 @@ export function kickoffMeditationFor(
         client: buildClientInfo(),
       };
 
-      let scriptVibe: Vibe = vibe;
-      let templateId = '';
-      let lyrics = '';
-      let style = '';
-      let generatedAt = '';
-      let scriptMeditationId = '';
-
-      for await (const ev of generateMeditationStreaming(input)) {
-        if (ev.event === 'script') {
-          scriptMeditationId = ev.meditationId;
-          scriptVibe = ev.vibe;
-          templateId = ev.templateId;
-          lyrics = ev.lyrics;
-          style = ev.style;
-          generatedAt = ev.generatedAt;
-          setVibe(vibe, { phase: 'script' });
-        } else if (ev.event === 'streaming') {
-          generatedMeditationApi.setForVibe(vibe, {
-            meditationId: ev.meditationId || scriptMeditationId,
-            audioUrl: '',
-            streamAudioUrl: ev.streamAudioUrl,
-            durationSec: ev.durationSec,
-            style,
-            lyrics,
-            vibe: scriptVibe,
-            templateId,
-            generatedAt,
-            providerMeta: {
-              llm: { provider: '', model: '', latencyMs: 0, tokensIn: 0, tokensOut: 0, cacheReadTokens: 0 },
-              audio: { provider: '', jobId: '', latencyMs: 0, candidates: 0, chosenCandidate: 0 },
-              persistence: { provider: '', latencyMs: 0 },
-              totalLatencyMs: 0,
-            },
-          });
-          setVibe(vibe, { phase: 'streaming' });
-        } else if (ev.event === 'ready') {
-          generatedMeditationApi.updateForVibe(vibe, {
-            audioUrl: ev.audioUrl,
-            durationSec: ev.durationSec,
-            providerMeta: ev.providerMeta,
-          });
-          setVibe(vibe, { phase: 'ready' });
-        }
+      try {
+        await runOnce(baseInput);
+      } catch (err) {
+        if (!isTransientStreamError(err)) throw err;
+        // Silent retry once with a fresh requestId. Keep UI in 'starting'
+        // so the user doesn't see the failure flash.
+        setVibe(vibe, { phase: 'starting', error: null });
+        await new Promise((r) => setTimeout(r, 1500));
+        await runOnce({ ...baseInput, requestId: makeRequestId() });
       }
     } catch (err: unknown) {
       setVibe(vibe, {

@@ -52,7 +52,7 @@ This opens Xcode on the workspace. Do the following one-time setup:
 1. Select the **App** target in the left sidebar.
 2. **General tab → Identity:**
    - Display Name: `Kokoro`
-   - Bundle Identifier: `com.kokoro.app` (must match `capacitor.config.ts`)
+   - Bundle Identifier: `com.kokoromind.app` (must match `capacitor.config.ts`)
    - Version: `1.0.0`, Build: `1`
 3. **Signing & Capabilities tab:**
    - Tick "Automatically manage signing"
@@ -104,7 +104,7 @@ Or in Xcode: select an iPhone 16 simulator from the scheme picker → ⌘R.
 
 In App Store Connect:
 1. Apps → "+" → New App
-   - Bundle ID: `com.kokoro.app` (pick from dropdown after Xcode upload)
+   - Bundle ID: `com.kokoromind.app` (pick from dropdown after Xcode upload)
    - Name: `Kokoro`
    - Primary language: English (U.S.)
    - SKU: `kokoro-ios-1` (any unique string)
@@ -129,7 +129,7 @@ npx cap open ios        # then Product → Archive → upload
 ## What you (the user) need to do, in order
 
 1. ✅ Apple Developer account paid (done).
-2. ☐ Decide the bundle ID. The code currently has `com.kokoro.app` in [app/capacitor.config.ts](app/capacitor.config.ts). If you want something different (e.g. `com.hyperspacelapse.kokoro`), tell me and I'll change it before the first `cap add ios`. **This is permanent once you publish.**
+2. ✅ Bundle ID: `com.kokoromind.app`. This is permanent once you publish.
 3. ☐ App Store Connect → Agreements, Tax, and Banking → sign the **Free Apps** agreement. Fill the tax form (W-8BEN if non-US, W-9 if US).
 4. ☐ Decide and host the privacy policy URL. The page is already written at [app/public/privacy.html](app/public/privacy.html); it will be live at `<your-railway-url>/privacy.html` after the next Railway deploy.
 5. ☐ Provide a 1024×1024 app icon source PNG (or tell me to use the Kokoro mascot still). Drop it at `app/assets/icon.png`.

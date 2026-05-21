@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.kokoro.app',
+  appId: 'com.kokoromind.app',
   appName: 'Kokoro',
   webDir: 'dist',
   ios: {
@@ -30,7 +30,7 @@ const config: CapacitorConfig = {
     },
     CapacitorUpdater: {
       autoUpdate: true,
-      channel: 'production',
+      defaultChannel: 'production',
       resetWhenUpdate: true,
       directUpdate: false,
       responseTimeout: 20,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 
 import structlog
@@ -12,6 +13,14 @@ from kokoro_api.types import LibraryItem
 log = structlog.get_logger()
 
 SIGNED_URL_EXPIRY_SEC = 60 * 60 * 24 * 30
+
+_CAPTURE_FIELD_LABELS = (
+    "User name",
+    "Call them",
+    "How they are carrying today",
+    "Where it seems to be coming from",
+    "What they told Kokoro",
+)
 
 
 class BlobLibraryStore(LibraryStore):
@@ -167,11 +176,73 @@ class BlobLibraryStore(LibraryStore):
         if kind == "text":
             text = capture.get("text")
             if isinstance(text, str):
-                return text[:120]
+                return BlobLibraryStore._human_capture_preview(text)
         elif kind == "theme":
             chips = capture.get("chips")
             if isinstance(chips, list):
-                return ", ".join(str(c) for c in chips)[:120]
+                return BlobLibraryStore._short_preview(", ".join(str(c) for c in chips))
         elif kind == "voice":
             return "voice capture"
         return None
+
+    @staticmethod
+    def _capture_field(text: str, label: str) -> str:
+        labels = "|".join(re.escape(item) for item in _CAPTURE_FIELD_LABELS)
+        pattern = rf"(?:^|\n){re.escape(label)}:\s*([\s\S]*?)(?=\n(?:{labels}):|$)"
+        match = re.search(pattern, text)
+        return match.group(1).strip() if match else ""
+
+    @staticmethod
+    def _human_capture_preview(text: str) -> str | None:
+        clean = text.strip()
+        if not clean:
+            return None
+
+        has_internal_fields = any(f"{label}:" in clean for label in _CAPTURE_FIELD_LABELS)
+        if has_internal_fields:
+            original = clean
+            clean = BlobLibraryStore._capture_field(original, "What they told Kokoro")
+            if not clean:
+                feeling = BlobLibraryStore._capture_field(
+                    original,
+                    "How they are carrying today",
+                )
+                source = BlobLibraryStore._capture_field(
+                    original,
+                    "Where it seems to be coming from",
+                )
+                clean = " - ".join(part for part in (feeling, source) if part)
+
+        clean = re.sub(r"^\s*(?:\.\.\.|[.?!,-])+\s*", "", clean)
+        clean = re.sub(r"\bjust make it\b\.?", "", clean, flags=re.IGNORECASE)
+        clean = re.sub(r"\bright now\b\.?", "", clean, flags=re.IGNORECASE)
+        clean = re.sub(r"\bnow\b\.?", "", clean, flags=re.IGNORECASE)
+        clean = re.sub(r"\s+([.,!?])", r"\1", clean)
+        clean = re.sub(r"\s+", " ", clean).strip()
+        clean = re.sub(r"^please\s+", "", clean, flags=re.IGNORECASE)
+        clean = re.sub(
+            r"^make\s+(?:me\s+)?(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+",
+            "About ",
+            clean,
+            flags=re.IGNORECASE,
+        )
+        clean = re.sub(
+            r"^i\s+(?:want|need)\s+(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+",
+            "About ",
+            clean,
+            flags=re.IGNORECASE,
+        )
+        return BlobLibraryStore._short_preview(clean)
+
+    @staticmethod
+    def _short_preview(text: str) -> str | None:
+        clean = re.sub(r"\s+", " ", text).strip()
+        if not clean:
+            return None
+        if len(clean) <= 120:
+            return clean
+        clipped = clean[:119].rstrip()
+        last_space = clipped.rfind(" ")
+        if last_space > 60:
+            clipped = clipped[:last_space].rstrip()
+        return f"{clipped}..."

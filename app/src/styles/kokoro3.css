@@ -3036,6 +3036,11 @@ body,
   .k3-chat-frame .k3-chat-log {
     top: auto;
     bottom: calc(220px + var(--k3-kb-h, 0px));
+    /* Keep the making/result card out of the bear mascot's column.
+       k3-chat-peek is 315px wide, anchored at right:-56, with a 16%
+       transparent left mask — so the visible bear starts ~209px from
+       the right edge of the screen. 240 gives a small clearance. */
+    right: 240px;
     max-height: 80px;
     height: auto;
     z-index: 8;

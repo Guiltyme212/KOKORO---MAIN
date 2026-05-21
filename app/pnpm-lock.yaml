@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@capacitor-community/apple-sign-in':
+        specifier: 6.0.0
+        version: 6.0.0(@capacitor/core@6.2.1)
       '@capacitor/app':
         specifier: ^6.0.2
         version: 6.0.3(@capacitor/core@6.2.1)
@@ -169,6 +172,11 @@ packages:
 
   '@bufbuild/protobuf@1.10.1':
     resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
+
+  '@capacitor-community/apple-sign-in@6.0.0':
+    resolution: {integrity: sha512-NDySxo/cn7SMezV3LiKaGrgxmYFsbrBFsRyVFXlew2E9fe9CmdeVdGkNFdpJJztVENe4DromWmL/rWpSh42FsA==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
 
   '@capacitor/app@6.0.3':
     resolution: {integrity: sha512-4gFUCbcVz0N/YYN32OBFerocWXslIv3Nc90gDiRsBkJc0plwK6kIUT6PKa5WtW2kfhteUeCVXQbvArH2fH+0Ug==}
@@ -580,6 +588,9 @@ packages:
 
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
+
+  '@types/scriptjs@0.0.2':
+    resolution: {integrity: sha512-GFrUgzGYfNX3VWZwMyzr0JrBwzLv5Kes4BQBvo6hXdRy14/GBbpCiVwwB7v1o2xIEvFf+9GyznmYhuesQQjSag==}
 
   '@types/slice-ansi@4.0.0':
     resolution: {integrity: sha512-+OpjSaq85gvlZAYINyzKpLeiFkSC4EsC6IIiT6v6TLSU5k5U83fHGj9Lel8oKEXM0HqgrMVCjXPDPVICtxF7EQ==}
@@ -2160,6 +2171,9 @@ packages:
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
 
+  scriptjs@2.5.9:
+    resolution: {integrity: sha512-qGVDoreyYiP1pkQnbnFAUIS5AjenNwwQBdl7zeos9etl+hYKWahjRTfzAZZYBv5xNHx7vNKCmaLDQZ6Fr2AEXg==}
+
   sdp-transform@2.15.0:
     resolution: {integrity: sha512-KrOH82c/W+GYQ0LHqtr3caRpM3ITglq3ljGUIb8LTki7ByacJZ9z+piSGiwZDsRyhQbYBOBJgr2k6X4BZXi3Kw==}
     hasBin: true
@@ -2783,6 +2797,12 @@ snapshots:
 
   '@bufbuild/protobuf@1.10.1': {}
 
+  '@capacitor-community/apple-sign-in@6.0.0(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
+      '@types/scriptjs': 0.0.2
+      scriptjs: 2.5.9
+
   '@capacitor/app@6.0.3(@capacitor/core@6.2.1)':
     dependencies:
       '@capacitor/core': 6.2.1
@@ -2890,9 +2910,9 @@ snapshots:
 
   '@capgo/cli@7.106.0(@types/react@19.2.14)':
     dependencies:
-      '@inkjs/ui': 2.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))
+      '@inkjs/ui': 2.0.0(ink@5.2.1(@types/react@19.2.14)(react@19.2.5))
       ink: 5.2.1(@types/react@19.2.14)(react@18.3.1)
-      ink-spinner: 5.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))(react@18.3.1)
+      ink-spinner: 5.0.0(ink@5.2.1(@types/react@19.2.14)(react@19.2.5))(react@18.3.1)
       jsonwebtoken: 9.0.3
       node-forge: 1.4.0
       qrcode: 1.5.4
@@ -2991,7 +3011,7 @@ snapshots:
 
   '@hutson/parse-repository-url@3.0.2': {}
 
-  '@inkjs/ui@2.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))':
+  '@inkjs/ui@2.0.0(ink@5.2.1(@types/react@19.2.14)(react@19.2.5))':
     dependencies:
       chalk: 5.6.2
       cli-spinners: 3.4.0
@@ -3329,6 +3349,8 @@ snapshots:
   '@types/react@19.2.14':
     dependencies:
       csstype: 3.2.3
+
+  '@types/scriptjs@0.0.2': {}
 
   '@types/slice-ansi@4.0.0': {}
 
@@ -4177,7 +4199,7 @@ snapshots:
 
   ini@4.1.3: {}
 
-  ink-spinner@5.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))(react@18.3.1):
+  ink-spinner@5.0.0(ink@5.2.1(@types/react@19.2.14)(react@19.2.5))(react@18.3.1):
     dependencies:
       cli-spinners: 2.9.2
       ink: 5.2.1(@types/react@19.2.14)(react@18.3.1)
@@ -4870,6 +4892,8 @@ snapshots:
       loose-envify: 1.4.0
 
   scheduler@0.27.0: {}
+
+  scriptjs@2.5.9: {}
 
   sdp-transform@2.15.0: {}
 
