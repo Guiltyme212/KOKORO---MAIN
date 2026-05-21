@@ -166,6 +166,62 @@ body,
   font-weight: 500;
 }
 
+.k3-welcome .k3-bottom-cta {
+  gap: 10px;
+}
+
+.k3-welcome .k3-dots {
+  margin-bottom: 8px;
+}
+
+.k3-welcome .k3-link {
+  margin-top: 0;
+}
+
+.k3-apple-sign-in {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #050505;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0;
+  box-shadow: 0 16px 26px rgba(27, 27, 27, 0.22);
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.k3-apple-sign-in span {
+  min-width: 0;
+  max-width: calc(100% - 38px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k3-apple-sign-in:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.k3-apple-sign-in:disabled {
+  opacity: 0.64;
+  cursor: default;
+}
+
+.k3-auth-error {
+  max-width: 100%;
+  margin: 0;
+  color: #8b2d12;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
 .k3-cloud {
   position: absolute;
   left: -10px;
@@ -1492,24 +1548,6 @@ body,
   transition: bottom 220ms ease;
 }
 
-/* User reply bubble anchored to the compose bar — rides up with the keyboard
-   and sits flush above the mic / type input, regardless of mode. */
-.k3-chat-compose .k3-bubble-slot--anchored {
-  align-self: stretch;
-  justify-content: flex-start;
-  margin-bottom: 4px;
-}
-
-.k3-chat-compose .k3-bubble-slot--anchored .k3-message-user {
-  max-width: 78%;
-  margin-left: 4px;
-}
-
-/* When the bubble is empty, remove the gap it would otherwise contribute. */
-.k3-chat-compose .k3-bubble-slot--anchored:empty {
-  display: none;
-}
-
 /* Reverted: chat screen keeps its default layout when the keyboard opens.
    Only `.k3-chat-compose` above lifts via --k3-kb-h to keep the text input
    visible above the keyboard. */
@@ -1662,8 +1700,19 @@ body,
 }
 
 .k3-home-frame {
-  padding: 20px 22px calc(89px + var(--k3-safe-bottom));
+  padding: 0;
+}
+
+.k3-home-scroll {
+  position: absolute;
+  inset: 0;
+  bottom: calc(69px + var(--k3-safe-bottom));
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 20px 22px 24px;
+  z-index: 4;
 }
 
 .k3-player .k3-sakura {
@@ -1739,13 +1788,21 @@ body,
 .k3-play-button {
   width: 78px;
   height: 78px;
-  margin: 30px auto 18px;
+  margin: 24px auto 14px;
   border-radius: 50%;
   background: var(--k3-sunset);
   color: #fff;
   display: grid;
   place-items: center;
   box-shadow: 0 16px 30px rgba(252, 103, 8, 0.24);
+}
+
+.k3-player-eyebrow-below {
+  margin-top: 12px;
+}
+
+.k3-player-done {
+  margin-top: 6px;
 }
 
 .k3-save-note,
@@ -2199,8 +2256,8 @@ body,
 }
 
 .k3-recent-card-saved {
-  flex: 0 0 168px;
-  min-height: 208px;
+  flex: 0 0 172px;
+  min-height: 232px;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -2283,10 +2340,10 @@ body,
 }
 
 .k3-recent-card-saved .k3-recent-play {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
-  background: var(--k3-moss-olive);
+  background: var(--k3-sunset);
   color: #fff;
   display: grid;
   place-items: center;
@@ -2915,6 +2972,11 @@ body,
     z-index: 8;
     overflow: visible;
   }
+  /* When the text sheet is open (keyboard up), pin the meditation card
+     directly above the input bar so it stops drifting into Kokoro's bubble. */
+  .k3-chat-frame .k3-chat-log.is-typing-mode {
+    bottom: calc(104px + var(--k3-kb-h, 0px));
+  }
   .k3-bubble-stack {
     top: 110px;
     left: 22px;
@@ -2961,17 +3023,17 @@ body,
   }
   .k3-kb-open .k3-bubble-stack,
   html.tg-keyboard-open .k3-bubble-stack {
-    top: 210px;
+    top: max(64px, calc(var(--k3-safe-top) + 14px));
     right: 150px;
-    gap: 10px;
+    gap: 8px;
   }
   .k3-kb-open .k3-bubble-slot-kokoro .k3-message,
   html.tg-keyboard-open .k3-bubble-slot-kokoro .k3-message {
-    max-height: 130px;
+    max-height: 110px;
   }
   .k3-kb-open .k3-bubble-slot-user .k3-message,
   html.tg-keyboard-open .k3-bubble-slot-user .k3-message {
-    max-height: 90px;
+    max-height: 60px;
   }
   .k3-kb-open .k3-sakura,
   html.tg-keyboard-open .k3-sakura {
