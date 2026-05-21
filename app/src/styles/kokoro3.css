@@ -1955,6 +1955,11 @@ body,
   color: inherit;
 }
 
+.k3-name-rotator-dot {
+  color: var(--k3-ink);
+  font-weight: inherit;
+}
+
 .k3-name-rotator-in,
 .k3-name-rotator-out {
   position: absolute;
@@ -2211,27 +2216,33 @@ body,
 }
 
 .k3-recent-row {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 12px) / 2);
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 8px;
+  scroll-snap-type: x proximity;
 }
 
 .k3-recent-card {
-  flex: 0 0 142px;
-  min-height: 176px;
+  min-height: 236px;
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.88);
   padding: 12px;
   text-align: left;
   box-shadow: 0 8px 20px rgba(66, 57, 34, 0.08);
+  display: flex;
+  flex-direction: column;
+  color: var(--k3-ink);
+  scroll-snap-align: start;
 }
 
 .k3-recent-thumb {
   width: 100%;
-  height: 82px;
+  height: 86px;
   border-radius: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   overflow: hidden;
   background: var(--k3-cream);
 }
@@ -2242,89 +2253,77 @@ body,
   margin: -9% 0 0 -9%;
 }
 
-.k3-recent-card > span {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--pill, var(--k3-mustard));
-  color: var(--k3-ink);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .k3-recent-card-saved {
-  flex: 0 0 172px;
-  min-height: 232px;
-  display: flex;
-  flex-direction: column;
   background: #fff;
   box-shadow:
     0 10px 24px rgba(66, 57, 34, 0.10),
     0 0 0 2px rgba(252, 103, 8, 0.12) inset;
-  color: var(--k3-ink);
 }
 
-.k3-recent-card-saved .k3-recent-thumb {
-  height: 72px;
-  margin-bottom: 8px;
-}
-
-.k3-recent-card-saved .k3-recent-meta {
+.k3-recent-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  min-height: 23px;
 }
 
-.k3-recent-card-saved .k3-recent-pill {
+.k3-recent-pill {
   display: inline-block;
   padding: 3px 9px;
   border-radius: 999px;
-  background: var(--k3-sunset);
-  color: #fff;
+  background: var(--pill, var(--k3-sunset));
+  color: var(--k3-ink);
   font-size: 9.5px;
   font-weight: 950;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  max-width: 82px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.k3-recent-card-saved .k3-recent-date {
+.k3-recent-card-saved .k3-recent-pill {
+  background: var(--k3-sunset);
+  color: #fff;
+}
+
+.k3-recent-date {
   color: rgba(27, 27, 27, 0.45);
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
-.k3-recent-card-saved .k3-recent-title {
+.k3-recent-title {
   display: block;
   margin-top: 6px;
-  font-size: 14px;
-  line-height: 1.2;
+  font-size: 15px;
+  line-height: 1.12;
   font-weight: 950;
   text-transform: none;
   letter-spacing: 0;
   color: var(--k3-ink);
 }
 
-.k3-recent-card-saved .k3-recent-sub {
+.k3-recent-sub {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.32;
-  font-weight: 500;
-  color: rgba(27, 27, 27, 0.55);
+  font-weight: 850;
+  color: rgba(27, 27, 27, 0.52);
   text-transform: none;
   letter-spacing: 0;
 }
 
-.k3-recent-card-saved .k3-recent-foot {
+.k3-recent-foot {
   margin-top: auto;
   padding-top: 8px;
   display: flex;
@@ -2332,14 +2331,14 @@ body,
   justify-content: space-between;
 }
 
-.k3-recent-card-saved .k3-recent-duration {
+.k3-recent-duration {
   font-size: 11px;
   font-weight: 950;
   color: rgba(27, 27, 27, 0.65);
   letter-spacing: 0;
 }
 
-.k3-recent-card-saved .k3-recent-play {
+.k3-recent-play {
   width: 26px;
   height: 26px;
   border-radius: 999px;
@@ -2352,11 +2351,6 @@ body,
 
 .k3-recent-card strong {
   display: block;
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.15;
-  font-weight: 950;
-  text-transform: uppercase;
 }
 
 .k3-tabbar {
@@ -2460,33 +2454,108 @@ body,
   gap: 12px;
   max-height: 676px;
   overflow-y: auto;
-  padding: 24px 0 calc(86px + var(--k3-safe-bottom));
+  padding: 24px 0 calc(92px + var(--k3-safe-bottom));
 }
 
-.k3-library-list button {
+.k3-library-card {
+  position: relative;
+  min-height: 118px;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 14px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.88);
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 12px 12px 12px 14px;
   text-align: left;
-  box-shadow: 0 8px 20px rgba(66, 57, 34, 0.08);
+  box-shadow: 0 10px 22px rgba(66, 57, 34, 0.09);
 }
 
-.k3-library-list strong,
-.k3-library-list small {
+.k3-library-thumb {
+  width: 92px;
+  height: 82px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--k3-cream);
+}
+
+.k3-library-thumb .k3-loop-video {
+  width: 118%;
+  height: 118%;
+  margin: -9% 0 0 -9%;
+}
+
+.k3-library-info {
+  min-width: 0;
+}
+
+.k3-library-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.k3-library-meta span {
+  max-width: 88px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--pill, var(--k3-mustard));
+  color: var(--k3-ink);
+  font-size: 9.5px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.k3-library-meta small {
+  color: rgba(27, 27, 27, 0.45);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.k3-library-info strong {
   display: block;
-}
-
-.k3-library-list strong {
-  margin-top: 5px;
-  font-size: 17px;
-  line-height: 1.25;
+  color: var(--k3-ink);
+  font-size: 16px;
+  line-height: 1.14;
   font-weight: 950;
 }
 
-.k3-library-list small {
-  margin-top: 8px;
-  color: rgba(27, 27, 27, 0.52);
+.k3-library-info p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 4px 0 0;
+  color: rgba(27, 27, 27, 0.58);
+  font-size: 12px;
+  line-height: 1.28;
   font-weight: 850;
+}
+
+.k3-library-info > small {
+  display: block;
+  margin-top: 7px;
+  color: rgba(27, 27, 27, 0.52);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.k3-library-play {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  padding-left: 1px;
+  background: var(--k3-sunset);
+  color: #fff;
 }
 
 .k3-preset-frame,
@@ -2967,15 +3036,22 @@ body,
   .k3-chat-frame .k3-chat-log {
     top: auto;
     bottom: calc(220px + var(--k3-kb-h, 0px));
+    /* Keep the making/result card out of the bear mascot's column.
+       k3-chat-peek is 315px wide, anchored at right:-56, with a 16%
+       transparent left mask — so the visible bear starts ~209px from
+       the right edge of the screen. 240 gives a small clearance. */
+    right: 240px;
     max-height: 80px;
     height: auto;
     z-index: 8;
     overflow: visible;
   }
-  /* When the text sheet is open (keyboard up), pin the meditation card
-     directly above the input bar so it stops drifting into Kokoro's bubble. */
+  /* When the text sheet is open, pin the meditation card flush above the
+     input bar. The card "kinda sticks to" the input regardless of keyboard
+     state — sits right on top of the compose form (which itself rides on
+     the keyboard top, see .k3-chat-compose.is-open below). */
   .k3-chat-frame .k3-chat-log.is-typing-mode {
-    bottom: calc(104px + var(--k3-kb-h, 0px));
+    bottom: calc(max(var(--k3-safe-bottom), var(--k3-kb-h, 0px)) + 80px);
   }
   .k3-bubble-stack {
     top: 110px;
@@ -3007,10 +3083,10 @@ body,
     bottom: 200px;
   }
   .k3-chat-compose.is-open {
-    bottom: max(
-      calc(26px + var(--k3-kb-h, 0px)),
-      calc(var(--k3-safe-bottom) + var(--k3-kb-h, 0px) + 14px)
-    );
+    /* Input bar lies directly on whichever is taller: the home-indicator
+       safe area (keyboard down) or the keyboard top (keyboard up). No
+       gap above the keyboard. */
+    bottom: max(var(--k3-safe-bottom), var(--k3-kb-h, 0px));
     transition: bottom 0.18s ease-out;
   }
 

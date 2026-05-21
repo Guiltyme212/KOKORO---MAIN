@@ -43,6 +43,62 @@ const writeLocalLibrary = (items: LibraryItem[]): void => {
   }
 };
 
+const CAPTURE_FIELD_LABELS = [
+  'User name',
+  'Call them',
+  'How they are carrying today',
+  'Where it seems to be coming from',
+  'What they told Kokoro',
+];
+
+function extractCaptureField(capture: string, label: string): string {
+  const labels = CAPTURE_FIELD_LABELS
+    .map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|\\n)${escaped}:\\s*([\\s\\S]*?)(?=\\n(?:${labels}):|$)`);
+  return capture.match(re)?.[1]?.trim() ?? '';
+}
+
+function shortenPreview(value: string): string {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (clean.length <= 90) return clean;
+  const clipped = clean.slice(0, 89).trimEnd();
+  const lastSpace = clipped.lastIndexOf(' ');
+  return `${(lastSpace > 44 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}...`;
+}
+
+function buildCapturePreview(): string | undefined {
+  const answers = answersApi.getSnapshot();
+  const raw = answers.carry.trim();
+  let preview = raw;
+
+  if (raw && CAPTURE_FIELD_LABELS.some((label) => raw.includes(`${label}:`))) {
+    preview = extractCaptureField(raw, 'What they told Kokoro');
+  }
+
+  preview = preview
+    .replace(/^\s*(?:\.\.\.|[.?!,-])+\s*/, '')
+    .replace(/\bjust make it\b\.?/gi, '')
+    .replace(/\bright now\b\.?/gi, '')
+    .replace(/\bnow\b\.?/gi, '')
+    .replace(/\s+([.,!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  preview = preview
+    .replace(/^please\s+/i, '')
+    .replace(/^make\s+(?:me\s+)?(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+/i, 'About ')
+    .replace(/^i\s+(?:want|need)\s+(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+/i, 'About ')
+    .trim();
+
+  if (!preview) {
+    preview = [answers.feeling, answers.source].filter(Boolean).join(' - ');
+  }
+
+  return preview ? shortenPreview(preview) : undefined;
+}
+
 const buildLocalLibraryItem = (meditationId: string): LibraryItem => {
   const current = generatedMeditationApi.getSnapshot();
   const generated = current?.meditationId === meditationId
@@ -60,7 +116,6 @@ const buildLocalLibraryItem = (meditationId: string): LibraryItem => {
   }
 
   const answers = answersApi.getSnapshot();
-  const preview = answers.carry.trim() || [answers.feeling, answers.source].filter(Boolean).join(' - ');
   const now = new Date().toISOString();
 
   return {
@@ -70,7 +125,7 @@ const buildLocalLibraryItem = (meditationId: string): LibraryItem => {
     callMe: answers.callMe || answers.realName || 'friend',
     realName: answers.realName,
     vibe: generated.vibe,
-    capturePreview: preview || undefined,
+    capturePreview: buildCapturePreview(),
     savedAt: now,
     generatedAt: generated.generatedAt || now,
   };

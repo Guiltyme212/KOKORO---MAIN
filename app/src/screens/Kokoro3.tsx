@@ -45,7 +45,7 @@ import { unlockAudio } from '../lib/audioUnlock';
 import { isLibraryAvailable } from '../lib/library';
 import type { LibraryItem } from '../lib/types-meditation';
 import { haptic } from '../lib/telegram';
-import type { Answers, Vibe } from '../types';
+import type { Answers, Persona, Vibe } from '../types';
 import { useAnswers } from '../state/answers';
 import { authApi } from '../state/auth';
 import { personaApi, usePersona } from '../state/persona';
@@ -99,6 +99,22 @@ const SOURCE_TAIL: Record<string, string> = {
   'Family': ' with family in the picture',
   'No idea': '',
 };
+
+const SHORT_VIBE_COPY: Record<Vibe, string> = {
+  raw: 'Unfiltered, real talk',
+  cosmic: 'Soft and symbolic',
+  iron: 'Grounded pressure release',
+  sleep: 'Slow wind-down',
+  zen: 'Quiet breath-led calm',
+};
+
+const CAPTURE_FIELD_LABELS = [
+  'User name',
+  'Call them',
+  'How they are carrying today',
+  'Where it seems to be coming from',
+  'What they told Kokoro',
+];
 
 function buildWeCanPhrase(mainGoal: string, source: string): string {
   const clause = GOAL_CLAUSE[mainGoal] || 'sit with whatever this is';
@@ -161,6 +177,41 @@ function openReturningChat(goto: (r: Route) => void, answers: Answers, returnRou
   haptic.medium();
   setChatEntry({ firstMessage: returningTalkMessage(answers), returnRoute });
   goto('chat');
+}
+
+function cleanText(value: string | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function countPersonaThemes(themes: string): number {
+  return themes
+    .split(',')
+    .map((theme) => theme.trim())
+    .filter(Boolean).length;
+}
+
+function hasCompletedLocalProfile(answers: Answers, persona: Persona): boolean {
+  const answersName = cleanText(answers.callMe || answers.realName);
+  const personaName = cleanText(persona.callMe || persona.realName);
+  const answersProfileComplete = Boolean(
+    answersName &&
+    cleanText(answers.feeling) &&
+    cleanText(answers.source),
+  );
+  const personaProfileComplete = Boolean(
+    personaName &&
+    (countPersonaThemes(persona.themes) >= 2 || cleanText(persona.meditations)),
+  );
+
+  return answersProfileComplete || personaProfileComplete;
+}
+
+function nextRouteAfterAppleSignIn(answers: Answers, persona: Persona): Route {
+  if (hasCompletedLocalProfile(answers, persona)) return 'home';
+  if (!cleanText(answers.callMe || answers.realName || persona.callMe || persona.realName)) return 'name';
+  if (!cleanText(answers.feeling)) return 'feeling';
+  if (!cleanText(answers.source)) return 'source';
+  return 'chat';
 }
 
 const VIBE_CARDS: Record<Vibe, {
@@ -612,7 +663,7 @@ function BlendedVideo({
 }
 
 export function Welcome3({ goto }: ScreenProps) {
-  const { reset, setAnswer } = useAnswers();
+  const { answers, reset, setAnswer } = useAnswers();
   const [appleBusy, setAppleBusy] = useState(false);
   const [appleError, setAppleError] = useState('');
 
@@ -622,6 +673,8 @@ export function Welcome3({ goto }: ScreenProps) {
     setAppleError('');
     setAppleBusy(true);
     try {
+      const personaBeforeSignIn = personaApi.getSnapshot();
+      const nextRoute = nextRouteAfterAppleSignIn(answers, personaBeforeSignIn);
       const { account } = await signInWithApple();
       authApi.setAppleAccount(account);
 
@@ -636,7 +689,7 @@ export function Welcome3({ goto }: ScreenProps) {
         });
       }
 
-      goto('home');
+      goto(nextRoute);
     } catch (error) {
       if (!isAppleSignInCanceled(error)) {
         setAppleError(friendlyAppleSignInError(error));
@@ -1661,19 +1714,77 @@ function formatRelativeDate(iso: string | undefined): string {
 
 function extractCaptureField(capture: string | undefined, label: string): string {
   if (!capture) return '';
-  const re = new RegExp(`${label}:\\s*([^.\\n]+)`);
+  const labels = CAPTURE_FIELD_LABELS
+    .map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|\\n)${escaped}:\\s*([\\s\\S]*?)(?=\\n(?:${labels}):|$)`);
   const match = capture.match(re);
   return match ? match[1].trim() : '';
 }
 
+function trimPreview(value: string, max = 58): string {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const clipped = clean.slice(0, max - 1).trimEnd();
+  const lastSpace = clipped.lastIndexOf(' ');
+  return `${(lastSpace > 28 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}...`;
+}
+
+function cleanCapturePreview(capture: string | undefined): string {
+  const raw = cleanText(capture);
+  if (!raw) return '';
+
+  const told = cleanText(extractCaptureField(raw, 'What they told Kokoro'));
+  let text = told || raw;
+
+  if (!told && CAPTURE_FIELD_LABELS.some((label) => raw.includes(`${label}:`))) {
+    const feeling = cleanText(extractCaptureField(raw, 'How they are carrying today'));
+    const source = cleanText(extractCaptureField(raw, 'Where it seems to be coming from'));
+    text = feeling || source ? buildWeCanPhrase(feeling, source) : '';
+  }
+
+  text = text
+    .replace(/^\s*(?:\.\.\.|[.?!,-])+\s*/, '')
+    .replace(/\bjust make it\b\.?/gi, '')
+    .replace(/\bright now\b\.?/gi, '')
+    .replace(/\bnow\b\.?/gi, '')
+    .replace(/\s+([.,!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  text = text
+    .replace(/^please\s+/i, '')
+    .replace(/^make\s+(?:me\s+)?(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+/i, 'About ')
+    .replace(/^i\s+(?:want|need)\s+(?:a\s+)?(?:meditation|ritual|song)\s+(?:about|for)\s+/i, 'About ')
+    .trim();
+
+  if (!text) return '';
+  return trimPreview(text.charAt(0).toUpperCase() + text.slice(1));
+}
+
+function libraryItemTitle(item: LibraryItem): string {
+  return `${VIBE_CARDS[item.vibe].title} meditation`;
+}
+
 function libraryItemSubtitle(item: LibraryItem): string {
+  const cleanPreview = cleanCapturePreview(item.capturePreview);
+  if (cleanPreview) return cleanPreview;
+
   const feeling = extractCaptureField(item.capturePreview, 'How they are carrying today');
   const source = extractCaptureField(item.capturePreview, 'Where it seems to be coming from');
   if (feeling || source) {
     const phrase = buildWeCanPhrase(feeling, source);
     return phrase.charAt(0).toUpperCase() + phrase.slice(1);
   }
-  return VIBE_CARDS[item.vibe].copy;
+  return SHORT_VIBE_COPY[item.vibe];
+}
+
+function libraryItemArtwork(item: Pick<LibraryItem, 'vibe'>): { thumb: string; poster: string } {
+  return {
+    thumb: VIBE_CARDS[item.vibe].thumb,
+    poster: VIBE_CARDS[item.vibe].poster,
+  };
 }
 
 function openLibraryItem(item: LibraryItem, goto: (r: Route) => void) {
@@ -1819,15 +1930,9 @@ export function Player3({ goto }: ScreenProps) {
         {playing ? <Pause size={32} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
       </button>
 
-      <button
-        className="k3-primary k3-primary-mustard k3-player-done"
-        onClick={() => {
-          haptic.light();
-          goto('home');
-        }}
-      >
-        Go to home
-      </button>
+      <div className="k3-player-done">
+        <PrimaryButton onClick={() => goto('home')}>Home</PrimaryButton>
+      </div>
     </Frame>
   );
 }
@@ -1877,57 +1982,43 @@ function SaveMeditationButton({ meditationId, canSave }: { meditationId: string;
   );
 }
 
-function RotatingName({ names, intervalMs = 3600 }: { names: string[]; intervalMs?: number }) {
+/* Greeting name that gently crossfades between the user's first names
+   (pet name + real-name's first word). Stays on a single line because
+   we only ever rotate single-word names. */
+function RotatingName({ names, intervalMs = 4000 }: { names: string[]; intervalMs?: number }) {
   const [index, setIndex] = useState(0);
-  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
-
-  /* Reset rotation when the names list itself changes identity. */
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    setIndex(0);
-    setPreviousIndex(null);
-  }, [names]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (names.length < 2) return;
     const id = window.setInterval(() => {
-      setIndex((current) => {
-        setPreviousIndex(current);
-        return (current + 1) % names.length;
-      });
+      setIndex((current) => (current + 1) % names.length);
     }, intervalMs);
     return () => window.clearInterval(id);
-  }, [names, intervalMs]);
+  }, [names.length, intervalMs]);
 
-  useEffect(() => {
-    if (previousIndex === null) return;
-    const id = window.setTimeout(() => setPreviousIndex(null), 820);
-    return () => window.clearTimeout(id);
-  }, [previousIndex, index]);
-
-  if (names.length === 0) return <strong>friend</strong>;
-  if (names.length === 1) return <strong>{names[0]}</strong>;
+  if (names.length === 0) {
+    return (
+      <strong>
+        friend<span className="k3-name-rotator-dot">.</span>
+      </strong>
+    );
+  }
+  if (names.length === 1) {
+    return (
+      <strong>
+        {names[0]}<span className="k3-name-rotator-dot">.</span>
+      </strong>
+    );
+  }
 
   const longest = names.reduce((a, b) => (a.length >= b.length ? a : b));
+  const current = names[index % names.length];
 
   return (
     <span className="k3-name-rotator">
-      <span className="k3-name-rotator-spacer" aria-hidden="true">{longest}</span>
-      {previousIndex !== null && (
-        <strong
-          key={`out-${previousIndex}-${index}`}
-          className="k3-name-rotator-out"
-          aria-hidden="true"
-        >
-          {names[previousIndex]}
-        </strong>
-      )}
-      <strong
-        key={`in-${index}`}
-        className="k3-name-rotator-in"
-      >
-        {names[index]}
+      <span className="k3-name-rotator-spacer" aria-hidden="true">{longest}.</span>
+      <strong key={`name-${index}`} className="k3-name-rotator-in">
+        {current}<span className="k3-name-rotator-dot">.</span>
       </strong>
     </span>
   );
@@ -1939,18 +2030,19 @@ export function Home3({ goto }: ScreenProps) {
   const byVibe = useGeneratedMeditationsByVibe();
   const { items: savedItems, refresh: refreshLibrary } = useLibrary();
   const greetingNames = useMemo(() => {
-    const raw = [answers.callMe, answers.realName]
-      .map((value) => (value || '').trim())
-      .filter((value) => value.length > 0);
+    const list: string[] = [];
     const seen = new Set<string>();
-    const unique: string[] = [];
-    for (const value of raw) {
-      const key = value.toLowerCase();
-      if (seen.has(key)) continue;
+    const add = (raw: string | undefined) => {
+      const first = (raw || '').trim().split(/\s+/)[0];
+      if (!first) return;
+      const key = first.toLowerCase();
+      if (seen.has(key)) return;
       seen.add(key);
-      unique.push(value);
-    }
-    return unique.length > 0 ? unique : ['friend'];
+      list.push(first);
+    };
+    add(answers.callMe);
+    add(answers.realName);
+    return list.length > 0 ? list : ['friend'];
   }, [answers.callMe, answers.realName]);
 
   useEffect(() => {
@@ -1962,6 +2054,15 @@ export function Home3({ goto }: ScreenProps) {
     if (generatedList.length > 0) return generatedList;
     return ['raw', 'zen', 'sleep'] as Vibe[];
   }, [byVibe]);
+
+  const savedPreviewItems = useMemo(() => savedItems.slice(0, 2), [savedItems]);
+  const weekVibes = useMemo(() => {
+    const used = new Set(savedPreviewItems.map((item) => item.vibe));
+    const ordered = [...recentVibes, 'raw', 'zen', 'sleep', 'cosmic', 'iron'] as Vibe[];
+    return ordered
+      .filter((vibe, index) => ordered.indexOf(vibe) === index && !used.has(vibe))
+      .slice(0, Math.max(1, 4 - savedPreviewItems.length));
+  }, [recentVibes, savedPreviewItems]);
 
   const playVibe = (vibe: Vibe) => {
     if (byVibe[vibe]) {
@@ -1984,7 +2085,7 @@ export function Home3({ goto }: ScreenProps) {
             <span className="k3-home-meta-kanji" lang="ja">朝</span>
             <span className="k3-home-meta-label">Morning</span>
           </div>
-          <h1>Hey <RotatingName names={greetingNames} />.</h1>
+          <h1>Hey <RotatingName names={greetingNames} /></h1>
           <p>How's your heart today?</p>
         </section>
 
@@ -2026,7 +2127,9 @@ export function Home3({ goto }: ScreenProps) {
             <button onClick={() => goto('library')}>See library</button>
           </div>
           <div className="k3-recent-row">
-            {savedItems.slice(0, 1).map((item) => (
+            {savedPreviewItems.map((item) => {
+              const artwork = libraryItemArtwork(item);
+              return (
               <button
                 key={`saved-${item.meditationId}`}
                 className="k3-recent-card k3-recent-card-saved"
@@ -2034,13 +2137,13 @@ export function Home3({ goto }: ScreenProps) {
                 onClick={() => openLibraryItem(item, goto)}
               >
                 <div className="k3-recent-thumb">
-                  <InlineLoopVideo file={VIBE_CARDS[item.vibe].thumb} poster={VIBE_CARDS[item.vibe].poster} />
+                  <InlineLoopVideo file={artwork.thumb} poster={artwork.poster} />
                 </div>
                 <div className="k3-recent-meta">
                   <span className="k3-recent-pill">Saved</span>
                   <span className="k3-recent-date">{formatRelativeDate(item.generatedAt || item.savedAt)}</span>
                 </div>
-                <strong className="k3-recent-title">{VIBE_CARDS[item.vibe].title}</strong>
+                <strong className="k3-recent-title">{libraryItemTitle(item)}</strong>
                 <span className="k3-recent-sub">{libraryItemSubtitle(item)}</span>
                 <div className="k3-recent-foot">
                   <span className="k3-recent-duration">{formatDuration(item.durationSec)}</span>
@@ -2049,8 +2152,9 @@ export function Home3({ goto }: ScreenProps) {
                   </span>
                 </div>
               </button>
-            ))}
-            {recentVibes.map((vibe) => (
+              );
+            })}
+            {weekVibes.map((vibe) => (
               <button
                 key={vibe}
                 className="k3-recent-card"
@@ -2060,8 +2164,22 @@ export function Home3({ goto }: ScreenProps) {
                 <div className="k3-recent-thumb">
                   <InlineLoopVideo file={VIBE_CARDS[vibe].thumb} poster={VIBE_CARDS[vibe].poster} />
                 </div>
-                <span>{VIBE_CARDS[vibe].title}</span>
-                <strong>{VIBE_CARDS[vibe].copy}</strong>
+                <div className="k3-recent-meta">
+                  <span className="k3-recent-pill">{VIBE_CARDS[vibe].title}</span>
+                  <span className="k3-recent-date">{byVibe[vibe] ? 'Ready' : 'New'}</span>
+                </div>
+                <strong className="k3-recent-title">
+                  {byVibe[vibe] ? `${VIBE_CARDS[vibe].title} meditation` : VIBE_CARDS[vibe].title}
+                </strong>
+                <span className="k3-recent-sub">{SHORT_VIBE_COPY[vibe]}</span>
+                <div className="k3-recent-foot">
+                  <span className="k3-recent-duration">
+                    {byVibe[vibe] ? formatDuration(byVibe[vibe]?.durationSec) : 'Create'}
+                  </span>
+                  <span className="k3-recent-play" aria-hidden="true">
+                    <Play size={12} fill="currentColor" />
+                  </span>
+                </div>
               </button>
             ))}
           </div>
@@ -2324,13 +2442,33 @@ export function Library3({ goto }: ScreenProps) {
 
       {items.length > 0 && (
         <div className="k3-library-list">
-          {items.map((item) => (
-            <button key={item.meditationId} onClick={() => openLibraryItem(item, goto)}>
-              <span>{VIBE_CARDS[item.vibe].title}</span>
-              <strong>{item.capturePreview || `Meditation for ${item.callMe}`}</strong>
-              <small>{formatDuration(item.durationSec)}</small>
-            </button>
-          ))}
+          {items.map((item) => {
+            const artwork = libraryItemArtwork(item);
+            return (
+              <button
+                key={item.meditationId}
+                className="k3-library-card"
+                style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
+                onClick={() => openLibraryItem(item, goto)}
+              >
+                <div className="k3-library-thumb">
+                  <InlineLoopVideo file={artwork.thumb} poster={artwork.poster} />
+                </div>
+                <div className="k3-library-info">
+                  <div className="k3-library-meta">
+                    <span>{VIBE_CARDS[item.vibe].title}</span>
+                    <small>{formatRelativeDate(item.generatedAt || item.savedAt)}</small>
+                  </div>
+                  <strong>{libraryItemTitle(item)}</strong>
+                  <p>{libraryItemSubtitle(item)}</p>
+                  <small>{formatDuration(item.durationSec)}</small>
+                </div>
+                <span className="k3-library-play" aria-hidden="true">
+                  <Play size={13} fill="currentColor" />
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
