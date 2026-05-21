@@ -1,4 +1,5 @@
 import {
+  Apple,
   ArrowLeft,
   BarChart3,
   BookOpen,
@@ -32,6 +33,12 @@ import {
 import { flushSync } from 'react-dom';
 import { useConversation } from '@elevenlabs/react';
 import { ELEVENLABS_AGENT_ID, friendlyApiError } from '../lib/config';
+import {
+  friendlyAppleSignInError,
+  isAppleSignInAvailable,
+  isAppleSignInCanceled,
+  signInWithApple,
+} from '../lib/appleSignIn';
 import type { Route } from '../lib/router';
 import { getConversationSignedUrl } from '../lib/elevenlabs';
 import { unlockAudio } from '../lib/audioUnlock';
@@ -40,6 +47,7 @@ import type { LibraryItem } from '../lib/types-meditation';
 import { haptic } from '../lib/telegram';
 import type { Answers, Vibe } from '../types';
 import { useAnswers } from '../state/answers';
+import { authApi } from '../state/auth';
 import { personaApi, usePersona } from '../state/persona';
 import {
   ALL_VIBES,
@@ -604,7 +612,39 @@ function BlendedVideo({
 }
 
 export function Welcome3({ goto }: ScreenProps) {
-  const { reset } = useAnswers();
+  const { reset, setAnswer } = useAnswers();
+  const [appleBusy, setAppleBusy] = useState(false);
+  const [appleError, setAppleError] = useState('');
+
+  const appleAvailable = isAppleSignInAvailable();
+
+  const handleAppleSignIn = async () => {
+    setAppleError('');
+    setAppleBusy(true);
+    try {
+      const { account } = await signInWithApple();
+      authApi.setAppleAccount(account);
+
+      const realName = account.fullName || account.givenName || '';
+      const callMe = account.givenName || account.fullName || '';
+      if (realName) setAnswer('realName', realName);
+      if (callMe) setAnswer('callMe', callMe);
+      if (callMe || realName) {
+        personaApi.set({
+          callMe: callMe || realName,
+          realName: realName || undefined,
+        });
+      }
+
+      goto('home');
+    } catch (error) {
+      if (!isAppleSignInCanceled(error)) {
+        setAppleError(friendlyAppleSignInError(error));
+      }
+    } finally {
+      setAppleBusy(false);
+    }
+  };
 
   return (
     <Frame className="k3-welcome">
@@ -630,6 +670,20 @@ export function Welcome3({ goto }: ScreenProps) {
         >
           Nice to meet you.
         </PrimaryButton>
+        {appleAvailable && (
+          <button
+            className="k3-apple-sign-in"
+            disabled={appleBusy}
+            onClick={() => {
+              haptic.light();
+              void handleAppleSignIn();
+            }}
+          >
+            <Apple size={20} strokeWidth={2.4} />
+            <span>{appleBusy ? 'Opening Apple...' : 'Sign in with Apple'}</span>
+          </button>
+        )}
+        {appleError && <p className="k3-auth-error" role="alert">{appleError}</p>}
         <button className="k3-link" onClick={() => goto('home')}>I already have an account</button>
         <button
           className="k3-link"
@@ -1442,6 +1496,9 @@ export function Chat3({ goto }: ScreenProps) {
             <FadingBubble role="kokoro" message={latestKokoro} />
           )}
         </div>
+        <div className="k3-bubble-slot k3-bubble-slot-user">
+          <FadingBubble role="user" message={latestUser} />
+        </div>
       </div>
 
       <section className={`k3-chat-log ${showStyles ? 'has-panel' : ''} ${typeOpen ? 'is-typing-mode' : ''}`} aria-live="polite">
@@ -1514,9 +1571,6 @@ export function Chat3({ goto }: ScreenProps) {
       )}
 
       <form className={`k3-chat-compose ${typeOpen ? 'is-open' : ''}`} onSubmit={submitTyped}>
-        <div className="k3-bubble-slot k3-bubble-slot-user k3-bubble-slot--anchored">
-          <FadingBubble role="user" message={latestUser} />
-        </div>
         {!typeOpen && (
           <>
             <div className="k3-voice-controls">
@@ -1730,10 +1784,6 @@ export function Player3({ goto }: ScreenProps) {
       <audio ref={audioRef} src={src} preload="auto" />
       <header className="k3-player-top">
         <BackButton onClick={() => goto('chat')} />
-        <span>{VIBE_CARDS[generated.vibe].eyebrow}</span>
-        <button className="k3-icon-button" onClick={() => goto('promise')} aria-label="Done" title="Done">
-          <Check size={19} strokeWidth={2.4} />
-        </button>
       </header>
 
       <section className="k3-player-art">
@@ -1743,6 +1793,7 @@ export function Player3({ goto }: ScreenProps) {
       <section className="k3-player-copy">
         <span>Your meditation</span>
         <h1>{VIBE_CARDS[generated.vibe].title}</h1>
+        <span className="k3-player-eyebrow-below">{VIBE_CARDS[generated.vibe].eyebrow}</span>
       </section>
 
       <div
@@ -1766,6 +1817,16 @@ export function Player3({ goto }: ScreenProps) {
 
       <button className="k3-play-button" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>
         {playing ? <Pause size={32} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
+      </button>
+
+      <button
+        className="k3-primary k3-primary-mustard k3-player-done"
+        onClick={() => {
+          haptic.light();
+          goto('home');
+        }}
+      >
+        Go to home
       </button>
     </Frame>
   );
@@ -1820,10 +1881,13 @@ function RotatingName({ names, intervalMs = 3600 }: { names: string[]; intervalM
   const [index, setIndex] = useState(0);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
+  /* Reset rotation when the names list itself changes identity. */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setIndex(0);
     setPreviousIndex(null);
   }, [names]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (names.length < 2) return;
@@ -1914,93 +1978,95 @@ export function Home3({ goto }: ScreenProps) {
 
   return (
     <Frame className="k3-home-frame">
-      <section className="k3-home-head">
-        <div className="k3-home-meta">
-          <span className="k3-home-meta-kanji" lang="ja">朝</span>
-          <span className="k3-home-meta-label">Morning</span>
-        </div>
-        <h1>Hey <RotatingName names={greetingNames} />.</h1>
-        <p>How's your heart today?</p>
-      </section>
+      <div className="k3-home-scroll">
+        <section className="k3-home-head">
+          <div className="k3-home-meta">
+            <span className="k3-home-meta-kanji" lang="ja">朝</span>
+            <span className="k3-home-meta-label">Morning</span>
+          </div>
+          <h1>Hey <RotatingName names={greetingNames} />.</h1>
+          <p>How's your heart today?</p>
+        </section>
 
-      <button className="k3-home-hero" onClick={() => openReturningChat(goto, answers, 'home')}>
-        <div className="k3-home-hero-text">
-          <span>Voice ritual</span>
-          <strong>Talk to Kokoro</strong>
-          <p>Tell me one true thing and I'll make you something.</p>
-        </div>
-        <div className="k3-home-hero-art">
-          <InlineLoopVideo file="kokoro-meditate.mp4" poster="kokoro-meditate.png" />
-        </div>
-      </button>
+        <button className="k3-home-hero" onClick={() => openReturningChat(goto, answers, 'home')}>
+          <div className="k3-home-hero-text">
+            <span>Voice ritual</span>
+            <strong>Talk to Kokoro</strong>
+            <p>Tell me one true thing and I'll make you something.</p>
+          </div>
+          <div className="k3-home-hero-art">
+            <InlineLoopVideo file="kokoro-meditate.mp4" poster="kokoro-meditate.png" />
+          </div>
+        </button>
 
-      {generated && (
-        <button className="k3-continue-card" onClick={() => goto('player')}>
-          <span>Continue</span>
-          <strong>{VIBE_CARDS[generated.vibe].title} meditation is ready</strong>
-          <Send size={16} />
-        </button>
-      )}
+        {generated && (
+          <button className="k3-continue-card" onClick={() => goto('player')}>
+            <span>Continue</span>
+            <strong>{VIBE_CARDS[generated.vibe].title} meditation is ready</strong>
+            <Send size={16} />
+          </button>
+        )}
 
-      <div className="k3-home-tiles">
-        <button onClick={() => goto('quickReset')}>
-          <Wind size={18} />
-          <strong>60-second reset</strong>
-          <span>no story, just breath</span>
-        </button>
-        <button onClick={() => goto('sleep')}>
-          <Moon size={18} />
-          <strong>Wind down</strong>
-          <span>tonight's sleep ritual</span>
-        </button>
+        <div className="k3-home-tiles">
+          <button onClick={() => goto('quickReset')}>
+            <Wind size={18} />
+            <strong>60-second reset</strong>
+            <span>no story, just breath</span>
+          </button>
+          <button onClick={() => goto('sleep')}>
+            <Moon size={18} />
+            <strong>Wind down</strong>
+            <span>tonight's sleep ritual</span>
+          </button>
+        </div>
+
+        <section className="k3-recent-section">
+          <div>
+            <span>From this week</span>
+            <button onClick={() => goto('library')}>See library</button>
+          </div>
+          <div className="k3-recent-row">
+            {savedItems.slice(0, 1).map((item) => (
+              <button
+                key={`saved-${item.meditationId}`}
+                className="k3-recent-card k3-recent-card-saved"
+                style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
+                onClick={() => openLibraryItem(item, goto)}
+              >
+                <div className="k3-recent-thumb">
+                  <InlineLoopVideo file={VIBE_CARDS[item.vibe].thumb} poster={VIBE_CARDS[item.vibe].poster} />
+                </div>
+                <div className="k3-recent-meta">
+                  <span className="k3-recent-pill">Saved</span>
+                  <span className="k3-recent-date">{formatRelativeDate(item.generatedAt || item.savedAt)}</span>
+                </div>
+                <strong className="k3-recent-title">{VIBE_CARDS[item.vibe].title}</strong>
+                <span className="k3-recent-sub">{libraryItemSubtitle(item)}</span>
+                <div className="k3-recent-foot">
+                  <span className="k3-recent-duration">{formatDuration(item.durationSec)}</span>
+                  <span className="k3-recent-play" aria-hidden="true">
+                    <Play size={12} fill="currentColor" />
+                  </span>
+                </div>
+              </button>
+            ))}
+            {recentVibes.map((vibe) => (
+              <button
+                key={vibe}
+                className="k3-recent-card"
+                style={{ '--pill': VIBE_CARDS[vibe].accent } as CSSProperties}
+                onClick={() => playVibe(vibe)}
+              >
+                <div className="k3-recent-thumb">
+                  <InlineLoopVideo file={VIBE_CARDS[vibe].thumb} poster={VIBE_CARDS[vibe].poster} />
+                </div>
+                <span>{VIBE_CARDS[vibe].title}</span>
+                <strong>{VIBE_CARDS[vibe].copy}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
-
-      <section className="k3-recent-section">
-        <div>
-          <span>From this week</span>
-          <button onClick={() => goto('library')}>See library</button>
-        </div>
-        <div className="k3-recent-row">
-          {savedItems.slice(0, 1).map((item) => (
-            <button
-              key={`saved-${item.meditationId}`}
-              className="k3-recent-card k3-recent-card-saved"
-              style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
-              onClick={() => openLibraryItem(item, goto)}
-            >
-              <div className="k3-recent-thumb">
-                <InlineLoopVideo file={VIBE_CARDS[item.vibe].thumb} poster={VIBE_CARDS[item.vibe].poster} />
-              </div>
-              <div className="k3-recent-meta">
-                <span className="k3-recent-pill">Saved</span>
-                <span className="k3-recent-date">{formatRelativeDate(item.generatedAt || item.savedAt)}</span>
-              </div>
-              <strong className="k3-recent-title">{VIBE_CARDS[item.vibe].title}</strong>
-              <span className="k3-recent-sub">{libraryItemSubtitle(item)}</span>
-              <div className="k3-recent-foot">
-                <span className="k3-recent-duration">{formatDuration(item.durationSec)}</span>
-                <span className="k3-recent-play" aria-hidden="true">
-                  <Play size={12} fill="currentColor" />
-                </span>
-              </div>
-            </button>
-          ))}
-          {recentVibes.map((vibe) => (
-            <button
-              key={vibe}
-              className="k3-recent-card"
-              style={{ '--pill': VIBE_CARDS[vibe].accent } as CSSProperties}
-              onClick={() => playVibe(vibe)}
-            >
-              <div className="k3-recent-thumb">
-                <InlineLoopVideo file={VIBE_CARDS[vibe].thumb} poster={VIBE_CARDS[vibe].poster} />
-              </div>
-              <span>{VIBE_CARDS[vibe].title}</span>
-              <strong>{VIBE_CARDS[vibe].copy}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <TabBar active="home" goto={goto} />
     </Frame>
