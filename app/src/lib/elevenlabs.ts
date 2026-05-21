@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:8787';
+import { API_BASE } from './config';
 
 export async function getConversationToken(participantName?: string): Promise<string> {
   const url = new URL(`${API_BASE}/elevenlabs/conversation-token`);

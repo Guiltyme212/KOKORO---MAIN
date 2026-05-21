@@ -11,7 +11,11 @@ import {
   Name3,
   Player3,
   Promise3,
+  Progress3,
+  QuickReset3,
   Source3,
+  Sleep3,
+  You3,
   Welcome3,
 } from './screens/Kokoro3';
 import './App.css';
@@ -35,8 +39,10 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   pickwhatlands: Chat3,
   home: Home3,
   library: Library3,
-  quickReset: Chat3,
-  sleep: Chat3,
+  quickReset: QuickReset3,
+  sleep: Sleep3,
+  progress: Progress3,
+  you: You3,
 };
 
 export default function App() {
@@ -62,7 +68,10 @@ export default function App() {
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA';
       root.style.setProperty('--k3-kb-h', `${Math.round(kbH)}px`);
-      root.classList.toggle('k3-kb-open', inputFocused && kbH > 200);
+      root.classList.toggle(
+        'k3-kb-open',
+        inputFocused && (kbH > 200 || isTGMA || root.classList.contains('native-ios')),
+      );
     }
     trackKeyboard();
     window.visualViewport?.addEventListener('resize', trackKeyboard);
