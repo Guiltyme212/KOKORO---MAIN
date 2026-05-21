@@ -12,22 +12,25 @@
   --k3-mustard: #ecc34a;
   --k3-sunset: #fc6708;
   --k3-shadow: 0 24px 60px rgba(75, 66, 44, 0.22);
+  --k3-safe-top: max(env(safe-area-inset-top, 0px), var(--tg-content-safe-top, 0px));
+  --k3-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-content-safe-bottom, 0px));
 }
 
 html,
 body,
 #root {
-  background: #ede7d6;
+  background: var(--k3-cream);
   color: var(--k3-ink);
   font-family: "M PLUS Rounded 1c", "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overscroll-behavior: none;
 }
 
 .k3-frame {
   position: relative;
   width: min(390px, 100vw);
   height: min(844px, 100vh);
-  height: min(844px, 100svh);
-  height: min(844px, var(--tg-vh, 100svh));
+  height: min(844px, 100dvh);
+  height: min(844px, var(--tg-vh, 100dvh));
   overflow: hidden;
   border-radius: 44px;
   background: var(--k3-cream);
@@ -36,6 +39,17 @@ body,
     0 30px 60px -20px rgba(27, 27, 27, 0.25),
     0 8px 24px -8px rgba(27, 27, 27, 0.12);
   color: var(--k3-ink);
+}
+
+@media (max-width: 600px) {
+  .k3-frame {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    height: var(--tg-vh, 100dvh);
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
 .k3-sakura {
@@ -81,7 +95,7 @@ body,
 .k3-frame > .k3-icon-button {
   position: absolute;
   left: 18px;
-  top: 18px;
+  top: max(18px, calc(var(--k3-safe-top) + 10px));
 }
 
 .k3-primary {
@@ -118,7 +132,7 @@ body,
   display: grid;
   gap: 0;
   justify-items: center;
-  padding: 18px 22px 26px;
+  padding: 18px 22px max(26px, calc(var(--k3-safe-bottom) + 18px));
 }
 
 .k3-dots {
@@ -266,7 +280,7 @@ body,
 
 .k3-welcome-title {
   position: absolute;
-  top: 60px;
+  top: max(60px, calc(var(--k3-safe-top) + 20px));
   left: 0;
   right: 0;
   z-index: 5;
@@ -462,24 +476,73 @@ body,
   letter-spacing: -0.015em;
 }
 
-.k3-name-input {
+.k3-name-field {
   position: absolute;
   left: 24px;
   right: 24px;
   bottom: 380px;
+  display: flex;
+  align-items: stretch;
+}
+
+.k3-name-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   height: auto;
-  padding: 16px 18px;
-  border-radius: 16px;
+  padding: 17px 60px 17px 22px;
+  border-radius: 18px;
   background: #fff;
-  border: 2px solid var(--k3-stroke);
-  box-shadow: none;
-  font-size: 18px;
-  font-weight: 700;
-  text-align: center;
+  border: 1.5px solid rgba(27, 27, 27, 0.12);
+  box-shadow:
+    0 2px 0 rgba(75, 66, 44, 0.05),
+    0 8px 20px -14px rgba(75, 66, 44, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  font-size: 17px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--k3-ink);
+  caret-color: var(--k3-moss-olive);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.k3-name-input:focus {
+  outline: none;
+  border-color: var(--k3-moss-olive);
+  box-shadow:
+    0 2px 0 rgba(75, 66, 44, 0.05),
+    0 8px 20px -14px rgba(75, 66, 44, 0.25),
+    0 0 0 4px rgba(130, 134, 58, 0.18);
 }
 
 .k3-name-input::placeholder {
-  color: rgba(27, 27, 27, 0.42);
+  color: rgba(27, 27, 27, 0.38);
+  font-weight: 500;
+}
+
+.k3-name-done {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--k3-moss-olive);
+  color: #fff;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 1px 0 rgba(75, 66, 44, 0.18), 0 4px 10px -6px rgba(75, 66, 44, 0.35);
+  transition: transform 120ms ease, background 160ms ease, opacity 180ms ease;
+}
+
+.k3-name-done:active {
+  transform: translateY(-50%) scale(0.92);
+  background: var(--k3-moss-dark);
 }
 
 .k3-chip-section {
@@ -489,6 +552,32 @@ body,
   bottom: 170px;
   z-index: 5;
   text-align: center;
+}
+
+/* Name screen: when iOS keyboard is open, reflow so the input is JUST above
+   the keyboard. Mascot keeps its full size; the title and mascot ride above
+   the input. Chip section and bottom CTA are naturally occluded by the
+   keyboard so they don't need explicit handling.
+   Adds a transition so the layout slides rather than snaps. */
+.k3-name .k3-name-mascot,
+.k3-name .k3-name-copy,
+.k3-name .k3-name-field {
+  transition: bottom 240ms ease;
+}
+
+:root.k3-kb-open .k3-name .k3-name-field {
+  top: auto;
+  bottom: calc(var(--k3-kb-h, 0px) + 16px);
+}
+
+:root.k3-kb-open .k3-name .k3-name-copy {
+  top: auto;
+  bottom: calc(var(--k3-kb-h, 0px) + 96px);
+}
+
+:root.k3-kb-open .k3-name .k3-name-mascot {
+  top: auto;
+  bottom: calc(var(--k3-kb-h, 0px) + 200px);
 }
 
 .k3-divider-label {
@@ -511,6 +600,18 @@ body,
   height: 1px;
   background: rgba(130, 134, 58, 0.45);
   flex: 0 0 18px;
+}
+
+.k3-soft-helper {
+  margin: 0 auto 14px;
+  max-width: 320px;
+  padding: 0 4px;
+  color: var(--k3-muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
 }
 
 .k3-chip-grid {
@@ -542,6 +643,55 @@ body,
 .k3-chip-dashed {
   border-style: dashed;
   background: rgba(255, 255, 255, 0.64);
+}
+
+.k3-chip-custom {
+  padding: 0;
+  min-width: 158px;
+  background: #fff;
+  border: 1.5px solid rgba(130, 134, 58, 0.55);
+  box-shadow: 0 0 0 3px rgba(130, 134, 58, 0.14);
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: text;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.k3-chip-custom input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  color: var(--k3-ink);
+  text-align: center;
+  caret-color: var(--k3-moss-olive);
+}
+
+.k3-chip-custom input::placeholder {
+  color: rgba(27, 27, 27, 0.4);
+  font-weight: 600;
+}
+
+.k3-chip-custom:focus-within {
+  border-color: var(--k3-moss-olive);
+  box-shadow: 0 0 0 4px rgba(130, 134, 58, 0.22);
+}
+
+.k3-chip-custom.is-selected {
+  background: var(--k3-moss-olive);
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(130, 134, 58, 0.22);
+}
+
+.k3-chip-custom.is-selected input,
+.k3-chip-custom.is-selected input::placeholder {
+  color: #fff;
 }
 
 .k3-speech-bubble {
@@ -719,6 +869,56 @@ body,
   white-space: nowrap;
 }
 
+.k3-reminder-time {
+  background: #f5ead4;
+  border: 1px solid rgba(89, 78, 47, 0.22);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 950;
+  font-family: inherit;
+  color: var(--k3-ink);
+  white-space: nowrap;
+  min-width: 88px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.k3-reminder-time:focus {
+  outline: none;
+  border-color: var(--k3-moss-olive);
+  box-shadow: 0 0 0 3px rgba(130, 134, 58, 0.18);
+}
+
+.k3-reminder-time::-webkit-calendar-picker-indicator {
+  filter: opacity(0.55);
+  cursor: pointer;
+}
+
+.k3-promise-bubble {
+  top: 150px;
+  left: 22px;
+  right: auto;
+  transform: none;
+  max-width: 240px;
+  padding: 16px 22px;
+  border-radius: 24px;
+}
+
+.k3-promise-bubble::after {
+  display: none;
+}
+
+.k3-promise-bubble strong {
+  font-size: 17px;
+  line-height: 1.28;
+}
+
+.k3-promise-bubble span {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
 .k3-chat-frame {
   background:
     radial-gradient(ellipse 70% 50% at 50% 26%, rgba(255, 255, 255, 0.55) 0%, transparent 70%),
@@ -728,7 +928,7 @@ body,
 
 .k3-chat-top {
   position: absolute;
-  top: 18px;
+  top: max(18px, calc(var(--k3-safe-top) + 10px));
   left: 18px;
   right: 18px;
   z-index: 8;
@@ -880,7 +1080,7 @@ body,
   position: absolute;
   left: 24px;
   right: 24px;
-  top: 64px;
+  top: max(64px, calc(var(--k3-safe-top) + 52px));
   bottom: 530px;
   z-index: 6;
   overflow: visible;
@@ -905,7 +1105,7 @@ body,
 
 .k3-bubble-stack {
   position: absolute;
-  top: 92px;
+  top: max(92px, calc(var(--k3-safe-top) + 58px));
   left: 24px;
   right: 140px;
   z-index: 7;
@@ -1044,7 +1244,7 @@ body,
 
 .k3-error-toast {
   position: absolute;
-  top: 64px;
+  top: max(64px, calc(var(--k3-safe-top) + 14px));
   left: 22px;
   right: 22px;
   z-index: 12;
@@ -1073,8 +1273,9 @@ body,
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .k3-error-toast-retry {
@@ -1281,14 +1482,37 @@ body,
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 26px;
+  bottom: calc(max(26px, var(--k3-safe-bottom) + 14px) + var(--k3-kb-h, 0px));
   z-index: 8;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
   padding: 0 24px;
+  transition: bottom 220ms ease;
 }
+
+/* User reply bubble anchored to the compose bar — rides up with the keyboard
+   and sits flush above the mic / type input, regardless of mode. */
+.k3-chat-compose .k3-bubble-slot--anchored {
+  align-self: stretch;
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+
+.k3-chat-compose .k3-bubble-slot--anchored .k3-message-user {
+  max-width: 78%;
+  margin-left: 4px;
+}
+
+/* When the bubble is empty, remove the gap it would otherwise contribute. */
+.k3-chat-compose .k3-bubble-slot--anchored:empty {
+  display: none;
+}
+
+/* Reverted: chat screen keeps its default layout when the keyboard opens.
+   Only `.k3-chat-compose` above lifts via --k3-kb-h to keep the text input
+   visible above the keyboard. */
 
 .k3-voice-status {
   min-height: 18px;
@@ -1419,11 +1643,27 @@ body,
   box-shadow: 0 8px 16px -8px rgba(78, 103, 73, 0.55);
 }
 
-.k3-player,
 .k3-player-empty,
-.k3-home-frame,
 .k3-library-frame {
-  padding: 20px 22px;
+  padding: max(20px, calc(var(--k3-safe-top) + 12px)) 22px max(20px, calc(var(--k3-safe-bottom) + 20px));
+}
+
+.k3-player {
+  padding: 0 22px max(20px, calc(var(--k3-safe-bottom) + 20px));
+  overflow-y: auto;
+}
+
+.k3-player .k3-player-top {
+  position: absolute;
+  top: max(20px, calc(var(--k3-safe-top) + 12px));
+  left: 22px;
+  right: 22px;
+  z-index: 10;
+}
+
+.k3-home-frame {
+  padding: 20px 22px calc(89px + var(--k3-safe-bottom));
+  overflow-y: auto;
 }
 
 .k3-player .k3-sakura {
@@ -1435,7 +1675,7 @@ body,
   z-index: 3;
   width: calc(100% + 44px);
   aspect-ratio: 1 / 1;
-  margin: -68px -22px 8px;
+  margin: 0 -22px 8px;
   display: grid;
   place-items: center;
   background: transparent;
@@ -1516,22 +1756,59 @@ body,
   font-weight: 850;
 }
 
+.k3-save-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+
 .k3-save-button {
-  min-height: 42px;
-  padding: 0 18px;
+  min-width: min(100%, 260px);
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 22px;
   border-radius: 999px;
-  background: rgba(100, 118, 78, 0.14);
-  color: var(--k3-moss-dark);
+  background: var(--k3-sunset);
+  color: #fff;
   font-weight: 950;
+  box-shadow:
+    0 14px 26px -14px rgba(252, 103, 8, 0.80),
+    0 2px 0 rgba(255, 255, 255, 0.32) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.08) inset;
+}
+
+.k3-save-button.is-saved {
+  background: var(--k3-moss-dark);
+  box-shadow:
+    0 12px 24px -14px rgba(78, 103, 73, 0.70),
+    0 2px 0 rgba(255, 255, 255, 0.24) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.08) inset;
 }
 
 .k3-save-button:disabled {
-  opacity: 0.5;
+  opacity: 0.78;
 }
 
-.k3-save-wrap span {
+.k3-save-button span {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.k3-save-wrap small {
   display: block;
-  margin-top: 6px;
+  max-width: 240px;
+  color: rgba(27, 27, 27, 0.50);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.k3-save-error {
+  display: block;
   color: #9a3f07;
 }
 
@@ -1605,13 +1882,92 @@ body,
   font-weight: 700;
 }
 
-.k3-home-head .k3-home-meta-clock {
-  margin-left: auto;
-  color: rgba(27, 27, 27, 0.45);
+.k3-name-rotator {
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+  color: var(--k3-sunset);
+  white-space: nowrap;
+  isolation: isolate;
 }
 
-.k3-home-head .k3-home-meta-clock svg {
-  opacity: 0.7;
+.k3-name-rotator-spacer {
+  display: inline-block;
+  visibility: hidden;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.k3-name-rotator-in,
+.k3-name-rotator-out {
+  position: absolute;
+  inset: 0;
+  display: inline-block;
+  color: inherit;
+  white-space: nowrap;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+}
+
+.k3-name-rotator-in {
+  animation: k3-name-in 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.k3-name-rotator-out {
+  animation: k3-name-out 660ms cubic-bezier(0.55, 0, 0.68, 0) both;
+}
+
+@keyframes k3-name-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.42em, 0);
+    filter: blur(8px);
+    letter-spacing: 0.04em;
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+    letter-spacing: 0;
+  }
+}
+
+@keyframes k3-name-out {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+    letter-spacing: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -0.42em, 0);
+    filter: blur(8px);
+    letter-spacing: 0.04em;
+  }
+}
+
+@keyframes k3-name-in-reduced {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes k3-name-out-reduced {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k3-name-rotator-in {
+    animation: k3-name-in-reduced 240ms ease-out both;
+  }
+  .k3-name-rotator-out {
+    animation: k3-name-out-reduced 220ms ease-out both;
+  }
 }
 
 .k3-home-hero {
@@ -1628,6 +1984,7 @@ body,
   background: var(--k3-moss-olive);
   color: #fff;
   overflow: hidden;
+  box-shadow: 0 18px 34px rgba(66, 57, 34, 0.12);
 }
 
 .k3-home-hero-text {
@@ -1667,12 +2024,40 @@ body,
   position: relative;
 }
 
-.k3-home-hero-art video {
+.k3-loop-video {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--k3-cream);
+}
+
+.k3-loop-video img,
+.k3-loop-video video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  mix-blend-mode: multiply;
+}
+
+.k3-loop-video img {
+  z-index: 1;
+}
+
+.k3-loop-video video {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.k3-loop-video.is-playing video {
+  opacity: 1;
+}
+
+.k3-loop-video.is-failed video {
+  display: none;
 }
 
 .k3-continue-card {
@@ -1794,13 +2179,10 @@ body,
   background: var(--k3-cream);
 }
 
-.k3-recent-thumb video {
+.k3-recent-thumb .k3-loop-video {
   width: 118%;
   height: 118%;
   margin: -9% 0 0 -9%;
-  object-fit: cover;
-  display: block;
-  mix-blend-mode: multiply;
 }
 
 .k3-recent-card > span {
@@ -1814,6 +2196,101 @@ body,
   font-weight: 950;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.k3-recent-card-saved {
+  flex: 0 0 168px;
+  min-height: 208px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow:
+    0 10px 24px rgba(66, 57, 34, 0.10),
+    0 0 0 2px rgba(252, 103, 8, 0.12) inset;
+  color: var(--k3-ink);
+}
+
+.k3-recent-card-saved .k3-recent-thumb {
+  height: 72px;
+  margin-bottom: 8px;
+}
+
+.k3-recent-card-saved .k3-recent-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.k3-recent-card-saved .k3-recent-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--k3-sunset);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.k3-recent-card-saved .k3-recent-date {
+  color: rgba(27, 27, 27, 0.45);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.k3-recent-card-saved .k3-recent-title {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 950;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--k3-ink);
+}
+
+.k3-recent-card-saved .k3-recent-sub {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.32;
+  font-weight: 500;
+  color: rgba(27, 27, 27, 0.55);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.k3-recent-card-saved .k3-recent-foot {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.k3-recent-card-saved .k3-recent-duration {
+  font-size: 11px;
+  font-weight: 950;
+  color: rgba(27, 27, 27, 0.65);
+  letter-spacing: 0;
+}
+
+.k3-recent-card-saved .k3-recent-play {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--k3-moss-olive);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  padding-left: 1px;
 }
 
 .k3-recent-card strong {
@@ -1830,27 +2307,54 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  height: 69px;
+  height: calc(69px + var(--k3-safe-bottom));
   z-index: 10;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: center;
-  padding: 6px 18px 10px;
+  padding: 6px 18px max(10px, calc(var(--k3-safe-bottom) + 10px));
   background: rgba(255, 250, 240, 0.95);
   border-top: 1px solid rgba(27, 27, 27, 0.08);
 }
 
 .k3-tabbar button {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 3px;
   color: rgba(27, 27, 27, 0.50);
   font-size: 11px;
   font-weight: 850;
+  min-width: 0;
 }
 
 .k3-tabbar button.is-active {
   color: var(--k3-sunset);
+}
+
+.k3-tabbar button.is-primary {
+  transform: translateY(-13px);
+  gap: 1px;
+  color: rgba(27, 27, 27, 0.54);
+}
+
+.k3-tabbar button.is-primary svg {
+  width: 54px;
+  height: 54px;
+  padding: 13px;
+  border-radius: 50%;
+  background: var(--k3-sunset);
+  color: #fff;
+  box-shadow:
+    0 14px 24px -12px rgba(252, 103, 8, 0.80),
+    0 2px 0 rgba(255, 255, 255, 0.38) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.08) inset;
+}
+
+.k3-tabbar button.is-primary span {
+  margin-top: -1px;
+  color: var(--k3-sunset);
+  font-weight: 950;
 }
 
 .k3-library-head {
@@ -1899,7 +2403,7 @@ body,
   gap: 12px;
   max-height: 676px;
   overflow-y: auto;
-  padding: 24px 0 86px;
+  padding: 24px 0 calc(86px + var(--k3-safe-bottom));
 }
 
 .k3-library-list button {
@@ -1928,6 +2432,278 @@ body,
   font-weight: 850;
 }
 
+.k3-preset-frame,
+.k3-progress-frame,
+.k3-you-frame {
+  padding: max(20px, calc(var(--k3-safe-top) + 12px)) 22px calc(96px + var(--k3-safe-bottom));
+}
+
+.k3-companion-head {
+  position: relative;
+  z-index: 8;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.k3-companion-head h1 {
+  margin: 0 auto 0 0;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.k3-companion-head > span {
+  color: var(--k3-moss-olive);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.k3-preset-card,
+.k3-progress-hero,
+.k3-you-card,
+.k3-memory-list,
+.k3-you-actions {
+  position: relative;
+  z-index: 5;
+}
+
+.k3-preset-card {
+  margin-top: 44px;
+  padding: 22px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.90);
+  box-shadow: 0 12px 28px rgba(66, 57, 34, 0.10);
+}
+
+.k3-preset-icon,
+.k3-you-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  background: rgba(236, 195, 74, 0.34);
+  color: var(--k3-moss-dark);
+}
+
+.k3-preset-card h1 {
+  margin: 24px 0 8px;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.k3-preset-card p {
+  margin: 0 0 22px;
+  color: rgba(27, 27, 27, 0.62);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 850;
+}
+
+.k3-preset-mascot {
+  position: absolute;
+  right: -54px;
+  bottom: 74px;
+  width: 270px;
+  height: 270px;
+  z-index: 2;
+  opacity: 0.92;
+}
+
+.k3-progress-hero {
+  margin-top: 26px;
+  min-height: 150px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border-radius: 24px;
+  background: var(--k3-moss-olive);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 16px 32px rgba(66, 57, 34, 0.12);
+}
+
+.k3-progress-hero span,
+.k3-stat-grid span,
+.k3-memory-list span,
+.k3-you-card span {
+  color: rgba(246, 235, 215, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.k3-progress-hero strong {
+  margin-top: 2px;
+  font-size: 58px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.k3-progress-hero p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.k3-stat-grid {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.k3-stat-grid div,
+.k3-memory-list div {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 15px;
+  box-shadow: 0 8px 20px rgba(66, 57, 34, 0.08);
+}
+
+.k3-stat-grid span,
+.k3-memory-list span,
+.k3-you-card span {
+  color: var(--k3-moss-olive);
+}
+
+.k3-stat-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 25px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.k3-progress-list {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.k3-progress-list button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 14px 1fr 24px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 11px 13px;
+  color: var(--k3-ink);
+  text-align: left;
+  box-shadow: 0 8px 20px rgba(66, 57, 34, 0.07);
+}
+
+.k3-progress-list button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.k3-progress-list button > span {
+  width: 12px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--pill, var(--k3-mustard));
+}
+
+.k3-progress-list strong,
+.k3-progress-list small {
+  display: block;
+}
+
+.k3-progress-list strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.k3-progress-list small {
+  margin-top: 2px;
+  color: rgba(27, 27, 27, 0.50);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.k3-progress-list .is-ready {
+  color: var(--k3-moss-dark);
+}
+
+.k3-you-card {
+  margin-top: 28px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.90);
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 12px 28px rgba(66, 57, 34, 0.10);
+}
+
+.k3-you-avatar {
+  margin: 0 auto 14px;
+  border-radius: 50%;
+}
+
+.k3-you-card h2 {
+  margin: 5px 0 0;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 950;
+  color: var(--k3-sunset);
+}
+
+.k3-you-card p {
+  margin: 7px 0 0;
+  color: rgba(27, 27, 27, 0.54);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.k3-memory-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.k3-memory-list strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 950;
+}
+
+.k3-you-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.k3-you-actions button {
+  min-height: 44px;
+  border-radius: 999px;
+  background: var(--k3-sunset);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.k3-you-actions button.is-muted {
+  grid-column: 1 / -1;
+  background: rgba(27, 27, 27, 0.07);
+  color: rgba(27, 27, 27, 0.58);
+}
+
 @keyframes k3-pulse {
   0%, 100% { transform: scale(0.98); opacity: 0.8; }
   50% { transform: scale(1.04); opacity: 1; }
@@ -1943,100 +2719,161 @@ body,
   }
   .k3-frame {
     width: 100vw;
-    height: 100svh;
+    height: 100vh;
+    height: 100dvh;
+    height: var(--tg-vh, 100dvh);
     border-radius: 0;
     box-shadow: none;
   }
   .k3-bottom-cta {
-    padding-bottom: max(26px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(26px, calc(var(--k3-safe-bottom) + 18px));
   }
 
-  /* Name3 — natural flex flow with clear gaps between sections. */
+  /* Name3 — composed absolute layout so keyboard and tall devices stay intentional. */
   .k3-name {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 24px 24px 104px;
-    gap: 12px;
+    --k3-name-top: max(68px, calc(var(--k3-safe-top) + 18px));
+    --k3-name-mascot-size: clamp(218px, 29dvh, 270px);
+    --k3-name-copy-top: calc(var(--k3-name-top) + var(--k3-name-mascot-size) - 12px);
+    --k3-name-input-top: calc(var(--k3-name-copy-top) + 88px);
+    --k3-name-chip-top: calc(var(--k3-name-input-top) + 90px);
+    display: block;
+    padding: 0 24px;
   }
   .k3-name .k3-name-mascot {
-    position: relative;
+    position: absolute;
+    top: var(--k3-name-top);
+    left: 50%;
     bottom: auto;
-    left: auto;
-    top: auto;
-    transform: none;
-    margin: 0 auto;
-    width: 280px;
-    height: 280px;
-    flex: 0 0 auto;
-    transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                margin 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform: translateX(-50%);
+    margin: 0;
+    width: var(--k3-name-mascot-size);
+    height: var(--k3-name-mascot-size);
     -webkit-mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 66%, transparent 88%);
             mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 66%, transparent 88%);
+    transition:
+      top 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 220ms ease;
   }
   .k3-name .k3-name-mascot .k3-mascot {
     filter: contrast(1.04) saturate(1.08);
   }
-  .k3-name .k3-name-input {
-    scroll-margin-top: 320px;
+  .k3-name .k3-name-field {
+    scroll-margin-top: 220px;
     scroll-margin-bottom: 24px;
   }
   .k3-name .k3-name-copy {
-    position: relative;
+    position: absolute;
+    top: var(--k3-name-copy-top);
     bottom: auto;
-    left: auto;
-    right: auto;
+    left: 24px;
+    right: 24px;
     padding: 0;
-    margin-top: -36px;
-    flex: 0 0 auto;
+    margin: 0;
+  }
+  .k3-name .k3-name-field {
+    position: absolute;
+    top: var(--k3-name-input-top);
+    bottom: auto;
+    left: 26px;
+    right: 26px;
+    margin: 0;
   }
   .k3-name .k3-name-input {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    margin-top: -2px;
-    flex: 0 0 auto;
+    min-height: 62px;
+    border-radius: 18px;
   }
   .k3-name .k3-chip-section {
-    position: relative;
+    position: absolute;
+    top: var(--k3-name-chip-top);
     bottom: auto;
-    left: auto;
-    right: auto;
-    margin-top: -18px;
-    flex: 0 0 auto;
-    transition: opacity 240ms ease, transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    left: 24px;
+    right: 24px;
+    margin: 0;
+    transition:
+      opacity 240ms ease,
+      transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .k3-name .k3-chip-grid {
     gap: 5px;
   }
-
-  /* ---- Telegram keyboard open: compact Name3 + lift bottom CTA --- */
+  .k3-name .k3-chip-section {
+    max-height: 800px;
+    overflow: visible;
+  }
+  .k3-name .k3-cloud {
+    transition: opacity 240ms ease;
+  }
+  .k3-name .k3-ornament-bonsai {
+    top: auto;
+    bottom: 88px;
+    left: -18px;
+    width: 96px;
+    height: 124px;
+    opacity: 0.86;
+  }
+  .k3-name .k3-ornament-lantern {
+    top: auto;
+    bottom: 102px;
+    right: 4px;
+    width: 60px;
+    height: 90px;
+    opacity: 0.86;
+  }
+  .k3-kb-open .k3-name,
   html.tg-keyboard-open .k3-name {
-    padding-bottom: calc(var(--tg-keyboard-height, 0px) + 88px);
+    --k3-name-top: max(64px, calc(var(--k3-safe-top) + 14px));
+    --k3-name-mascot-size: clamp(220px, 30vh, 280px);
+    --k3-name-copy-top: calc(var(--k3-name-top) + var(--k3-name-mascot-size) + 6px);
+    --k3-name-input-top: calc(var(--k3-name-copy-top) + 76px);
   }
-  html.tg-keyboard-open .k3-name .k3-name-mascot {
-    width: 132px;
-    height: 132px;
-    margin-top: -8px;
-  }
-  html.tg-keyboard-open .k3-name .k3-name-copy {
-    margin-top: -18px;
-  }
+  .k3-kb-open .k3-name .k3-name-copy h2,
   html.tg-keyboard-open .k3-name .k3-name-copy h2 {
-    font-size: 17px;
-    line-height: 1.2;
+    font-size: 18px;
+    line-height: 1.22;
   }
+  .k3-kb-open .k3-name .k3-chip-section,
   html.tg-keyboard-open .k3-name .k3-chip-section {
     opacity: 0;
     transform: translateY(8px);
     pointer-events: none;
-    /* Collapse flex contribution so we don't leave an empty band */
     max-height: 0;
-    margin: 0;
     overflow: hidden;
   }
+
+  /* Pet-typing mode: user is editing the custom pet-name inside the chip
+     section. Lift the chip section above the keyboard so the user can see
+     what they're typing, and tuck the main name input out of the way. */
+  .k3-kb-open .k3-name.k3-pet-typing .k3-chip-section,
+  html.tg-keyboard-open .k3-name.k3-pet-typing .k3-chip-section {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    max-height: none;
+    overflow: visible;
+    top: auto;
+    bottom: calc(var(--k3-kb-h, 0px) + 16px);
+  }
+  .k3-kb-open .k3-name.k3-pet-typing .k3-name-field,
+  .k3-kb-open .k3-name.k3-pet-typing .k3-name-copy,
+  html.tg-keyboard-open .k3-name.k3-pet-typing .k3-name-field,
+  html.tg-keyboard-open .k3-name.k3-pet-typing .k3-name-copy {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+  .k3-kb-open .k3-name.k3-pet-typing .k3-soft-helper,
+  html.tg-keyboard-open .k3-name.k3-pet-typing .k3-soft-helper {
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .k3-kb-open .k3-name .k3-ornament-bonsai,
+  .k3-kb-open .k3-name .k3-ornament-lantern,
+  .k3-kb-open .k3-name .k3-sakura,
+  .k3-kb-open .k3-name .k3-cloud,
+  .k3-kb-open .k3-name .k3-petal,
   html.tg-keyboard-open .k3-name .k3-ornament-bonsai,
   html.tg-keyboard-open .k3-name .k3-ornament-lantern,
   html.tg-keyboard-open .k3-name .k3-sakura,
@@ -2045,18 +2882,8 @@ body,
     opacity: 0;
     transition: opacity 240ms ease;
   }
-  .k3-name .k3-chip-section {
-    transition: opacity 240ms ease,
-                transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                margin 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    max-height: 800px;
-    overflow: visible;
-  }
-  .k3-name .k3-cloud {
-    transition: opacity 240ms ease;
-  }
-  html.tg-keyboard-open .k3-bottom-cta {
+  .k3-kb-open .k3-name .k3-bottom-cta,
+  html.tg-keyboard-open .k3-name .k3-bottom-cta {
     transform: translateY(calc(-1 * var(--tg-keyboard-height, 0px)));
     transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
     opacity: 0;
@@ -2072,7 +2899,7 @@ body,
   }
   .k3-name .k3-name-copy,
   .k3-name .k3-name-copy h2 {
-    transition: margin 320ms cubic-bezier(0.2, 0.8, 0.2, 1), font-size 240ms ease;
+    transition: top 320ms cubic-bezier(0.2, 0.8, 0.2, 1), font-size 240ms ease;
   }
 
   .k3-tea-mascot,
@@ -2118,20 +2945,23 @@ body,
     bottom: 200px;
   }
   .k3-chat-compose.is-open {
-    bottom: calc(26px + var(--k3-kb-h, 0px));
+    bottom: max(
+      calc(26px + var(--k3-kb-h, 0px)),
+      calc(var(--k3-safe-bottom) + var(--k3-kb-h, 0px) + 14px)
+    );
     transition: bottom 0.18s ease-out;
   }
 
   /* Keyboard open: compress sakura + Kokoro + bubble together. */
   .k3-kb-open .k3-chat-peek,
   html.tg-keyboard-open .k3-chat-peek {
-    top: 60px;
+    top: 200px;
     height: 200px;
     width: 200px;
   }
   .k3-kb-open .k3-bubble-stack,
   html.tg-keyboard-open .k3-bubble-stack {
-    top: 60px;
+    top: 210px;
     right: 150px;
     gap: 10px;
   }

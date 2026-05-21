@@ -13,6 +13,8 @@ export type Answers = {
   vibe: Vibe | '';
   feeling?: string;
   source?: string;
+  reminderTime?: string;
+  wantsProgram?: boolean;
 };
 
 export const ANSWERS_DEFAULT: Answers = {

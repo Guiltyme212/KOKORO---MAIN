@@ -26,7 +26,7 @@ Implementation lives mostly in:
 - `app/src/App.tsx`
 - `app/src/lib/router.ts`
 
-Legacy route names still exist for compatibility, but most map into the 3.0 flow. The old dark screens are still in the repo but are no longer the normal user path.
+Legacy route names still exist for compatibility, but most map into the 3.0 flow. The old dark/orange screens are parked in `app/archive/old-design/` and are outside the active build.
 
 ### ElevenLabs agent + generation flow
 
@@ -152,31 +152,31 @@ A single global store: `app/src/state/answers.ts`.
 
 ### Speech-to-text
 
-`app/src/lib/stt.ts` wraps the browser-native Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`). Used by the Capture (03) and Reflect (08) screens. `createStt()` returns an inert `{ isSupported: false }` handle when the API is missing — callers are expected to check that and fall back to text input rather than guarding upstream.
+`app/src/lib/stt.ts` wraps the browser-native Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`). It is legacy support from the older UI; Kokoro 3 currently uses the ElevenLabs conversation flow in `app/src/screens/Kokoro3.tsx`. `createStt()` returns an inert `{ isSupported: false }` handle when the API is missing.
 
 ### Visuals and design tokens
 
-- `app/src/styles/tokens.css` defines the canonical palette (`--sumi #0a0908`, `--washi #f4efe6`, `--persimmon #c84c2b`, `--graphite`, `--stone`) and font stacks (Fraunces serif, Geist sans, Noto Serif JP for kanji, JetBrains Mono for eyebrows). Fonts are loaded from Google Fonts in `app/index.html`. **Use these tokens, not raw hex** — and keep persimmon to ≲10% of any screen.
-- `app/src/components/atoms.tsx` exports the shared visual primitives (`Glow`, `TopBar`, `Eyebrow`, `Display`, `Btn`). Reach for these before adding new typography/layout. Hard rules from BUSINESS.md: no gradients beyond the `Glow` atom, no shadows beyond the device frame and the `Btn` persimmon glow, no emoji, no exclamation points, sentence case, kanji always has a referent.
-- `DeviceFrame` wraps every screen in a phone-shaped surface so the layout is the same in browser and Telegram. Screens position themselves with `position: absolute; inset: 0;` inside this frame.
+- The active production UI is Kokoro 3: `app/src/screens/Kokoro3.tsx` plus `app/src/styles/kokoro3.css`.
+- The older black/orange UI has been moved out of the active source tree to `app/archive/old-design/`. It is kept intentionally for reference; do not use those files unless you are intentionally restoring that interface.
+- `app/src/styles/tokens.css` still provides base tokens used by the app shell. Kokoro 3 defines its cream, moss, mustard, and sunset palette in `kokoro3.css`.
 
 ### Naming gotcha
 
-The Kokoro 2.0 design prototype uses older terms (`Aftercare/Future Self/Lock In`, "skin"). BUSINESS.md is newer and renames these to **Unwind / Attract / Lock In** and "content type" — the code follows BUSINESS.md (`ContentType` union is `'unwind' | 'attract' | 'lockin'`). When porting copy from the prototype, translate the names.
+The archived Kokoro 2.0 design prototype uses older terms (`Aftercare/Future Self/Lock In`, "skin"). Do not port that copy into Kokoro 3 unless the product direction explicitly asks for it.
 
 ### Meditation generation pipeline (frontend ↔ backend)
 
-The `Composing` screen calls **`POST /meditations/stream`** (NDJSON streaming response — primary path) and reads three event types as they arrive:
+Kokoro 3 starts generation from the chat screen through `kickoffMeditationFor()` / `kickoffAllMeditations()`, which call **`POST /meditations/stream`** (NDJSON streaming response — primary path) and read three event types as they arrive:
 
 1. `script` (~20–45s in) — LLM has finished generating the personalized lyrics.
-2. `streaming` (~30–90s in) — Suno's `streamAudioUrl` is now populated; the Composing screen advances to Player and starts playing this URL immediately. **This is the audio the user hears first.**
+2. `streaming` (~30–90s in) — Suno's `streamAudioUrl` is now populated and the chat can open the Kokoro 3 player. **This is the audio the user hears first.**
 3. `ready` (~90–180s in) — Suno's final mastered audio has been downloaded and persisted to the BlobStore; the Save-to-library button unlocks.
 
 Implementation:
 
 - `app/src/lib/api.ts` — `generateMeditationStreaming(input)` is an async generator that fetches the endpoint and yields each NDJSON line as a typed `StreamEvent`. The legacy `generateMeditation()` (single-shot `POST /meditations`) is kept for tests/scripts.
-- `app/src/screens/Composing.tsx` — for-await loop over the stream. Advances to Player on `streaming`. Drain continues after navigation so the persisted `audioUrl` lands in the store and the Save button unlocks.
-- `app/src/screens/Player.tsx` — `<audio src>` is **frozen at first render** via `useMemo([], …)` so the later `ready` event doesn't yank playback mid-listen. The Save button is disabled until `generated.audioUrl` (the persisted blob URL) is set.
+- `app/src/state/meditationProgress.ts` — stream orchestration and per-vibe progress state.
+- `app/src/screens/Kokoro3.tsx` — chat, style cards, player, home, and library screens for the active UI.
 - `app/src/state/generatedMeditation.ts` — single-record sessionStorage-backed store. Holds both `streamAudioUrl` (early, Suno CDN) and `audioUrl` (persisted blob). Exposes `set()` and `update(partial)` for the merge-on-`ready` step.
 
 Backend pipeline lives in `api/src/kokoro_api/pipeline/` — see `api/README.md` for the deeper notes (two-phase Suno polling, reference-upload cache, writer auto-coercer).

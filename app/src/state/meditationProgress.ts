@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { generatedMeditationApi } from './generatedMeditation';
 import { generateMeditationStreaming } from '../lib/api';
+import { friendlyApiError } from '../lib/config';
 import { uploadCapture } from '../lib/uploads';
 import { captureAudioApi } from './captureAudio';
 import { isInTelegram, tgUser, tgInitData } from '../lib/telegram';
@@ -229,7 +230,7 @@ export function kickoffMeditationFor(
     } catch (err: unknown) {
       setVibe(vibe, {
         phase: 'error',
-        error: err instanceof Error ? err.message : 'generation failed',
+        error: friendlyApiError(err),
       });
     } finally {
       inFlight.delete(vibe);

@@ -1,8 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import './styles/tokens.css';
 import './styles/global.css';
-import './styles/modes.css';
 import App from './App';
 
 createRoot(document.getElementById('root')!).render(
@@ -10,3 +10,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+CapacitorUpdater.notifyAppReady().catch(() => {});

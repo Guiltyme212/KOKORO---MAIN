@@ -10,10 +10,20 @@ export type TgUser = {
   is_premium?: boolean;
 };
 
+type TgInset = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+};
+
 type TgWebApp = {
   ready(): void;
   expand(): void;
   disableVerticalSwipes?(): void;
+  requestFullscreen?(): void;
+  isFullscreen?: boolean;
+  isVersionAtLeast?(version: string): boolean;
   initData: string;
   initDataUnsafe?: {
     user?: TgUser;
@@ -27,6 +37,8 @@ type TgWebApp = {
   themeParams: Record<string, string>;
   viewportHeight: number;
   viewportStableHeight: number;
+  safeAreaInset?: TgInset;
+  contentSafeAreaInset?: TgInset;
   MainButton: {
     setText(text: string): void;
     show(): void;
@@ -47,6 +59,7 @@ type TgWebApp = {
   };
   setHeaderColor(color: string): void;
   setBackgroundColor(color: string): void;
+  setBottomBarColor?(color: string): void;
   onEvent(eventType: string, eventHandler: () => void): void;
   offEvent(eventType: string, eventHandler: () => void): void;
 };
@@ -58,6 +71,8 @@ declare global {
 }
 
 export const tg = (): TgWebApp | null => window.Telegram?.WebApp ?? null;
+
+const KOKORO_CREAM = '#F6EBD7';
 
 /**
  * The TG SDK script auto-installs a partial WebApp object in any browser, so
@@ -76,13 +91,21 @@ export function initTelegram() {
   app.ready();
   app.expand();
   try {
+    if (!app.isFullscreen && (!app.isVersionAtLeast || app.isVersionAtLeast('8.0'))) {
+      app.requestFullscreen?.();
+    }
+  } catch {
+    /* fullscreen is unsupported or denied in this client */
+  }
+  try {
     app.disableVerticalSwipes?.();
   } catch {
     /* not in Bot API 7.7+ */
   }
   try {
-    app.setHeaderColor('#0a0908');
-    app.setBackgroundColor('#07060a');
+    app.setHeaderColor(KOKORO_CREAM);
+    app.setBackgroundColor(KOKORO_CREAM);
+    app.setBottomBarColor?.(KOKORO_CREAM);
   } catch {
     /* older TG clients */
   }
@@ -124,6 +147,9 @@ function installViewportSync(): void {
   };
 
   const update = () => {
+    const app = isInTelegram() ? tg() : null;
+    const safe = app?.safeAreaInset;
+    const contentSafe = app?.contentSafeAreaInset ?? safe;
     const innerH = window.innerHeight;
     const visH = vv?.height ?? innerH;
     const offsetTop = vv?.offsetTop ?? 0;
@@ -144,6 +170,10 @@ function installViewportSync(): void {
 
     root.style.setProperty('--tg-vh', `${visH}px`);
     root.style.setProperty('--tg-keyboard-height', `${keyboardH}px`);
+    root.style.setProperty('--tg-safe-top', `${Math.max(0, Math.round(safe?.top ?? 0))}px`);
+    root.style.setProperty('--tg-safe-bottom', `${Math.max(0, Math.round(safe?.bottom ?? 0))}px`);
+    root.style.setProperty('--tg-content-safe-top', `${Math.max(0, Math.round(contentSafe?.top ?? 0))}px`);
+    root.style.setProperty('--tg-content-safe-bottom', `${Math.max(0, Math.round(contentSafe?.bottom ?? 0))}px`);
     root.classList.toggle('tg-keyboard-open', editable || keyboardH > 60);
   };
 
@@ -165,6 +195,11 @@ function installViewportSync(): void {
     window.addEventListener('resize', schedule);
   }
   window.addEventListener('orientationchange', schedule);
+  const app = isInTelegram() ? tg() : null;
+  app?.onEvent?.('viewportChanged', schedule);
+  app?.onEvent?.('safeAreaChanged', schedule);
+  app?.onEvent?.('contentSafeAreaChanged', schedule);
+  app?.onEvent?.('fullscreenChanged', schedule);
   // Focus tracking is the iOS-Telegram-WebView-reliable signal: when an
   // <input>/<textarea> gains focus, the keyboard is opening; on blur it
   // closes. Schedule with a small delay so visualViewport has time to settle.

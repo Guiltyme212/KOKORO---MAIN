@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Capgo OTA — keep private key local
+.capgo_key_v2
+.capgo_key_v2.pub
+.env.capgo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,8 @@
 
 Vite + React + TypeScript frontend for Kokoro. The active UI is the Kokoro 3.0 cream/moss/mustard flow in `src/screens/Kokoro3.tsx` and `src/styles/kokoro3.css`.
 
+The previous black/orange UI is parked in `archive/old-design/` for reference and is not part of the active build.
+
 ## Current Flow
 
 `welcome -> name -> feeling -> source -> promise -> chat -> player/home/library`
@@ -22,6 +24,8 @@ pnpm dev
 pnpm build
 pnpm lint
 ```
+
+For simulator/App Store builds, set `VITE_API_BASE` to the deployed Kokoro API URL before `pnpm ios:sync`. Without it, the app falls back to `http://127.0.0.1:8787`, which is only useful when the API is running locally on the Mac.
 
 ## Important Visual Note
 

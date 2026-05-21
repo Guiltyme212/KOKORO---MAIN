@@ -14,8 +14,23 @@ export function initNative(): void {
   void StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
 
   if (platform() === 'ios') {
-    void Keyboard.setResizeMode({ mode: KeyboardResize.Body }).catch(() => {});
+    // KeyboardResize.None keeps the body at full viewport height — the keyboard
+    // simply overlays. We lift the focused input via CSS using --k3-kb-h.
+    // With KeyboardResize.Body, both window.innerHeight AND
+    // visualViewport.height shrink together, so the App.tsx visualViewport
+    // tracker reads kbH=0 and our CSS lift never fires.
+    void Keyboard.setResizeMode({ mode: KeyboardResize.None }).catch(() => {});
     void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+
+    const root = document.documentElement;
+    void Keyboard.addListener('keyboardWillShow', (info) => {
+      root.style.setProperty('--k3-kb-h', `${Math.round(info.keyboardHeight)}px`);
+      root.classList.add('k3-kb-open');
+    }).catch(() => {});
+    void Keyboard.addListener('keyboardWillHide', () => {
+      root.style.setProperty('--k3-kb-h', '0px');
+      root.classList.remove('k3-kb-open');
+    }).catch(() => {});
   }
 
   document.documentElement.classList.add('native', `native-${platform()}`);

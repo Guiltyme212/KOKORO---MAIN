@@ -25,11 +25,14 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kokoro listens to your voice and problems. You can talk to him so it can write a meditation that matches how you actually feel.
-</string>
+	<string>Allow Kokoro to use the microphone when you choose voice chat, so it can listen and help create a meditation from what you share.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Kokoro uses speech recognition to turn what you say into the meditation it writes for you.
-</string>
+	<string>Allow Kokoro to transcribe your voice during voice chat so your words can be used in the conversation and meditation.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

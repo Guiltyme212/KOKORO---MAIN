@@ -1,6 +1,5 @@
 import type { UploadResponse } from './types-meditation';
-
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:8787';
+import { API_BASE } from './config';
 
 export async function uploadCapture(blob: Blob): Promise<UploadResponse> {
   const form = new FormData();

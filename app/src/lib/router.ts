@@ -17,7 +17,9 @@ export type Route =
   | 'home'
   | 'library'
   | 'quickReset'
-  | 'sleep';
+  | 'sleep'
+  | 'progress'
+  | 'you';
 
 const VALID: Route[] = [
   'welcome', 'name', 'feeling', 'source', 'promise', 'chat',
@@ -25,6 +27,7 @@ const VALID: Route[] = [
   'contentType', 'composing', 'player', 'reflect',
   'pickwhatlands',
   'home', 'library', 'quickReset', 'sleep',
+  'progress', 'you',
 ];
 
 const isRoute = (s: string): s is Route => (VALID as string[]).includes(s);

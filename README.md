@@ -4,7 +4,7 @@
 
 Current frontend work is the Kokoro 3.0 cream/moss/mustard migration: a companion-style ElevenLabs chat that can trigger one personalized meditation generation from inside the conversation. Incoming agents should read `CLAUDE.md` and `docs/plans/HANDOFF-2026-05-16-kokoro-3.md` before changing the visual system.
 
-Voice-first AI meditations. Every meditation addresses the user by a chosen pet name. Two tonal modes (soft / sharp), three content types (心 Unwind / 未 Attract / 志 Lock In). Web + Telegram Mini App first; iOS App Store later.
+Voice-first AI meditations. Every meditation addresses the user by a chosen pet name. The current build targets web, Telegram Mini App, and the Capacitor iOS App Store shell from one frontend.
 
 ## Repository layout
 
@@ -50,7 +50,7 @@ ElevenLabs agent chat uses a backend-issued private conversation token. Configur
 
 ## Speech-to-text
 
-Capture (screen 03) and Reflect (screen 09) use the browser-native Web Speech API for transcription - see [`app/src/lib/stt.ts`](app/src/lib/stt.ts). The backend also has ElevenLabs Scribe first and Whisper fallback for future voice upload flows, but the current frontend sends captured speech as text.
+Kokoro 3 uses the ElevenLabs conversation flow in [`app/src/screens/Kokoro3.tsx`](app/src/screens/Kokoro3.tsx). The older browser-native speech-to-text flow is archived in [`app/archive/old-design/`](app/archive/old-design/) and kept only as reference.
 
 ## Meditation generation
 

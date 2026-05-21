@@ -16,8 +16,8 @@ body {
   position: fixed;
   inset: 0;
   height: 100vh;
-  height: 100svh;
-  height: var(--tg-vh, 100svh);
+  height: 100dvh;
+  height: var(--tg-vh, 100dvh);
 }
 
 ::-webkit-scrollbar { width: 0; height: 0; }

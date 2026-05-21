@@ -48,7 +48,13 @@ class Config(BaseSettings):
     blob_public_base_url: AnyHttpUrl | None = None
     reference_public_base_url: AnyHttpUrl | None = None
 
-    cors_origin: str = "http://localhost:5173"
+    cors_origin: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "capacitor://localhost,"
+        "Kokoro://localhost,"
+        "kokoro://localhost"
+    )
 
 
 def load_config() -> Config:
