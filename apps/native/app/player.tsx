@@ -1,7 +1,7 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Share, Text, View } from "react-native";
 
 import { VIBE_CARDS } from "@domain/meditation/vibe-cards";
 import { Screen } from "@presentation/components/Screen";
@@ -190,11 +190,30 @@ export default function PlayerScreen() {
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
           <Text className="text-ink font-rounded">← Back</Text>
         </Pressable>
-        <Pressable onPress={onSave} disabled={saveMutation.isPending} accessibilityRole="button">
-          <Text className="text-mustard font-rounded">
-            {saveMutation.isPending ? "Saving…" : "Save"}
-          </Text>
-        </Pressable>
+        <View className="flex-row gap-4">
+          <Pressable
+            onPress={() => {
+              const url = current.audioUrl || current.streamAudioUrl;
+              if (!url) return;
+              Share.share({
+                message: `Kokoro meditation — ${card.title}\n${url}`,
+                url,
+                title: `Kokoro · ${card.title}`,
+              }).catch(() => {
+                /* user cancelled */
+              });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Share meditation"
+          >
+            <Text className="text-ink font-rounded">Share</Text>
+          </Pressable>
+          <Pressable onPress={onSave} disabled={saveMutation.isPending} accessibilityRole="button">
+            <Text className="text-mustard font-rounded">
+              {saveMutation.isPending ? "Saving…" : "Save"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View className="flex-1 items-center justify-center">

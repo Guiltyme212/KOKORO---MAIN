@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { addNotificationResponseListener } from "@infrastructure/notifications/expo-notifications";
 import { initAnalytics, track } from "@infrastructure/observability/analytics";
 import { initSentry } from "@infrastructure/observability/sentry";
+import { OfflineBanner } from "@presentation/components/OfflineBanner";
 import { ToastHost } from "@presentation/components/ToastHost";
 import { KOKORO_FONT_MAP } from "@presentation/theme/fonts";
 import { queryClient, queryPersister } from "@presentation/queries/query-client";
@@ -134,6 +135,7 @@ export default function Layout() {
           >
             <HeroUINativeProvider>
               <StackLayout />
+              <OfflineBanner />
               <ToastHost />
             </HeroUINativeProvider>
           </PersistQueryClientProvider>
