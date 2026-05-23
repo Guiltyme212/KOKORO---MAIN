@@ -26,15 +26,24 @@ Both meditation endpoints orchestrate:
 
 ## Dev
 
+From the repo root (recommended — runs api alongside web + native):
+
+```sh
+pnpm dev          # turbo dev — all packages in parallel
+pnpm dev:api      # api only
+```
+
+`pnpm dev:api` auto-copies `.env.example → .env` on first run and runs `uv sync --all-extras` before starting uvicorn — no manual setup. Then `curl http://localhost:8787/health` should return `{"ok":true,"ts":...}`.
+
+Standalone (without pnpm), the underlying flow is:
+
 ```sh
 cp .env.example .env             # fill placeholder secrets (≥20 chars each)
 uv sync --all-extras
 uv run uvicorn kokoro_api.main:app --reload --port 8787
 ```
 
-Then `curl http://localhost:8787/health` should return `{"ok":true,"ts":...}`.
-
-For the frontend, set `VITE_API_BASE=http://localhost:8787` and run `pnpm dev` in `apps/web/`.
+For the frontend, set `VITE_API_BASE=http://localhost:8787` and run `pnpm dev:web` from the repo root.
 
 ## Tests
 

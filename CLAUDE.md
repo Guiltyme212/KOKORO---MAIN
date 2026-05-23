@@ -92,11 +92,23 @@ Three-tier repo:
 
 ## Commands
 
-Frontend (from `apps/web/` with pnpm):
+Everything is wired through turbo at the repo root — one command runs all packages:
 
 ```sh
-cd apps/web
 pnpm install
+pnpm dev          # api (8787) + web (5173) + native (Expo) in parallel
+pnpm build        # web (vite) + api (uv sync --frozen) + native (typecheck)
+pnpm lint         # ruff + mypy (api), eslint (web)
+pnpm check-types  # tsc / mypy across packages
+```
+
+`pnpm dev:api` auto-copies `.env.example → .env` on first run and runs `uv sync --all-extras` before uvicorn — no manual setup. Single-package variants: `pnpm dev:web`, `pnpm dev:api`, `pnpm dev:native`, or `pnpm -F <pkg> <script>` for anything else.
+
+Underlying commands if you need to run them directly:
+
+Frontend (from `apps/web/`):
+
+```sh
 pnpm dev          # Vite dev server, http://localhost:5173
 pnpm build        # tsc -b && vite build, output → apps/web/dist/
 pnpm lint         # eslint .
@@ -107,7 +119,6 @@ pnpm start        # what Railway runs: vite preview --host 0.0.0.0 --port ${PORT
 Backend (from `apps/api/` with uv):
 
 ```sh
-cd apps/api
 uv sync --all-extras
 uv run uvicorn kokoro_api.main:app --reload --port 8787   # dev API
 uv run pytest                                              # unit tests

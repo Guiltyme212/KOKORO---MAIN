@@ -18,33 +18,26 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 
 ## Dev
 
-Run the API first:
+From the repo root, one command starts everything:
 
 ```sh
-cd apps/api
-cp .env.example .env
-uv sync --all-extras
-uv run uvicorn kokoro_api.main:app --reload --port 8787
-```
-
-Then run the frontend:
-
-```sh
-cd apps/web
 pnpm install
-pnpm dev          # http://localhost:5173
-pnpm build        # production build → apps/web/dist/
+pnpm dev          # api (8787) + web (5173) + native (Expo) in parallel via turbo
+pnpm build        # web (vite build) + api (uv sync --frozen) + native (typecheck)
 ```
 
-Or run the React Native port (Expo):
+The api script auto-creates `apps/api/.env` from `.env.example` on first run and runs `uv sync --all-extras` before uvicorn — no manual setup needed. Requires `uv` and `pnpm` on `$PATH`.
+
+Run a single package when you want to focus:
 
 ```sh
-pnpm install      # at repo root
+pnpm dev:web      # vite on http://localhost:5173
+pnpm dev:api      # uvicorn on http://localhost:8787
 pnpm dev:native   # Expo dev server
 pnpm -F native ios  # iOS simulator (requires macOS + Xcode)
 ```
 
-Set `VITE_API_BASE=http://localhost:8787` for local frontend builds if you do not want the default.
+Set `VITE_API_BASE=http://localhost:8787` for local frontend builds if you do not want the default. The native app reads `EXPO_PUBLIC_API_BASE` (same default).
 
 The frontend works in plain browsers and inside Telegram WebView. Telegram-specific calls (haptics, header colour, etc.) no-op outside Telegram via [`isInTelegram()`](apps/web/src/lib/telegram.ts).
 
