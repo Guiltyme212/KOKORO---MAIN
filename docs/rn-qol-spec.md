@@ -94,19 +94,43 @@ Real-iPhone TestFlight walk for Tier 1:
 
 | Phase | Status | Commit prefix |
 | --- | --- | --- |
-| QoL-0 — spec doc | ⏳ | `docs(rn): add Kokoro RN QoL spec` |
-| QoL-1 — branding | ⏳ | `feat(native): QoL-1 branding` |
-| QoL-2 — audio polish | ⏳ | `feat(native): QoL-2 audio polish` |
-| QoL-3 — notifications | ⏳ | `feat(native): QoL-3 notifications` |
-| QoL-4 — settings + legal | ⏳ | `feat(native): QoL-4 settings + legal` |
-| QoL-5 — error / lifecycle | ⏳ | `feat(native): QoL-5 error UI + lifecycle` |
-| QoL-6 — observability | ⏳ | `feat(native): QoL-6 sentry + analytics` |
-| QoL-7 — accessibility | ⏳ | `feat(native): QoL-7 accessibility` |
-| QoL-8 — player power | ⏳ | `feat(native): QoL-8 player power + offline cache` |
-| QoL-9 — i18n + dark mode | ⏳ | `feat(native): QoL-9 i18n + dark mode` |
-| QoL-10 — linking/share/offline | ⏳ | `feat(native): QoL-10 deep links + share + offline` |
-| QoL-11 — streaks | ⏳ | `feat(native): QoL-11 streaks + history` |
-| QoL-12 — final polish | ⏳ | `chore(native): QoL-12 final polish` |
+| QoL-0 — spec doc | ✅ | `docs(rn): add Kokoro RN QoL spec` |
+| QoL-1 — branding | ✅ | `feat(native): QoL-1 branding` |
+| QoL-2 — audio polish | ✅ | `feat(native): QoL-2 audio polish — background, Now Playing, interruptions, sleep timer` |
+| QoL-3 — notifications | ✅ | `feat(native): QoL-3 daily reminder notifications` |
+| QoL-4 — settings + legal | ✅ | `feat(native): QoL-4 Settings + legal screens` |
+| QoL-5 — error / lifecycle | ✅ | `feat(native): QoL-5 toast host, AppState resume, onboarding skip` |
+| QoL-6 — observability | ✅ | `feat(native): QoL-6 Sentry + analytics scaffolding` |
+| QoL-7 — accessibility | ✅ | `feat(native): QoL-7 accessibility baseline — reduced motion + chat live region` |
+| QoL-8 — player power | ✅ | `feat(native): QoL-8 offline audio cache (expo-file-system)` |
+| QoL-9 — i18n + dark mode | ✅ (partial) | `feat(native): QoL-9 localization + appearance preference` |
+| QoL-10 — linking/share/offline | ✅ | `feat(native): QoL-10 share + offline banner + pull-to-refresh` |
+| QoL-11 — streaks | ✅ | `feat(native): QoL-11 streaks + 7-day history viz on Progress tab` |
+| QoL-12 — final polish | ✅ | `chore(native): QoL-12 verification + spec status` |
+
+### Test + typecheck snapshot at QoL-12
+
+- `pnpm -F native test` → **102 passing across 20 suites**.
+- `pnpm -F native check-types` → clean.
+
+### Known follow-ups (out of QoL phasing)
+
+- **Dark-mode visual swap** — Tier 2 #18. The appearance preference
+  ("auto" | "light" | "dark") is collected, persisted, and exposed via
+  `useAppearance()`, but the actual token swap requires uniwind themes
+  (light/dark CSS-variable bundles) which is a palette-wide refactor.
+  Tracked here; v1.1.
+- **Full string migration to i18n** — QoL-9 wired `t()` and migrated
+  Settings + legal copy. The other screens still use English literals;
+  swapping them is mechanical and incremental.
+- **Sentry source maps in EAS** — the SDK is wired with PII scrubbing
+  but the `sentry-cli upload-sourcemaps` step needs to land in the EAS
+  build phase before production captures are useful.
+- **PostHog reverse-proxy** — `EXPO_PUBLIC_POSTHOG_HOST` defaults to
+  `us.i.posthog.com`; a CDN-cached origin avoids Apple's privacy
+  manifest scrutiny.
+- **Localized content (mascot voice, ElevenLabs dynamic vars)** — frontend
+  ships en/ru wiring; agent content tasks live elsewhere.
 
 ## Risks / open questions
 
