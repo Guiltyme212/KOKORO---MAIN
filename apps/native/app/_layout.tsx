@@ -12,6 +12,8 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { addNotificationResponseListener } from "@infrastructure/notifications/expo-notifications";
+import { initAnalytics, track } from "@infrastructure/observability/analytics";
+import { initSentry } from "@infrastructure/observability/sentry";
 import { ToastHost } from "@presentation/components/ToastHost";
 import { KOKORO_FONT_MAP } from "@presentation/theme/fonts";
 import { queryClient, queryPersister } from "@presentation/queries/query-client";
@@ -19,6 +21,14 @@ import { useMeditationProgressStore } from "@presentation/state/use-meditation-p
 import { rehydratePhase } from "@domain/pipeline/transitions";
 import type { ProgressState } from "@domain/pipeline/phase";
 import type { Vibe } from "@domain/meditation/vibe";
+
+// Bootstrap observability before anything else renders. Both init functions
+// are safe no-ops when their DSN/API key env vars are missing (typical for
+// local dev — there's no SENTRY_DSN or POSTHOG_KEY in the repo).
+initSentry();
+initAnalytics().catch(() => {
+  /* analytics init failure is non-fatal */
+});
 
 // Keep the native splash visible until fonts resolve — avoids a brief
 // system-font flash between the splash image and the first rendered screen.
@@ -52,8 +62,10 @@ function StackLayout() {
   // to error so the UI shows a Retry button instead of a permanent spinner.
   // Mirrors what rehydratePhase does at cold start. Tier 1 #12.
   useEffect(() => {
+    track("app.open");
     const sub = AppState.addEventListener("change", (state) => {
       if (state !== "active") return;
+      track("app.open");
       const store = useMeditationProgressStore.getState();
       const next: ProgressState = { ...store.progress };
       let touched = false;

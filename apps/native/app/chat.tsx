@@ -13,6 +13,7 @@ import { StylePicker } from "@presentation/screens/Chat/StylePicker";
 import { ports } from "@presentation/queries/composition-root";
 import { useKickoffMeditation } from "@presentation/queries/use-kickoff-meditation";
 import { useAnswersStore } from "@presentation/state/use-answers.store";
+import { track } from "@infrastructure/observability/analytics";
 import { useGeneratedMeditationStore } from "@presentation/state/use-generated-meditation.store";
 import { useMeditationProgressStore } from "@presentation/state/use-meditation-progress.store";
 import { usePersonaStore } from "@presentation/state/use-persona.store";
@@ -135,11 +136,13 @@ function ChatInner() {
       ...m,
       { id: `${Date.now()}-${m.length}`, role: "kokoro", text: `Making this in ${vibe} style now. Stay with me.` },
     ]);
+    track("meditation.kickoff", { vibe });
     await kickoff.start(vibe, null);
 
     const ready = useGeneratedMeditationStore.getState().byVibe[vibe];
     if (ready?.audioUrl || ready?.streamAudioUrl) {
       selectVibeAsCurrent(vibe);
+      track("meditation.ready", { vibe });
       setMessages((m) => [
         ...m,
         { id: `${Date.now()}-${m.length}`, role: "kokoro", text: "I made this for you. You can listen now." },

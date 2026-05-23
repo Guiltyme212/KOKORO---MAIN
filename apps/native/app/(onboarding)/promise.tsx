@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { buildWeCanPhrase } from "@domain/meditation/we-can-phrase";
+import { track } from "@infrastructure/observability/analytics";
 import { PrimaryButton } from "@presentation/components/PrimaryButton";
 import { ProgressDots } from "@presentation/components/ProgressDots";
 import { Screen } from "@presentation/components/Screen";
@@ -33,7 +34,9 @@ export default function PromiseScreen() {
       });
       if (result.ok) {
         setAnswer("reminderIdentifier", result.identifier);
+        track("reminder.scheduled", { time });
       }
+      track("onboarding.completed", { reminder: result.ok });
       // Permission-denied is fine — the user can opt in later from Settings.
     } finally {
       setBusy(false);

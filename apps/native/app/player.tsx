@@ -11,6 +11,7 @@ import { useGeneratedMeditationStore } from "@presentation/state/use-generated-m
 import { useAnswersStore } from "@presentation/state/use-answers.store";
 import { useSaveToLibraryMutation } from "@presentation/queries/use-library-query";
 import { buildLibraryItem, LibraryError } from "@application/use-cases/save-to-library";
+import { track } from "@infrastructure/observability/analytics";
 import { toast } from "@presentation/state/use-toast.store";
 
 const fmt = (sec: number): string => {
@@ -127,6 +128,7 @@ export default function PlayerScreen() {
         onSuccess: () => {
           hapticsAdapter.notification("success");
           toast("Saved to your library.", "success");
+          track("library.saved", { vibe: current.vibe });
         },
         onError: (err) => {
           hapticsAdapter.notification("error");
