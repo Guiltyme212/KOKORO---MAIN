@@ -6,14 +6,19 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { HeroUINativeProvider } from "heroui-native";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { addNotificationResponseListener } from "@infrastructure/notifications/expo-notifications";
+import { ToastHost } from "@presentation/components/ToastHost";
 import { KOKORO_FONT_MAP } from "@presentation/theme/fonts";
 import { queryClient, queryPersister } from "@presentation/queries/query-client";
+import { useMeditationProgressStore } from "@presentation/state/use-meditation-progress.store";
+import { rehydratePhase } from "@domain/pipeline/transitions";
+import type { ProgressState } from "@domain/pipeline/phase";
+import type { Vibe } from "@domain/meditation/vibe";
 
 // Keep the native splash visible until fonts resolve — avoids a brief
 // system-font flash between the splash image and the first rendered screen.
@@ -41,6 +46,35 @@ function StackLayout() {
     });
     return unsubscribe;
   }, [router]);
+
+  // Foreground reconcile: when the user backgrounds the app mid-stream and
+  // returns, the NDJSON XHR is long dead. Demote any still-in-flight phases
+  // to error so the UI shows a Retry button instead of a permanent spinner.
+  // Mirrors what rehydratePhase does at cold start. Tier 1 #12.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      const store = useMeditationProgressStore.getState();
+      const next: ProgressState = { ...store.progress };
+      let touched = false;
+      for (const v of Object.keys(next) as Vibe[]) {
+        const before = next[v];
+        const after = rehydratePhase(before);
+        if (after !== before) {
+          next[v] = after;
+          touched = true;
+        }
+      }
+      if (touched) {
+        // setVibe one-by-one would emit N subscriber calls; cheaper to
+        // splice each changed slot through the same setter.
+        for (const v of Object.keys(next) as Vibe[]) {
+          store.setVibe(v, next[v]);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
@@ -88,6 +122,7 @@ export default function Layout() {
           >
             <HeroUINativeProvider>
               <StackLayout />
+              <ToastHost />
             </HeroUINativeProvider>
           </PersistQueryClientProvider>
         </KeyboardProvider>

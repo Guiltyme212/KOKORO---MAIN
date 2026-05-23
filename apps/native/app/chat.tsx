@@ -14,9 +14,11 @@ import { ports } from "@presentation/queries/composition-root";
 import { useKickoffMeditation } from "@presentation/queries/use-kickoff-meditation";
 import { useAnswersStore } from "@presentation/state/use-answers.store";
 import { useGeneratedMeditationStore } from "@presentation/state/use-generated-meditation.store";
+import { useMeditationProgressStore } from "@presentation/state/use-meditation-progress.store";
 import { usePersonaStore } from "@presentation/state/use-persona.store";
 import { useSaveToLibraryMutation } from "@presentation/queries/use-library-query";
 import { buildLibraryItem } from "@application/use-cases/save-to-library";
+import { toast } from "@presentation/state/use-toast.store";
 
 const INITIAL_KOKORO: ChatMessage = {
   id: "kokoro-greeting",
@@ -58,7 +60,10 @@ function ChatInner() {
         { id: `${Date.now()}-${m.length}`, role: source === "user" ? "user" : "kokoro", text },
       ]);
     },
-    onError: (error) => setMessages((m) => [...m, sys(`error: ${String(error)}`)]),
+    onError: (error: unknown) => {
+      const text = error instanceof Error ? error.message : String(error);
+      toast(text, "error");
+    },
     clientTools: useMemo(
       () => ({
         show_meditation_styles: (params: { suggested?: Vibe }) => {
@@ -139,6 +144,14 @@ function ChatInner() {
         ...m,
         { id: `${Date.now()}-${m.length}`, role: "kokoro", text: "I made this for you. You can listen now." },
       ]);
+    } else {
+      const phase = useMeditationProgressStore.getState().progress[vibe]?.phase;
+      if (phase === "error") {
+        toast("That generation didn't finish. Try again.", "error", {
+          label: "Try again",
+          onPress: () => pickVibe(vibe),
+        });
+      }
     }
   };
 

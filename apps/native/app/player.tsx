@@ -11,6 +11,7 @@ import { useGeneratedMeditationStore } from "@presentation/state/use-generated-m
 import { useAnswersStore } from "@presentation/state/use-answers.store";
 import { useSaveToLibraryMutation } from "@presentation/queries/use-library-query";
 import { buildLibraryItem, LibraryError } from "@application/use-cases/save-to-library";
+import { toast } from "@presentation/state/use-toast.store";
 
 const fmt = (sec: number): string => {
   if (!isFinite(sec) || sec < 0) return "0:00";
@@ -97,7 +98,6 @@ export default function PlayerScreen() {
     }
   }, [status?.didJustFinish, router]);
 
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [rate, setRate] = useState<0.75 | 1 | 1.25>(1);
 
   const applyRate = (next: 0.75 | 1 | 1.25): void => {
@@ -124,11 +124,17 @@ export default function PlayerScreen() {
     try {
       const item = buildLibraryItem(current, answers);
       saveMutation.mutate(item, {
-        onSuccess: () => hapticsAdapter.notification("success"),
-        onError: () => hapticsAdapter.notification("error"),
+        onSuccess: () => {
+          hapticsAdapter.notification("success");
+          toast("Saved to your library.", "success");
+        },
+        onError: (err) => {
+          hapticsAdapter.notification("error");
+          toast(err instanceof Error ? err.message : "Could not save.", "error");
+        },
       });
     } catch (err) {
-      if (err instanceof LibraryError) setSaveError(err.message);
+      if (err instanceof LibraryError) toast(err.message, "error");
     }
   };
 
@@ -248,10 +254,6 @@ export default function PlayerScreen() {
           }
         }}
       />
-
-      {saveError ? (
-        <Text className="text-sunset font-body text-sm mt-2 text-center">{saveError}</Text>
-      ) : null}
     </Screen>
   );
 }
