@@ -20,7 +20,9 @@
       "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSMicrophoneUsageDescription": "Kokoro listens to your voice so it can write a meditation that matches how you actually feel.",
         "NSSpeechRecognitionUsageDescription": "Kokoro uses speech recognition to turn what you say into the meditation it writes for you.",
         "ITSAppUsesNonExemptEncryption": false
@@ -52,7 +54,8 @@
           "color": "#ecc34a",
           "defaultChannel": "kokoro-default"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
