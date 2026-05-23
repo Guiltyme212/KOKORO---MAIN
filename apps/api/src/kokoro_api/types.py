@@ -50,7 +50,7 @@ class History(_CamelModel):
     last_vibe: Vibe | None = None
 
 
-ClientSource = Literal["telegram", "web"]
+ClientSource = Literal["telegram", "web", "native"]
 
 
 class ClientInfo(_CamelModel):

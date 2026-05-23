@@ -13,7 +13,7 @@ module.exports = {
   // Transform everything inside .pnpm (pnpm hoists everything there) plus a
   // belt-and-braces list of RN-flavored packages that ship untranspiled ESM.
   transformIgnorePatterns: [
-    "node_modules/(?!(\\.pnpm/|(jest-)?react-native|@react-native|@react-native-community|expo|expo-modules-core|@expo|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@elevenlabs|@livekit|livekit-client|nativewind|uniwind|heroui-native|react-native-keyboard-controller|react-native-reanimated|react-native-gesture-handler|react-native-screens|react-native-safe-area-context|react-native-worklets|react-native-css-interop))",
+    "node_modules/(?!(\\.pnpm/|(jest-)?react-native|@react-native|@react-native-community|expo|expo-modules-core|@expo|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@elevenlabs|@livekit|livekit-client|nativewind|uniwind|heroui-native|react-native-keyboard-controller|react-native-reanimated|react-native-gesture-handler|react-native-screens|react-native-safe-area-context|react-native-worklets|react-native-css-interop|msw|@mswjs|rettime|@bundled-es-modules|until-async|outvariant|strict-event-emitter|headers-polyfill|cookie))",
   ],
   testMatch: ["**/__tests__/**/*.test.ts?(x)", "**/?(*.)+(spec|test).ts?(x)"],
 };
