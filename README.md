@@ -15,6 +15,7 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 - [templates/](templates/) - JSON meditation skeletons used by the backend selector.
 - [docs/plans/HANDOFF-2026-05-16-kokoro-3.md](docs/plans/HANDOFF-2026-05-16-kokoro-3.md) - current Kokoro 3.0 handoff for future agents.
 - [docs/rn-port-spec.md](docs/rn-port-spec.md) - React Native port spec (uniwind + React Query + DDD).
+- [docs/rn-qol-spec.md](docs/rn-qol-spec.md) - Quality-of-life features for App Store v1.
 
 ## Dev
 
