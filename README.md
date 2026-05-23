@@ -10,9 +10,11 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 
 - [BUSINESS.md](BUSINESS.md) - product strategy, positioning, MVP scope, personas.
 - [apps/web/](apps/web/) - Vite + React + TypeScript frontend. Doubles as the Telegram Mini App.
+- [apps/native/](apps/native/) - Expo + React Native port. See [docs/rn-port-spec.md](docs/rn-port-spec.md).
 - [apps/api/](apps/api/) - Python 3.12 + FastAPI backend for `/meditations`.
 - [templates/](templates/) - JSON meditation skeletons used by the backend selector.
 - [docs/plans/HANDOFF-2026-05-16-kokoro-3.md](docs/plans/HANDOFF-2026-05-16-kokoro-3.md) - current Kokoro 3.0 handoff for future agents.
+- [docs/rn-port-spec.md](docs/rn-port-spec.md) - React Native port spec (uniwind + React Query + DDD).
 
 ## Dev
 
