@@ -50,6 +50,9 @@ function StackLayout() {
       <Stack.Screen name="player" options={{ presentation: "modal" }} />
       <Stack.Screen name="quick-reset" />
       <Stack.Screen name="sleep" />
+      <Stack.Screen name="settings" options={{ presentation: "modal" }} />
+      <Stack.Screen name="legal/privacy" />
+      <Stack.Screen name="legal/terms" />
     </Stack>
   );
 }

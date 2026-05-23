@@ -79,6 +79,11 @@ export default function YouScreen() {
             <Text className="text-ink font-rounded">Talk now</Text>
           </View>
         </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/settings")}>
+          <View className="rounded-full border border-stroke py-3 items-center">
+            <Text className="text-ink font-rounded">Settings</Text>
+          </View>
+        </Pressable>
         <Pressable accessibilityRole="button" onPress={startOver}>
           <View className="rounded-full border border-stroke py-3 items-center">
             <Text className="text-muted font-body text-sm">Start over</Text>
