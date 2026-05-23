@@ -1,10 +1,11 @@
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { VIBE_CARDS } from "@domain/meditation/vibe-cards";
 import { Screen } from "@presentation/components/Screen";
+import { SleepTimer } from "@presentation/components/SleepTimer";
 import { hapticsAdapter } from "@infrastructure/haptics/expo-haptics";
 import { useGeneratedMeditationStore } from "@presentation/state/use-generated-meditation.store";
 import { useAnswersStore } from "@presentation/state/use-answers.store";
@@ -18,11 +19,34 @@ const fmt = (sec: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
+// Apply the playback session config once on first mount of the player.
+// Mirrors what infrastructure/audio/expo-audio-player.ts does for the
+// imperative path; the React hook in this screen uses the global module
+// session, so we set it here too.
+let audioModeApplied = false;
+const ensureAudioMode = (): void => {
+  if (audioModeApplied) return;
+  audioModeApplied = true;
+  setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: "doNotMix",
+    allowsRecording: false,
+    shouldRouteThroughEarpiece: false,
+  }).catch(() => {
+    audioModeApplied = false;
+  });
+};
+
 export default function PlayerScreen() {
   const router = useRouter();
   const current = useGeneratedMeditationStore((s) => s.current);
   const answers = useAnswersStore((s) => s.answers);
   const saveMutation = useSaveToLibraryMutation();
+
+  useEffect(() => {
+    ensureAudioMode();
+  }, []);
 
   const audioSource = useMemo(
     () => (current ? { uri: current.audioUrl || current.streamAudioUrl || "" } : null),
@@ -32,6 +56,28 @@ export default function PlayerScreen() {
   const player = useAudioPlayer(audioSource);
   const status = useAudioPlayerStatus(player);
   const playedOnceRef = useRef(false);
+
+  // Surface Now Playing controls on the lock screen whenever a track is loaded.
+  useEffect(() => {
+    if (!player || !current) return;
+    const card = VIBE_CARDS[current.vibe];
+    try {
+      player.setActiveForLockScreen(true, {
+        title: card.title,
+        artist: "Kokoro",
+        albumTitle: "Meditation",
+      });
+    } catch {
+      /* unsupported on web */
+    }
+    return () => {
+      try {
+        player.setActiveForLockScreen(false);
+      } catch {
+        /* noop */
+      }
+    };
+  }, [player, current]);
 
   useEffect(() => {
     if (player && audioSource && !playedOnceRef.current) {
@@ -52,6 +98,26 @@ export default function PlayerScreen() {
   }, [status?.didJustFinish, router]);
 
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [rate, setRate] = useState<0.75 | 1 | 1.25>(1);
+
+  const applyRate = (next: 0.75 | 1 | 1.25): void => {
+    setRate(next);
+    if (!player) return;
+    try {
+      player.setPlaybackRate(next);
+    } catch {
+      /* unsupported */
+    }
+  };
+
+  const skip = (deltaSec: number): void => {
+    if (!player) return;
+    hapticsAdapter.impact("light");
+    const next = Math.max(0, Math.min((status?.duration ?? 0) - 0.1, (status?.currentTime ?? 0) + deltaSec));
+    player.seekTo(next).catch(() => {
+      /* not loaded yet */
+    });
+  };
 
   const onSave = () => {
     if (!current) return;
@@ -113,7 +179,17 @@ export default function PlayerScreen() {
         </View>
       </View>
 
-      <View className="items-center pb-4">
+      <View className="flex-row items-center justify-center gap-6 pb-2">
+        <Pressable
+          onPress={() => skip(-15)}
+          accessibilityRole="button"
+          accessibilityLabel="Skip back 15 seconds"
+        >
+          <View className="h-12 w-12 rounded-full bg-paper border border-stroke items-center justify-center">
+            <Text className="text-ink font-body text-xs">−15</Text>
+          </View>
+        </Pressable>
+
         <Pressable
           onPress={() => {
             if (playing) player.pause();
@@ -127,10 +203,55 @@ export default function PlayerScreen() {
             <Text className="text-ink font-rounded text-2xl">{playing ? "❚❚" : "►"}</Text>
           </View>
         </Pressable>
-        {saveError ? (
-          <Text className="text-sunset font-body text-sm mt-2">{saveError}</Text>
-        ) : null}
+
+        <Pressable
+          onPress={() => skip(15)}
+          accessibilityRole="button"
+          accessibilityLabel="Skip forward 15 seconds"
+        >
+          <View className="h-12 w-12 rounded-full bg-paper border border-stroke items-center justify-center">
+            <Text className="text-ink font-body text-xs">+15</Text>
+          </View>
+        </Pressable>
       </View>
+
+      <View className="flex-row items-center justify-center gap-2 pb-2">
+        {([0.75, 1, 1.25] as const).map((r) => (
+          <Pressable
+            key={r}
+            onPress={() => applyRate(r)}
+            accessibilityRole="button"
+            accessibilityLabel={`Playback speed ${r}x`}
+            accessibilityState={{ selected: rate === r }}
+          >
+            <View
+              className={`px-3 py-1 rounded-full border ${
+                rate === r ? "bg-ink border-ink" : "bg-paper border-stroke"
+              }`}
+            >
+              <Text
+                className={`font-body text-xs ${rate === r ? "text-paper" : "text-ink"}`}
+              >
+                {r}x
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+
+      <SleepTimer
+        onFire={() => {
+          try {
+            player.pause();
+          } catch {
+            /* unsupported */
+          }
+        }}
+      />
+
+      {saveError ? (
+        <Text className="text-sunset font-body text-sm mt-2 text-center">{saveError}</Text>
+      ) : null}
     </Screen>
   );
 }
