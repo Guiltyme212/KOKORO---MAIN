@@ -3,7 +3,7 @@ import "@/global.css";
 import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { HeroUINativeProvider } from "heroui-native";
 import { View } from "react-native";
@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { addNotificationResponseListener } from "@infrastructure/notifications/expo-notifications";
 import { KOKORO_FONT_MAP } from "@presentation/theme/fonts";
 import { queryClient, queryPersister } from "@presentation/queries/query-client";
 
@@ -25,6 +26,22 @@ export const unstable_settings = {
 };
 
 function StackLayout() {
+  const router = useRouter();
+
+  // Notification tap → deep-link to the route encoded in the payload.
+  // schedule-daily-reminder.ts sets `{ data: { route: "/chat" } }`.
+  useEffect(() => {
+    const unsubscribe = addNotificationResponseListener((data) => {
+      const route = typeof data.route === "string" ? data.route : "/chat";
+      try {
+        router.push(route as Parameters<typeof router.push>[0]);
+      } catch {
+        /* invalid route; ignore */
+      }
+    });
+    return unsubscribe;
+  }, [router]);
+
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
       <Stack.Screen name="(onboarding)" />

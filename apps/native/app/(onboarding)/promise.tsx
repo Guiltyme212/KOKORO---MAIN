@@ -6,6 +6,7 @@ import { buildWeCanPhrase } from "@domain/meditation/we-can-phrase";
 import { PrimaryButton } from "@presentation/components/PrimaryButton";
 import { ProgressDots } from "@presentation/components/ProgressDots";
 import { Screen } from "@presentation/components/Screen";
+import { useCases } from "@presentation/queries/composition-root";
 import { useAnswersStore } from "@presentation/state/use-answers.store";
 
 const TIMES = ["08:00", "12:00", "17:00", "20:00", "22:00"] as const;
@@ -15,14 +16,29 @@ export default function PromiseScreen() {
   const answers = useAnswersStore((s) => s.answers);
   const setAnswer = useAnswersStore((s) => s.setAnswer);
   const [time, setTime] = useState<string>(answers.reminderTime ?? "20:00");
+  const [busy, setBusy] = useState(false);
 
   const phrase = buildWeCanPhrase(answers.feeling ?? "", answers.source ?? "");
   const name = answers.callMe || answers.realName || "friend";
 
-  const accept = () => {
+  const accept = async () => {
+    setBusy(true);
     setAnswer("reminderTime", time);
     setAnswer("wantsProgram", true);
-    router.replace("/(tabs)/home");
+    try {
+      const result = await useCases.scheduleDailyReminder({
+        callMe: name,
+        reminderTime: time,
+        existingIdentifier: answers.reminderIdentifier ?? null,
+      });
+      if (result.ok) {
+        setAnswer("reminderIdentifier", result.identifier);
+      }
+      // Permission-denied is fine — the user can opt in later from Settings.
+    } finally {
+      setBusy(false);
+      router.replace("/(tabs)/home");
+    }
   };
 
   const skip = () => {
@@ -74,7 +90,9 @@ export default function PromiseScreen() {
 
       <View className="items-center gap-3 pb-4">
         <ProgressDots active={4} />
-        <PrimaryButton onPress={accept}>Yes, build me one</PrimaryButton>
+        <PrimaryButton onPress={accept} disabled={busy}>
+          {busy ? "Setting things up…" : "Yes, build me one"}
+        </PrimaryButton>
         <Pressable onPress={skip} accessibilityRole="button">
           <Text className="text-muted font-body text-sm py-2">
             Maybe later

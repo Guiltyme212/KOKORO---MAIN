@@ -12,6 +12,7 @@ import { uploadsApi } from "@infrastructure/api/uploads";
 import { hapticsAdapter } from "@infrastructure/haptics/expo-haptics";
 import { appleAuthAdapter } from "@infrastructure/auth/expo-apple-auth";
 import { createExpoAudioPlayer } from "@infrastructure/audio/expo-audio-player";
+import { notificationsAdapter } from "@infrastructure/notifications/expo-notifications";
 
 import { listLibrary, removeFromLibrary } from "@application/use-cases/list-library";
 import { saveToLibrary } from "@application/use-cases/save-to-library";
@@ -19,6 +20,7 @@ import { uploadCapture } from "@application/use-cases/upload-capture";
 import { signInWithApple } from "@application/use-cases/sign-in-with-apple";
 import { startVoiceSession } from "@application/use-cases/start-voice-session";
 import { makeKickoffMeditation } from "@application/use-cases/kickoff-meditation";
+import { makeScheduleDailyReminder } from "@application/use-cases/schedule-daily-reminder";
 
 import { useMeditationProgressStore } from "@presentation/state/use-meditation-progress.store";
 import { useGeneratedMeditationStore } from "@presentation/state/use-generated-meditation.store";
@@ -35,6 +37,7 @@ export const ports = {
   haptics: hapticsAdapter,
   appleAuth: appleAuthAdapter,
   audioPlayer: createExpoAudioPlayer,
+  notifications: notificationsAdapter,
 };
 
 export const useCases = {
@@ -44,6 +47,7 @@ export const useCases = {
   uploadCapture: uploadCapture({ uploads: uploadsApi }),
   signInWithApple: signInWithApple({ appleAuth: appleAuthAdapter }),
   startVoiceSession: startVoiceSession({ elevenlabs: elevenlabsApi }),
+  scheduleDailyReminder: makeScheduleDailyReminder({ notifications: notificationsAdapter }),
 };
 
 // kickoff is a long-lived stateful use case (in-flight map per vibe), so we

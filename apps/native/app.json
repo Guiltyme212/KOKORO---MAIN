@@ -45,6 +45,13 @@
           "image": "./assets/splash.png",
           "imageWidth": 1200
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#ecc34a",
+          "defaultChannel": "kokoro-default"
+        }
       ]
     ],
     "experiments": {

@@ -9,6 +9,10 @@ export type Answers = {
   feeling?: string;
   source?: string;
   reminderTime?: string;
+  // Identifier returned by expo-notifications when the daily reminder was
+  // scheduled. Persisted so we can cancel/reschedule when the user changes
+  // the time or signs out. Absent ⇒ no scheduled reminder.
+  reminderIdentifier?: string;
   wantsProgram?: boolean;
 };
 
