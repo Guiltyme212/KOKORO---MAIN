@@ -11,6 +11,7 @@ import { useGeneratedMeditationStore } from "@presentation/state/use-generated-m
 import { useAnswersStore } from "@presentation/state/use-answers.store";
 import { useSaveToLibraryMutation } from "@presentation/queries/use-library-query";
 import { buildLibraryItem, LibraryError } from "@application/use-cases/save-to-library";
+import { audioCache } from "@infrastructure/cache/audio-cache";
 import { track } from "@infrastructure/observability/analytics";
 import { toast } from "@presentation/state/use-toast.store";
 
@@ -45,15 +46,39 @@ export default function PlayerScreen() {
   const current = useGeneratedMeditationStore((s) => s.current);
   const answers = useAnswersStore((s) => s.answers);
   const saveMutation = useSaveToLibraryMutation();
+  const [cachedUri, setCachedUri] = useState<string | null>(null);
 
   useEffect(() => {
     ensureAudioMode();
   }, []);
 
+  // Try the local cache first; only fall back to the remote URL if the file
+  // isn't already on disk. Caching happens lazily on `ready` (see effect
+  // below) so subsequent opens of the same meditation play offline.
+  const remoteUri = current?.audioUrl || current?.streamAudioUrl || "";
   const audioSource = useMemo(
-    () => (current ? { uri: current.audioUrl || current.streamAudioUrl || "" } : null),
-    [current?.audioUrl, current?.streamAudioUrl, current],
+    () => (current && (cachedUri || remoteUri) ? { uri: cachedUri ?? remoteUri } : null),
+    [current, cachedUri, remoteUri],
   );
+
+  useEffect(() => {
+    if (!current) return;
+    const local = audioCache.localUri(current.meditationId);
+    if (local) {
+      setCachedUri(local);
+      return;
+    }
+    // Only cache the final mastered audio (not the progressive stream URL).
+    if (!current.audioUrl) return;
+    let cancelled = false;
+    void audioCache.ensure(current.meditationId, current.audioUrl).then((uri) => {
+      if (cancelled) return;
+      if (uri && uri !== current.audioUrl) setCachedUri(uri);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [current?.meditationId, current?.audioUrl, current]);
 
   const player = useAudioPlayer(audioSource);
   const status = useAudioPlayerStatus(player);
