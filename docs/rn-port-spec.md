@@ -68,20 +68,20 @@ apps/native/
 
 ## Critical web → RN mappings
 
-| Web | RN equivalent |
-|---|---|
+| Web                               | RN equivalent                               |
+| --------------------------------- | ------------------------------------------- |
 | `localStorage` / `sessionStorage` | `@react-native-async-storage/async-storage` |
-| `window.location.hash` router | Expo Router |
-| `@elevenlabs/react` | `@elevenlabs/react-native` |
-| `<video>` + `mix-blend-mode` | `expo-video` (cream-on-cream pass-through) |
-| HTML `<audio>` | `expo-audio` |
-| `fetch` streaming NDJSON | XHR-based chunk reader |
-| Capacitor Apple Sign In | `expo-apple-authentication` |
-| Capacitor / TG Haptics | `expo-haptics` |
-| Web Speech API | Not ported (ElevenLabs handles voice) |
-| Telegram integration | Dropped on RN; `client.source = 'native'` |
-| CSS safe-area | `react-native-safe-area-context` |
-| `visualViewport` | `react-native-keyboard-controller` |
+| `window.location.hash` router     | Expo Router                                 |
+| `@elevenlabs/react`               | `@elevenlabs/react-native`                  |
+| `<video>` + `mix-blend-mode`      | `expo-video` (cream-on-cream pass-through)  |
+| HTML `<audio>`                    | `expo-audio`                                |
+| `fetch` streaming NDJSON          | XHR-based chunk reader                      |
+| Capacitor Apple Sign In           | `expo-apple-authentication`                 |
+| Capacitor / TG Haptics            | `expo-haptics`                              |
+| Web Speech API                    | Not ported (ElevenLabs handles voice)       |
+| Telegram integration              | Dropped on RN; `client.source = 'native'`   |
+| CSS safe-area                     | `react-native-safe-area-context`            |
+| `visualViewport`                  | `react-native-keyboard-controller`          |
 
 The backend `ClientInfo.source` discriminator gets `'native'` added in Phase 3.
 
@@ -154,6 +154,43 @@ At the end of Phase 10:
 2. `pnpm -F native test` all suites green.
 3. `pnpm -F native lint && pnpm -F native check-types` clean.
 4. API up locally + `pnpm -F native ios` (sim) walks the ritual end-to-end.
+
+## Status — phases done
+
+| Phase                          | Status | Commit prefix                                 |
+| ------------------------------ | ------ | --------------------------------------------- |
+| 0 — Spec doc in repo           | ✅      | `docs(rn): add Kokoro RN port spec`           |
+| 1 — Foundation                 | ✅      | `feat(native): phase 1 foundation`            |
+| 2 — Domain layer               | ✅      | `feat(native): phase 2 domain layer`          |
+| 3 — Infrastructure             | ✅      | `feat(native): phase 3 infrastructure`        |
+| 4 — Application + state + RQ   | ✅      | `feat(native): phase 4 application`           |
+| 5 — Design system + components | ✅      | `feat(native): phase 5 design system`         |
+| 6 — Onboarding flow            | ✅      | `feat(native): phase 6 onboarding flow`       |
+| 7 — Chat + ElevenLabs          | ✅      | `feat(native): phase 7 Chat screen`           |
+| 8 — Player + Home + Library    | ✅      | `feat(native): phase 8 Player, Home, Library` |
+| 9 — Aux screens + polish       | ✅      | `feat(native): phase 9 auxiliary screens`     |
+| 10 — Verification + docs       | ✅      | `chore(native): phase 10 verification + docs` |
+
+**Tests at end of port**: 98 passing across 20 suites (`pnpm -F native test`).
+**Typecheck**: clean (`pnpm -F native check-types`).
+
+## Known follow-ups
+
+- **iOS simulator smoke walk**: requires macOS + Xcode. Run
+  `pnpm -F native ios` and walk `welcome → name → feeling → source → chat
+  → pick vibe → player → save → library → home`. Document any deviations
+  back to this spec.
+- **Multi-device library sync**: currently local-only on RN. Either add an
+  Apple-user-ID column to the backend library tables or swap to an
+  ephemeral device UUID.
+- **Web Speech STT**: the legacy text-to-speech fallback isn't ported.
+  ElevenLabs handles voice in Chat3, so this is only needed if the
+  voice-capture path (uploads) gets re-enabled.
+- **Asset bundle size**: ~42MB of mascot mp4/m4v files sit in
+  `apps/native/assets/kokoro3/`. A lazy CDN load is the obvious follow-up
+  for App Store size limits.
+- **Backend `source: "native"`**: a one-line `Literal` change in
+  `apps/api/src/kokoro_api/types.py`. Already applied in Phase 3.
 
 ## Risks / open questions
 

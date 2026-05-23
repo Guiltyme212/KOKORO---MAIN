@@ -36,6 +36,14 @@ pnpm dev          # http://localhost:5173
 pnpm build        # production build → apps/web/dist/
 ```
 
+Or run the React Native port (Expo):
+
+```sh
+pnpm install      # at repo root
+pnpm dev:native   # Expo dev server
+pnpm -F native ios  # iOS simulator (requires macOS + Xcode)
+```
+
 Set `VITE_API_BASE=http://localhost:8787` for local frontend builds if you do not want the default.
 
 The frontend works in plain browsers and inside Telegram WebView. Telegram-specific calls (haptics, header colour, etc.) no-op outside Telegram via [`isInTelegram()`](apps/web/src/lib/telegram.ts).
