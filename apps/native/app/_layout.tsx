@@ -1,8 +1,10 @@
 import "@/global.css";
 
+import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { HeroUINativeProvider } from "heroui-native";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -11,6 +13,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { KOKORO_FONT_MAP } from "@presentation/theme/fonts";
 import { queryClient, queryPersister } from "@presentation/queries/query-client";
+
+// Keep the native splash visible until fonts resolve — avoids a brief
+// system-font flash between the splash image and the first rendered screen.
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* already hidden, or unavailable on web */
+});
 
 export const unstable_settings = {
   initialRouteName: "(onboarding)",
@@ -32,9 +40,17 @@ function StackLayout() {
 export default function Layout() {
   const [fontsLoaded] = useFonts(KOKORO_FONT_MAP);
 
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {
+        /* splash already hidden */
+      });
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
-    // Keep the splash visible by rendering a plain cream view until fonts
-    // resolve — avoids the FOUT where system font flashes for a frame.
+    // Native splash is still visible while fonts load; on web (no native
+    // splash) render a plain cream placeholder to avoid a flash.
     return <View style={{ flex: 1, backgroundColor: "#f6ebd7" }} />;
   }
 

@@ -1,17 +1,51 @@
 {
   "expo": {
+    "name": "Kokoro",
+    "slug": "kokoro",
     "scheme": "kokoro",
+    "version": "1.0.0",
+    "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f6ebd7"
+    },
     "web": {
       "bundler": "metro"
     },
-    "name": "kokoro",
-    "slug": "kokoro",
+    "ios": {
+      "bundleIdentifier": "com.kokoromind.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "Kokoro listens to your voice so it can write a meditation that matches how you actually feel.",
+        "NSSpeechRecognitionUsageDescription": "Kokoro uses speech recognition to turn what you say into the meditation it writes for you.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.kokoromind.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f6ebd7"
+      }
+    },
     "plugins": [
       "expo-font",
       "expo-audio",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f6ebd7",
+          "image": "./assets/splash.png",
+          "imageWidth": 1200
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
