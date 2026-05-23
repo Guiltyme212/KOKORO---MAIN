@@ -1,0 +1,32 @@
+{
+  "name": "kokoro",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:web": "turbo -F web dev",
+    "dev:native": "turbo -F native dev",
+    "dev:api": "turbo -F api dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "check-types": "turbo check-types"
+  },
+  "dependencies": {
+    "@kokoro/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@kokoro/config": "workspace:*",
+    "turbo": "^2.8.12",
+    "typescript": "catalog:"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
+  "packageManager": "pnpm@10.7.1"
+}

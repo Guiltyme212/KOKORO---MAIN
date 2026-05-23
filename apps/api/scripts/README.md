@@ -8,11 +8,11 @@ Transcripts live inside template JSON files under `transcript`.
 
 To produce them:
 
-1. Drop your source audio files into `api/reference-sources/*.mp3`
+1. Drop your source audio files into `apps/api/reference-sources/*.mp3`
    (this directory is git-ignored — files are kept local).
-2. Make sure `ELEVENLABS_API_KEY` is set in `api/.env` (the script reuses
+2. Make sure `ELEVENLABS_API_KEY` is set in `apps/api/.env` (the script reuses
    the same provider configuration as the running API).
-3. From the `api/` directory:
+3. From the `apps/api/` directory:
 
    ```sh
    uv run python scripts/transcribe_references.py             # default: en
@@ -23,7 +23,7 @@ To produce them:
 4. The script writes `<basename>.txt` next to each `.mp3`. Open the
    transcript, sanity-check it, then paste the text into the matching
    template JSON's `transcript` field (e.g.
-   `api/templates/unwind/unwind_release_pressure_01.json`):
+   `apps/api/templates/unwind/unwind_release_pressure_01.json`):
 
    ```json
    {
@@ -49,9 +49,9 @@ When we have 4 high-quality reference vocal recordings (Mira / Brad / Aiko / Sag
 
 Process (deferred, not part of MVP):
 
-1. Drop recordings at `api/scripts/reference-vocals/{voice}.mp3`.
+1. Drop recordings at `apps/api/scripts/reference-vocals/{voice}.mp3`.
 2. Run `uv run python scripts/bootstrap_personas.py` (script not yet written, write when needed).
-3. The script uploads each clip to Suno's persona endpoint, captures the returned `persona_id`, and writes the values into `api/src/kokoro_api/providers/audio/voice_presets.json` next to the existing `style_hint` strings.
+3. The script uploads each clip to Suno's persona endpoint, captures the returned `persona_id`, and writes the values into `apps/api/src/kokoro_api/providers/audio/voice_presets.json` next to the existing `style_hint` strings.
 4. From that moment on, `synthesize_audio` passes `persona_id` to Suno and the voice stays more consistent across sessions.
 
 Until then, voice drift between generations is an accepted MVP risk.

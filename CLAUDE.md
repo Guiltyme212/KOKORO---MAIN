@@ -20,21 +20,21 @@ When matching visuals, copy the CSS mechanics from `Kokoro Welcome Screen.html` 
 
 Implementation lives mostly in:
 
-- `app/src/screens/Kokoro3.tsx`
-- `app/src/styles/kokoro3.css`
-- `app/public/kokoro3/`
-- `app/src/App.tsx`
-- `app/src/lib/router.ts`
+- `apps/web/src/screens/Kokoro3.tsx`
+- `apps/web/src/styles/kokoro3.css`
+- `apps/web/public/kokoro3/`
+- `apps/web/src/App.tsx`
+- `apps/web/src/lib/router.ts`
 
-Legacy route names still exist for compatibility, but most map into the 3.0 flow. The old dark/orange screens are parked in `app/archive/old-design/` and are outside the active build.
+Legacy route names still exist for compatibility, but most map into the 3.0 flow. The old dark/orange screens are parked in `apps/web/archive/old-design/` and are outside the active build.
 
 ### ElevenLabs agent + generation flow
 
 Kokoro 3.0 uses an ElevenLabs conversational agent in the chat screen.
 
 - Frontend SDK: `@elevenlabs/react`.
-- Token fetcher: `app/src/lib/elevenlabs.ts`.
-- Backend token route: `api/src/kokoro_api/routes/elevenlabs.py`.
+- Token fetcher: `apps/web/src/lib/elevenlabs.ts`.
+- Backend token route: `apps/api/src/kokoro_api/routes/elevenlabs.py`.
 - Backend config: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_BRANCH_ID`, `ELEVENLABS_ENVIRONMENT`.
 - Current agent ID: `agent_3101krqbh19mezt9t835q2f7s5ds`.
 - Current branch ID: `agtbrch_8101krqbh39jefytppvjqqth40c5`.
@@ -75,52 +75,52 @@ The mask belongs on the wrapper; `mix-blend-mode` belongs on the child video. Th
 
 Recent checks:
 
-- `cd app && pnpm build` passes.
-- `cd app && pnpm lint` passes.
-- `cd api && uv run pytest tests/routes/test_elevenlabs.py` passes.
+- `cd apps/web && pnpm build` passes.
+- `cd apps/web && pnpm lint` passes.
+- `cd apps/api && uv run pytest tests/routes/test_elevenlabs.py` passes.
 - Changed backend route/config ruff + mypy checks pass.
 
-Known unrelated test caveat: full `uv run pytest` currently fails during collection because `api/tests/pipeline/test_validate_lyrics.py` imports `validate_meditation_output`, which no longer exists.
+Known unrelated test caveat: full `uv run pytest` currently fails during collection because `apps/api/tests/pipeline/test_validate_lyrics.py` imports `validate_meditation_output`, which no longer exists.
 
 ## Repository shape
 
 Three-tier repo:
 
 - Root holds **`BUSINESS.md`** — product/positioning canon. Treat it as the source of truth for naming, copy, and scope. The root `README.md` is a templates spec that is misfiled here (per BUSINESS.md it should live at `templates/README.md`).
-- **`app/`** — the Vite + React + TypeScript frontend. The same build serves plain browsers and the Telegram Mini App (the TG SDK is loaded unconditionally in `app/index.html`).
-- **`api/`** — the Python 3.14 + FastAPI backend. Generates meditations end-to-end (capture → script → Suno audio → blob persistence). Its own README at [`api/README.md`](api/README.md) has the deeper provider/pipeline notes; `api/templates/` has the per-vibe Suno+writer templates checked into git.
+- **`apps/web/`** — the Vite + React + TypeScript frontend. The same build serves plain browsers and the Telegram Mini App (the TG SDK is loaded unconditionally in `apps/web/index.html`).
+- **`apps/api/`** — the Python 3.14 + FastAPI backend. Generates meditations end-to-end (capture → script → Suno audio → blob persistence). Its own README at [`apps/api/README.md`](apps/api/README.md) has the deeper provider/pipeline notes; `apps/api/templates/` has the per-vibe Suno+writer templates checked into git.
 
 ## Commands
 
-Frontend (from `app/` with pnpm):
+Frontend (from `apps/web/` with pnpm):
 
 ```sh
-cd app
+cd apps/web
 pnpm install
 pnpm dev          # Vite dev server, http://localhost:5173
-pnpm build        # tsc -b && vite build, output → app/dist/
+pnpm build        # tsc -b && vite build, output → apps/web/dist/
 pnpm lint         # eslint .
 pnpm preview      # vite preview locally
 pnpm start        # what Railway runs: vite preview --host 0.0.0.0 --port ${PORT:-4173}
 ```
 
-Backend (from `api/` with uv):
+Backend (from `apps/api/` with uv):
 
 ```sh
-cd api
+cd apps/api
 uv sync --all-extras
 uv run uvicorn kokoro_api.main:app --reload --port 8787   # dev API
 uv run pytest                                              # unit tests
 uv run ruff check && uv run mypy src                       # lint + types
 ```
 
-`pnpm build` doubles as the frontend typecheck (`tsc -b` runs first). Backend has real pytest tests under `api/tests/`.
+`pnpm build` doubles as the frontend typecheck (`tsc -b` runs first). Backend has real pytest tests under `apps/api/tests/`.
 
 ## Deployment
 
-`main` auto-deploys to https://kokoro-main-production.up.railway.app/ via Railway (repo: `Guiltyme212/KOKORO---MAIN`, root dir `app/`). Railway runs `pnpm install && pnpm build` then `pnpm start`. `app/vite.config.ts` sets `preview.allowedHosts: true` so Railway's reverse-proxy hostnames pass — don't tighten that without giving Railway an explicit allowlist.
+`main` auto-deploys to https://kokoro-main-production.up.railway.app/ via Railway (repo: `Guiltyme212/KOKORO---MAIN`, root dir `apps/web/`). Railway runs `pnpm install && pnpm build` then `pnpm start`. `apps/web/vite.config.ts` sets `preview.allowedHosts: true` so Railway's reverse-proxy hostnames pass — don't tighten that without giving Railway an explicit allowlist.
 
-The API is a separate Railway service (`api/railway.json` config, root dir `api/`). It runs uvicorn on `${PORT}` and the frontend reaches it via the `VITE_API_BASE` env var (default `http://localhost:8787` in dev). CORS allow-list is the `CORS_ORIGIN` env var (comma-separated origins).
+The API is a separate Railway service (`apps/api/railway.json` config, root dir `apps/api/`). It runs uvicorn on `${PORT}` and the frontend reaches it via the `VITE_API_BASE` env var (default `http://localhost:8787` in dev). CORS allow-list is the `CORS_ORIGIN` env var (comma-separated origins).
 
 ## Architecture
 
@@ -130,35 +130,35 @@ The app is a linear 8-screen ritual loop driven by a hash-based router:
 
 `welcome → name → capture → mirror → contentType → composing → player → reflect`
 
-- `app/src/lib/router.ts` — `useRouter()` reads/writes `window.location.hash`, debounces transitions by 320ms (matches the page-wrap exit animation in `App.css`), and exposes `goto(route)`. Routes are a closed union; unknown hashes fall back to `welcome`.
-- `app/src/App.tsx` is the only place screens are mounted. It maps each route to a screen component in the `SCREENS` record. The four "companion" routes (`home`, `library`, `quickReset`, `sleep`) are stubs pointing to `Welcome` until they are built.
-- `app/src/components/Jumper.tsx` is a dev-only numbered jump bar (01–08) that lets you skip to any screen — handy when iterating on a screen mid-flow.
+- `apps/web/src/lib/router.ts` — `useRouter()` reads/writes `window.location.hash`, debounces transitions by 320ms (matches the page-wrap exit animation in `App.css`), and exposes `goto(route)`. Routes are a closed union; unknown hashes fall back to `welcome`.
+- `apps/web/src/App.tsx` is the only place screens are mounted. It maps each route to a screen component in the `SCREENS` record. The four "companion" routes (`home`, `library`, `quickReset`, `sleep`) are stubs pointing to `Welcome` until they are built.
+- `apps/web/src/components/Jumper.tsx` is a dev-only numbered jump bar (01–08) that lets you skip to any screen — handy when iterating on a screen mid-flow.
 - Every screen receives `{ goto }` and calls `goto('nextRoute')` to advance. There is no router context and no nested routes.
 
 ### State
 
-A single global store: `app/src/state/answers.ts`.
+A single global store: `apps/web/src/state/answers.ts`.
 
 - Module-level mutable `state: Answers`, mirrored to `localStorage` under the key `kokoro_answers`. Subscribers fire via React's `useSyncExternalStore`.
 - Public API: `useAnswers()` hook for components, `answersApi` (`set`, `reset`, `getSnapshot`) for non-component code. Per-key updates only; there is no batched/multi-key setter.
-- Shape lives in `app/src/types.ts`. `Mode`, `ContentType`, `VoiceId`, `Becoming` are all closed string unions — when adding a new option, extend the union there or things will silently typecheck against `''`.
+- Shape lives in `apps/web/src/types.ts`. `Mode`, `ContentType`, `VoiceId`, `Becoming` are all closed string unions — when adding a new option, extend the union there or things will silently typecheck against `''`.
 
 ### Telegram integration
 
-`app/src/lib/telegram.ts` is the single boundary.
+`apps/web/src/lib/telegram.ts` is the single boundary.
 
 - The TG SDK auto-installs `window.Telegram.WebApp` even in a plain browser, so **never** check `window.Telegram?.WebApp` directly — use `isInTelegram()` (which checks `initData` is non-empty). All haptic/header/MainButton calls go through the `safe()` wrapper so they no-op silently outside Telegram and on older TG clients.
 - `initTelegram()` is called once from `App.tsx` on mount.
 
 ### Speech-to-text
 
-`app/src/lib/stt.ts` wraps the browser-native Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`). It is legacy support from the older UI; Kokoro 3 currently uses the ElevenLabs conversation flow in `app/src/screens/Kokoro3.tsx`. `createStt()` returns an inert `{ isSupported: false }` handle when the API is missing.
+`apps/web/src/lib/stt.ts` wraps the browser-native Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`). It is legacy support from the older UI; Kokoro 3 currently uses the ElevenLabs conversation flow in `apps/web/src/screens/Kokoro3.tsx`. `createStt()` returns an inert `{ isSupported: false }` handle when the API is missing.
 
 ### Visuals and design tokens
 
-- The active production UI is Kokoro 3: `app/src/screens/Kokoro3.tsx` plus `app/src/styles/kokoro3.css`.
-- The older black/orange UI has been moved out of the active source tree to `app/archive/old-design/`. It is kept intentionally for reference; do not use those files unless you are intentionally restoring that interface.
-- `app/src/styles/tokens.css` still provides base tokens used by the app shell. Kokoro 3 defines its cream, moss, mustard, and sunset palette in `kokoro3.css`.
+- The active production UI is Kokoro 3: `apps/web/src/screens/Kokoro3.tsx` plus `apps/web/src/styles/kokoro3.css`.
+- The older black/orange UI has been moved out of the active source tree to `apps/web/archive/old-design/`. It is kept intentionally for reference; do not use those files unless you are intentionally restoring that interface.
+- `apps/web/src/styles/tokens.css` still provides base tokens used by the app shell. Kokoro 3 defines its cream, moss, mustard, and sunset palette in `kokoro3.css`.
 
 ### Naming gotcha
 
@@ -174,12 +174,12 @@ Kokoro 3 starts generation from the chat screen through `kickoffMeditationFor()`
 
 Implementation:
 
-- `app/src/lib/api.ts` — `generateMeditationStreaming(input)` is an async generator that fetches the endpoint and yields each NDJSON line as a typed `StreamEvent`. The legacy `generateMeditation()` (single-shot `POST /meditations`) is kept for tests/scripts.
-- `app/src/state/meditationProgress.ts` — stream orchestration and per-vibe progress state.
-- `app/src/screens/Kokoro3.tsx` — chat, style cards, player, home, and library screens for the active UI.
-- `app/src/state/generatedMeditation.ts` — single-record sessionStorage-backed store. Holds both `streamAudioUrl` (early, Suno CDN) and `audioUrl` (persisted blob). Exposes `set()` and `update(partial)` for the merge-on-`ready` step.
+- `apps/web/src/lib/api.ts` — `generateMeditationStreaming(input)` is an async generator that fetches the endpoint and yields each NDJSON line as a typed `StreamEvent`. The legacy `generateMeditation()` (single-shot `POST /meditations`) is kept for tests/scripts.
+- `apps/web/src/state/meditationProgress.ts` — stream orchestration and per-vibe progress state.
+- `apps/web/src/screens/Kokoro3.tsx` — chat, style cards, player, home, and library screens for the active UI.
+- `apps/web/src/state/generatedMeditation.ts` — single-record sessionStorage-backed store. Holds both `streamAudioUrl` (early, Suno CDN) and `audioUrl` (persisted blob). Exposes `set()` and `update(partial)` for the merge-on-`ready` step.
 
-Backend pipeline lives in `api/src/kokoro_api/pipeline/` — see `api/README.md` for the deeper notes (two-phase Suno polling, reference-upload cache, writer auto-coercer).
+Backend pipeline lives in `apps/api/src/kokoro_api/pipeline/` — see `apps/api/README.md` for the deeper notes (two-phase Suno polling, reference-upload cache, writer auto-coercer).
 
 ### Companion routes still unimplemented
 

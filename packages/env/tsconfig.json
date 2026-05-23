@@ -1,0 +1,3 @@
+{
+  "extends": "@kokoro/config/tsconfig.base.json"
+}

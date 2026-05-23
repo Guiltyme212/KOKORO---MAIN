@@ -168,8 +168,9 @@ The detailed in/out feature list lives elsewhere and evolves as the design ships
 kokoro/
 ├── BUSINESS.md                    ← this file
 ├── README.md                      ← technical setup
-├── app/                           ← frontend
-├── api/                           ← backend
+├── apps/
+│   ├── web/                       ← frontend
+│   └── api/                       ← backend
 ├── prompts/                       ← LLM prompts per mode × content type × moment
 │   ├── soft_hold.md
 │   ├── soft_see.md

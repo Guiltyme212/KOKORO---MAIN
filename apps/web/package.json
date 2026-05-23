@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "web",
   "private": true,
   "version": "1.0.2",
   "type": "module",
@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "check-types": "tsc -b",
     "preview": "vite preview",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "ios:add": "cap add ios",
@@ -31,11 +32,6 @@
     "lucide-react": "^1.16.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp"
-    ]
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

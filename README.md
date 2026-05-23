@@ -9,8 +9,8 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 ## Repository layout
 
 - [BUSINESS.md](BUSINESS.md) - product strategy, positioning, MVP scope, personas.
-- [app/](app/) - Vite + React + TypeScript frontend. Doubles as the Telegram Mini App.
-- [api/](api/) - Python 3.12 + FastAPI backend for `/meditations`.
+- [apps/web/](apps/web/) - Vite + React + TypeScript frontend. Doubles as the Telegram Mini App.
+- [apps/api/](apps/api/) - Python 3.12 + FastAPI backend for `/meditations`.
 - [templates/](templates/) - JSON meditation skeletons used by the backend selector.
 - [docs/plans/HANDOFF-2026-05-16-kokoro-3.md](docs/plans/HANDOFF-2026-05-16-kokoro-3.md) - current Kokoro 3.0 handoff for future agents.
 
@@ -19,7 +19,7 @@ Voice-first AI meditations. Every meditation addresses the user by a chosen pet 
 Run the API first:
 
 ```sh
-cd api
+cd apps/api
 cp .env.example .env
 uv sync --all-extras
 uv run uvicorn kokoro_api.main:app --reload --port 8787
@@ -28,15 +28,15 @@ uv run uvicorn kokoro_api.main:app --reload --port 8787
 Then run the frontend:
 
 ```sh
-cd app
+cd apps/web
 pnpm install
 pnpm dev          # http://localhost:5173
-pnpm build        # production build → app/dist/
+pnpm build        # production build → apps/web/dist/
 ```
 
 Set `VITE_API_BASE=http://localhost:8787` for local frontend builds if you do not want the default.
 
-The frontend works in plain browsers and inside Telegram WebView. Telegram-specific calls (haptics, header colour, etc.) no-op outside Telegram via [`isInTelegram()`](app/src/lib/telegram.ts).
+The frontend works in plain browsers and inside Telegram WebView. Telegram-specific calls (haptics, header colour, etc.) no-op outside Telegram via [`isInTelegram()`](apps/web/src/lib/telegram.ts).
 
 ## Kokoro 3.0 notes
 
@@ -50,10 +50,10 @@ ElevenLabs agent chat uses a backend-issued private conversation token. Configur
 
 ## Speech-to-text
 
-Kokoro 3 uses the ElevenLabs conversation flow in [`app/src/screens/Kokoro3.tsx`](app/src/screens/Kokoro3.tsx). The older browser-native speech-to-text flow is archived in [`app/archive/old-design/`](app/archive/old-design/) and kept only as reference.
+Kokoro 3 uses the ElevenLabs conversation flow in [`apps/web/src/screens/Kokoro3.tsx`](apps/web/src/screens/Kokoro3.tsx). The older browser-native speech-to-text flow is archived in [`apps/web/archive/old-design/`](apps/web/archive/old-design/) and kept only as reference.
 
 ## Meditation generation
 
 `POST /meditations` validates the user request, selects a template, asks Anthropic via CliProxy for a strict JSON script, sends the script to Suno through `sunoapi.org`, writes the MP3 and metadata to blob storage, and returns the signed `audioUrl` plus beat metadata for the player.
 
-MVP voice presets are mock style hints in `api/src/kokoro_api/providers/audio/voice_presets.json`; no Suno persona uploads are required yet.
+MVP voice presets are mock style hints in `apps/api/src/kokoro_api/providers/audio/voice_presets.json`; no Suno persona uploads are required yet.
