@@ -56,4 +56,45 @@ describe("recordMeditation", () => {
     const p = recordMeditation(PERSONA_DEFAULT, { vibe: "zen", feeling: "Help me sleep" });
     expect(p.meditations).toBe("zen (Help me sleep)");
   });
+
+  it("starts a streak at 1 on the first session", () => {
+    const p = recordMeditation(PERSONA_DEFAULT, {
+      vibe: "zen",
+      now: new Date("2026-05-23T12:00:00"),
+    });
+    expect(p.streakDays).toBe(1);
+    expect(p.lastSessionDate).toBe("2026-05-23");
+    expect(p.sessionDates).toBe("2026-05-23");
+  });
+
+  it("increments the streak on consecutive days", () => {
+    let p = recordMeditation(PERSONA_DEFAULT, {
+      vibe: "zen",
+      now: new Date("2026-05-23T12:00:00"),
+    });
+    p = recordMeditation(p, { vibe: "raw", now: new Date("2026-05-24T12:00:00") });
+    p = recordMeditation(p, { vibe: "iron", now: new Date("2026-05-25T12:00:00") });
+    expect(p.streakDays).toBe(3);
+    expect(p.lastSessionDate).toBe("2026-05-25");
+  });
+
+  it("does not bump the streak when the same day records twice", () => {
+    let p = recordMeditation(PERSONA_DEFAULT, {
+      vibe: "zen",
+      now: new Date("2026-05-23T08:00:00"),
+    });
+    p = recordMeditation(p, { vibe: "raw", now: new Date("2026-05-23T20:00:00") });
+    expect(p.streakDays).toBe(1);
+    // sessionDates dedupes same-day entries
+    expect(p.sessionDates).toBe("2026-05-23");
+  });
+
+  it("resets the streak when a day is skipped", () => {
+    let p = recordMeditation(PERSONA_DEFAULT, {
+      vibe: "zen",
+      now: new Date("2026-05-20T12:00:00"),
+    });
+    p = recordMeditation(p, { vibe: "raw", now: new Date("2026-05-23T12:00:00") });
+    expect(p.streakDays).toBe(1);
+  });
 });

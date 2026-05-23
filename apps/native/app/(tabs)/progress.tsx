@@ -3,13 +3,16 @@ import { Text, View } from "react-native";
 import { ALL_VIBES } from "@domain/meditation/vibe";
 import { VIBE_CARDS } from "@domain/meditation/vibe-cards";
 import { Screen } from "@presentation/components/Screen";
+import { StreakChart } from "@presentation/components/StreakChart";
 import { useGeneratedMeditationStore } from "@presentation/state/use-generated-meditation.store";
 import { useMeditationProgressStore } from "@presentation/state/use-meditation-progress.store";
 import { useLibraryQuery } from "@presentation/queries/use-library-query";
+import { usePersonaStore } from "@presentation/state/use-persona.store";
 
 export default function ProgressScreen() {
   const progress = useMeditationProgressStore((s) => s.progress);
   const byVibe = useGeneratedMeditationStore((s) => s.byVibe);
+  const persona = usePersonaStore((s) => s.persona);
   const libraryQuery = useLibraryQuery();
 
   const stats = (() => {
@@ -24,9 +27,25 @@ export default function ProgressScreen() {
     return { active, completed, saved: libraryQuery.data?.length ?? 0 };
   })();
 
+  const streakDays = persona.streakDays ?? 0;
+  const sessionDates = persona.sessionDates ?? "";
+
   return (
     <Screen contentClassName="px-6">
       <Text className="text-ink font-rounded text-3xl py-4">Progress</Text>
+
+      <View className="rounded-2xl bg-paper border border-stroke px-4 py-4 mb-3">
+        <View className="flex-row items-baseline justify-between mb-3">
+          <View>
+            <Text className="text-muted font-body text-xs">Current streak</Text>
+            <Text className="text-ink font-rounded text-3xl">
+              {streakDays} {streakDays === 1 ? "day" : "days"}
+            </Text>
+          </View>
+          <Text className="text-muted font-body text-xs">last 7 days</Text>
+        </View>
+        <StreakChart sessionDates={sessionDates} />
+      </View>
 
       <View className="flex-row gap-3 mb-6">
         {[
