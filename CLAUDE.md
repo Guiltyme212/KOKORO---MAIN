@@ -127,6 +127,17 @@ uv run ruff check && uv run mypy src                       # lint + types
 
 `pnpm build` doubles as the frontend typecheck (`tsc -b` runs first). Backend has real pytest tests under `apps/api/tests/`.
 
+### Stop hook (`.claude/hooks/check-and-commit.sh`)
+
+A project-scoped Stop hook (configured in `.claude/settings.json`) runs at the end of every Claude Code turn:
+
+1. Buckets uncommitted files into apps/web / apps/api / apps/native.
+2. For each touched package, runs lint + typecheck + tests (api pytest is currently skipped — see hook comments for the pre-existing-failure caveat).
+3. On any failure, returns `decision: block` so Claude must fix before the turn ends.
+4. On green, auto-commits leftover work as `chore(auto): session checkpoint <ts>` and pushes the current branch.
+
+Disable, edit, or audit it via `/hooks` inside the TUI. Manual commits made during the turn are kept verbatim — the auto-commit only fires for residual uncommitted work.
+
 ## Deployment
 
 `main` auto-deploys to https://kokoro-main-production.up.railway.app/ via Railway (repo: `Guiltyme212/KOKORO---MAIN`, root dir `apps/web/`). Railway runs `pnpm install && pnpm build` then `pnpm start`. `apps/web/vite.config.ts` sets `preview.allowedHosts: true` so Railway's reverse-proxy hostnames pass — don't tighten that without giving Railway an explicit allowlist.

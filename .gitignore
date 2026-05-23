@@ -29,7 +29,12 @@ apps/api/reference-sources/
 Thumbs.db
 .vscode/
 .idea/
-.claude/
+# .claude/ holds personal state (sessions, history). Track only the
+# team-shared bits: project settings + Stop-hook script.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/settings.local.json
 *.swp
 *.swo
 *~
