@@ -8,7 +8,11 @@
     },
     "name": "kokoro",
     "slug": "kokoro",
-    "plugins": ["expo-font"],
+    "plugins": [
+      "expo-font",
+      "expo-audio",
+      "expo-video"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
