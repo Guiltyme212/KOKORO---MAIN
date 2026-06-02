@@ -112,11 +112,19 @@ export type StreamErrorEvent = {
   details: Record<string, unknown>;
 };
 
+// Heartbeat the backend emits every ~10s during silent waits (LLM / Suno) so
+// the long-lived NDJSON connection never goes idle and gets dropped by the
+// Railway edge / iOS WKWebView. Carries no payload — its mere arrival is the point.
+export type StreamPingEvent = {
+  event: 'ping';
+};
+
 export type StreamEvent =
   | StreamScriptEvent
   | StreamStreamingEvent
   | StreamReadyEvent
-  | StreamErrorEvent;
+  | StreamErrorEvent
+  | StreamPingEvent;
 
 export type LibraryItem = {
   meditationId: string;

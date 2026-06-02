@@ -1,0 +1,17 @@
+{
+  "name": "kokoro-audio-route-diagnostics",
+  "version": "0.0.1",
+  "description": "Kokoro-only iOS audio route diagnostics for Capacitor voice debugging.",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "@capacitor/core": "^6.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Critical iOS voice warning — May 22 2026
+
+Before touching iOS voice, ElevenLabs connection settings, Capgo updater behavior, or native `AVAudioSession` code, read:
+
+- `docs/ios-elevenlabs-audio-troubleshooting.md`
+
+The current iPhone issue is an intermittent Capacitor/WKWebView audio-route problem, likely involving iOS output routing and sometimes the ear speaker/receiver. Safari and Telegram can work perfectly while the iOS app clips or loses initial audio. Do not treat `connectionDelay: { ios: 1500 }` as the old good baseline, do not switch WebRTC while still using `signedUrl`, do not re-add a broad app-launch `AVAudioSession` override, and do not trust tests unless logs show the `com.kokoromind.app` built-in bundle rather than a Capgo-downloaded bundle.
+
+## Capgo/TestFlight OTA rule — May 23 2026
+
+Before archiving for TestFlight/App Store, keep `app/capacitor.config.ts` `plugins.CapacitorUpdater.autoUpdate` set to `true`, then run `cd app && pnpm build && pnpm exec cap sync ios`. `directUpdate: false` is intentional: OTA bundles download on launch and apply after background/restart instead of reloading during a voice session. Use `cd app && pnpm run release:ota` for JS/CSS/copy/design fixes on the `production` channel after the native build with Capgo is installed. Do not use OTA for new native capabilities, entitlement changes, payments, or material new app functionality that should go through App Review.
+
 ## Current status — Kokoro 3.0 integration, May 16 2026
 
 The active frontend is now the **Kokoro 3.0 cream/moss/mustard design**, not the older dark/orange ritual described in some older docs below.

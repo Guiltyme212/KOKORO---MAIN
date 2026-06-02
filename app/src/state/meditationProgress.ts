@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { generatedMeditationApi } from './generatedMeditation';
+import { libraryApi } from './library';
 import { generateMeditationStreaming } from '../lib/api';
 import { friendlyApiError } from '../lib/config';
 import { uploadCapture } from '../lib/uploads';
@@ -222,6 +223,11 @@ export function kickoffMeditationFor(
           providerMeta: ev.providerMeta,
         });
         setVibe(vibe, { phase: 'ready' });
+        // Auto-add to the library now that the final persisted audioUrl exists.
+        // saveToLibrary dedupes by meditationId; swallow errors so a library
+        // hiccup never breaks generation.
+        const readyId = generatedMeditationApi.getByVibeSnapshot()[vibe]?.meditationId;
+        if (readyId) void libraryApi.save(readyId).catch(() => {});
       }
     }
   };

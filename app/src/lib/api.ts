@@ -68,7 +68,9 @@ export async function* generateMeditationStreaming(
               `stream ${parsed.error}: ${JSON.stringify(parsed.details ?? {})}`,
             );
           }
-          yield parsed;
+          // `ping` is a keep-alive heartbeat — consume it (its arrival kept the
+          // socket warm) but don't surface it to the UI pipeline.
+          if (parsed.event !== 'ping') yield parsed;
         }
         nl = buffer.indexOf('\n');
       }
@@ -82,7 +84,7 @@ export async function* generateMeditationStreaming(
               `stream ${parsed.error}: ${JSON.stringify(parsed.details ?? {})}`,
             );
           }
-          yield parsed;
+          if (parsed.event !== 'ping') yield parsed;
         }
         return;
       }

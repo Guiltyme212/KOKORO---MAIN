@@ -154,6 +154,14 @@ class StreamErrorEvent(_CamelModel):
     details: dict[str, object] = Field(default_factory=dict)
 
 
+class StreamPingEvent(_CamelModel):
+    # Keep-alive heartbeat emitted every ~10s during silent waits (LLM / Suno
+    # polling) so the long-lived NDJSON connection never goes idle and gets
+    # dropped by the Railway edge / iOS WKWebView. Carries no payload — its mere
+    # arrival keeps the socket warm. The client consumes and ignores it.
+    event: Literal["ping"] = "ping"
+
+
 class LibraryItem(_CamelModel):
     """Summary of a saved meditation. Stored per-user in the blob store."""
 

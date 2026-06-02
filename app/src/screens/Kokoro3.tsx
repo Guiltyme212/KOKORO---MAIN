@@ -1,5 +1,4 @@
 import {
-  Apple,
   ArrowLeft,
   BarChart3,
   BookOpen,
@@ -8,6 +7,7 @@ import {
   CornerDownLeft,
   Home,
   Library,
+  Loader2,
   Mic,
   MicOff,
   Moon,
@@ -41,7 +41,15 @@ import {
 } from '../lib/appleSignIn';
 import type { Route } from '../lib/router';
 import { getConversationSignedUrl } from '../lib/elevenlabs';
-import { unlockAudio } from '../lib/audioUnlock';
+import { logAudioRoute } from '../lib/audioRouteDiagnostics';
+import { enterPlaybackMode, exitPlaybackMode } from '../lib/playbackSession';
+import { cleanText, hasCompletedLocalProfile } from '../lib/profile';
+import {
+  logAudioElements,
+  nudgeConversationAudioElements,
+  startConversationAudioElementNudge,
+} from '../lib/audioElementDiagnostics';
+import { stopAudioStream, unlockAudio } from '../lib/audioUnlock';
 import { isLibraryAvailable } from '../lib/library';
 import type { LibraryItem } from '../lib/types-meditation';
 import { haptic } from '../lib/telegram';
@@ -75,8 +83,6 @@ const MAIN_GOALS = [
 ];
 const SOURCES = ['Work', 'Someone close', 'My head', 'My body', 'Money', 'The future', 'Family', 'No idea'];
 
-const RECONNECT_FLAG = 'kokoro3_chat_seen_intro';
-const RECONNECT_FIRST_MESSAGE = "Okay, I'm back. Pick it up wherever you want.";
 const CHAT_FIRST_MESSAGE_KEY = 'kokoro3_chat_first_message';
 const CHAT_RETURN_ROUTE_KEY = 'kokoro3_chat_return_route';
 
@@ -108,6 +114,10 @@ const SHORT_VIBE_COPY: Record<Vibe, string> = {
   zen: 'Quiet breath-led calm',
 };
 
+function voiceElapsed(startedAt: number | null): number | undefined {
+  return startedAt === null ? undefined : Math.round(performance.now() - startedAt);
+}
+
 const CAPTURE_FIELD_LABELS = [
   'User name',
   'Call them',
@@ -125,6 +135,23 @@ function buildWeCanPhrase(mainGoal: string, source: string): string {
 function returningTalkMessage(answers: Answers): string {
   const name = (answers.callMe || answers.realName || 'friend').trim();
   return `It's good to see you again ${name}! Want to talk about something that's on your mind?`;
+}
+
+function isIosWebKitRuntime(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const platform = navigator.platform || '';
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function defaultVoiceFirstMessage(answers: Answers): string {
+  const weCanPhrase = buildWeCanPhrase(answers.feeling || '', answers.source || '');
+  return `Hey love, I'm Kokoro. I can help you with whatever you're going through. We can ${weCanPhrase}.`;
+}
+
+function coldStartVoiceFirstMessage(message: string): string {
+  const withoutDefaultGreeting = message.replace(/^Hey love,\s*I'm Kokoro\.\s*/i, '');
+  return `Mmm... heeeyyy, I'm Kokoro. ${withoutDefaultGreeting}`;
 }
 
 function setChatEntry({
@@ -177,33 +204,6 @@ function openReturningChat(goto: (r: Route) => void, answers: Answers, returnRou
   haptic.medium();
   setChatEntry({ firstMessage: returningTalkMessage(answers), returnRoute });
   goto('chat');
-}
-
-function cleanText(value: string | undefined): string {
-  return value?.trim() ?? '';
-}
-
-function countPersonaThemes(themes: string): number {
-  return themes
-    .split(',')
-    .map((theme) => theme.trim())
-    .filter(Boolean).length;
-}
-
-function hasCompletedLocalProfile(answers: Answers, persona: Persona): boolean {
-  const answersName = cleanText(answers.callMe || answers.realName);
-  const personaName = cleanText(persona.callMe || persona.realName);
-  const answersProfileComplete = Boolean(
-    answersName &&
-    cleanText(answers.feeling) &&
-    cleanText(answers.source),
-  );
-  const personaProfileComplete = Boolean(
-    personaName &&
-    (countPersonaThemes(persona.themes) >= 2 || cleanText(persona.meditations)),
-  );
-
-  return answersProfileComplete || personaProfileComplete;
 }
 
 function nextRouteAfterAppleSignIn(answers: Answers, persona: Persona): Route {
@@ -678,15 +678,13 @@ export function Welcome3({ goto }: ScreenProps) {
       const { account } = await signInWithApple();
       authApi.setAppleAccount(account);
 
-      const realName = account.fullName || account.givenName || '';
-      const callMe = account.givenName || account.fullName || '';
-      if (realName) setAnswer('realName', realName);
-      if (callMe) setAnswer('callMe', callMe);
-      if (callMe || realName) {
-        personaApi.set({
-          callMe: callMe || realName,
-          realName: realName || undefined,
-        });
+      // Apple gives given + family; we only want the first name in the name
+      // field, and the pet name (callMe) deliberately left empty for the user
+      // to choose. personaApi.set merges, so omitting callMe leaves it untouched.
+      const firstName = account.givenName || '';
+      if (firstName) {
+        setAnswer('realName', firstName);
+        personaApi.set({ realName: firstName });
       }
 
       goto(nextRoute);
@@ -732,7 +730,9 @@ export function Welcome3({ goto }: ScreenProps) {
               void handleAppleSignIn();
             }}
           >
-            <Apple size={20} strokeWidth={2.4} />
+            <svg className="k3-apple-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+            </svg>
             <span>{appleBusy ? 'Opening Apple...' : 'Sign in with Apple'}</span>
           </button>
         )}
@@ -1078,6 +1078,71 @@ function phaseLabel(phase: string | undefined): string {
   return 'waiting';
 }
 
+// Live progress model for the "making" card. Anchored to the real stream phases
+// (starting -> script -> streaming -> ready) but eased over elapsed time within
+// each phase, so the bar always inches forward and never sits at a fake "100%".
+// Bands are deliberately conservative: the long Suno wait sits mid-bar (~70%),
+// not "almost done", so a slow generation doesn't read as stuck-at-the-end.
+const PHASE_BANDS: Record<string, { floor: number; ceil: number; typicalMs: number }> = {
+  starting: { floor: 0.04, ceil: 0.2, typicalMs: 8000 },
+  script: { floor: 0.2, ceil: 0.72, typicalMs: 50000 },
+  streaming: { floor: 0.72, ceil: 0.96, typicalMs: 45000 },
+  ready: { floor: 1, ceil: 1, typicalMs: 0 },
+};
+
+const TOTAL_TYPICAL_MS = 120000; // ~2 min typical end-to-end; the ETA is a soft hint.
+
+function progressFor(phase: string, elapsedInPhaseMs: number): number {
+  if (phase === 'ready') return 1;
+  const band = PHASE_BANDS[phase] ?? PHASE_BANDS.starting;
+  const span = band.ceil - band.floor;
+  const k = elapsedInPhaseMs / Math.max(band.typicalMs, 1);
+  const eased = 1 - Math.exp(-1.9 * k); // 0 -> ~0.85 at k=1, asymptotes toward ceil
+  return Math.min(band.floor + span * eased, band.ceil - 0.005); // never reach ceil
+}
+
+function etaLabel(etaMs: number, pct: number): string {
+  if (pct >= 1) return 'ready';
+  if (etaMs > 90000) return '~2 min left';
+  if (etaMs > 45000) return '~1 min left';
+  if (etaMs > 15000) return 'under a minute…';
+  return 'almost there…';
+}
+
+function MakingProgress({ phase, startedAt }: { phase: string; startedAt: number }) {
+  // Initial frame is static (no clock reads during render — keeps the component
+  // pure). The interval below takes over within 400ms with the live values.
+  const [tick, setTick] = useState<{ pct: number; etaMs: number }>(() => ({
+    pct: progressFor(phase, 0),
+    etaMs: TOTAL_TYPICAL_MS,
+  }));
+
+  useEffect(() => {
+    // The per-phase clock starts when this effect (re)runs — i.e. on mount and
+    // whenever `phase` changes — so the band eases from the moment the phase began.
+    const phaseStart = Date.now();
+    const id = window.setInterval(() => {
+      const inPhase = Date.now() - phaseStart;
+      const etaMs =
+        phase === 'ready' || startedAt <= 0
+          ? 0
+          : Math.max(TOTAL_TYPICAL_MS - (Date.now() - startedAt), 0);
+      setTick({ pct: progressFor(phase, inPhase), etaMs });
+    }, 400);
+    return () => window.clearInterval(id);
+  }, [phase, startedAt]);
+
+  const pct100 = Math.round(tick.pct * 100);
+  return (
+    <>
+      <div className="k3-making-progress" data-phase={phase} aria-hidden="true">
+        <span style={{ width: `${pct100}%` }} />
+      </div>
+      <div className="k3-making-eta">{pct100}% · {etaLabel(tick.etaMs, tick.pct)}</div>
+    </>
+  );
+}
+
 export function Chat3({ goto }: ScreenProps) {
   const { answers, setAnswer } = useAnswers();
   const [entryFirstMessage] = useState(() => takeChatFirstMessage());
@@ -1117,13 +1182,30 @@ export function Chat3({ goto }: ScreenProps) {
   });
   const [selectedVibe, setSelectedVibe] = useState<Vibe | ''>(answers.vibe || '');
   const [agentError, setAgentError] = useState<string | null>(null);
-  const [, setStartingVoice] = useState(false);
+  const [startingVoice, setStartingVoice] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [mascotEmotion, setMascotEmotion] = useState<'warm' | 'surprised'>('warm');
   const [conversationKind, setConversationKind] = useState<'voice' | 'text' | null>(null);
   const messagesRef = useRef(messages);
   const seenEventsRef = useRef(new Set<string>());
   const announcedResultRef = useRef(false);
+  const voiceStartAtRef = useRef<number | null>(null);
+  const firstAgentTextAtRef = useRef<number | null>(null);
+  const firstSpeakingAtRef = useRef<number | null>(null);
+  const firstAudioChunkAtRef = useRef<number | null>(null);
+  const audioChunkCountRef = useRef(0);
+  const audioChunkBytesRef = useRef(0);
+  const firstVolumeProbeAtRef = useRef<number | null>(null);
+  const firstOutputVolumeAtRef = useRef<number | null>(null);
+  const lateZeroOutputRouteAtRef = useRef<number | null>(null);
+  const voicePrewarmStreamRef = useRef<MediaStream | null>(null);
+  const voicePrewarmRunRef = useRef(0);
+  const stopVoiceAudioElementNudgeRef = useRef<(() => void) | null>(null);
+  const coldVoiceIntroUsedRef = useRef(false);
+  // True while the mic button is held (push-to-talk). Drives mute on connect.
+  const wantMicLiveRef = useRef(false);
+  // Set when the user releases during 'connecting'; the connect effect flushes it.
+  const pendingMuteRef = useRef(false);
   const stylePanelRef = useRef<HTMLDivElement | null>(null);
   const [dismissedErrorVibes, setDismissedErrorVibes] = useState<Set<Vibe>>(() => new Set());
 
@@ -1156,6 +1238,7 @@ export function Chat3({ goto }: ScreenProps) {
   const progressSlot = selectedVibe ? progress[selectedVibe] : undefined;
   const phase = progressSlot?.phase ?? 'idle';
   const generationError = progressSlot?.error;
+  const generationStartedAt = progressSlot?.startedAt ?? 0;
   const result = selectedVibe ? byVibe[selectedVibe] : undefined;
 
   const autoSavedRef = useRef<Set<string>>(new Set());
@@ -1193,6 +1276,29 @@ export function Chat3({ goto }: ScreenProps) {
       messagesRef.current = next;
       return next;
     });
+  }, []);
+
+  const stopVoicePrewarm = useCallback((delayMs = 0) => {
+    const run = ++voicePrewarmRunRef.current;
+    const stop = () => {
+      if (run !== voicePrewarmRunRef.current) return;
+      stopAudioStream(voicePrewarmStreamRef.current);
+      voicePrewarmStreamRef.current = null;
+      console.log('[audio] mic route prewarm stopped', {
+        elapsedMs: voiceElapsed(voiceStartAtRef.current),
+      });
+      logAudioRoute('voice.prewarm.stopped', voiceElapsed(voiceStartAtRef.current));
+    };
+    if (delayMs > 0) {
+      window.setTimeout(stop, delayMs);
+    } else {
+      stop();
+    }
+  }, []);
+
+  const stopVoiceAudioElementNudge = useCallback(() => {
+    stopVoiceAudioElementNudgeRef.current?.();
+    stopVoiceAudioElementNudgeRef.current = null;
   }, []);
 
   const conversation = useConversation({
@@ -1235,6 +1341,17 @@ export function Chat3({ goto }: ScreenProps) {
       const text = typeof payload.message === 'string' ? payload.message : '';
       if (!text.trim()) return;
 
+      if (!isUser && voiceStartAtRef.current !== null && firstAgentTextAtRef.current === null) {
+        firstAgentTextAtRef.current = performance.now();
+        console.log('[11labs] first agent text', {
+          elapsedMs: voiceElapsed(voiceStartAtRef.current),
+          eventId: payload.event_id,
+        });
+        logAudioRoute('voice.first-agent-text', voiceElapsed(voiceStartAtRef.current), {
+          eventId: payload.event_id,
+        });
+      }
+
       appendMessage(isUser ? 'user' : 'kokoro', text);
     },
     onError: (message, context) => {
@@ -1250,19 +1367,79 @@ export function Chat3({ goto }: ScreenProps) {
       setAgentError(friendlyApiError(text || context || 'unknown agent error'));
     },
     onConnect: (info) => {
-      console.log('[11labs] onConnect', info);
+      console.log('[11labs] onConnect', {
+        ...info,
+        elapsedMs: voiceElapsed(voiceStartAtRef.current),
+      });
+      nudgeConversationAudioElements('voice.on-connect', voiceElapsed(voiceStartAtRef.current));
+      logAudioRoute('voice.on-connect', voiceElapsed(voiceStartAtRef.current), {
+        conversationId: typeof info.conversationId === 'string' ? info.conversationId : undefined,
+      });
+      stopVoicePrewarm(2500);
       setStartingVoice(false);
     },
     onDisconnect: (details) => {
       console.log('[11labs] onDisconnect', details);
+      stopVoiceAudioElementNudge();
+      logAudioRoute('voice.on-disconnect', voiceElapsed(voiceStartAtRef.current), {
+        details,
+      });
+      stopVoicePrewarm();
       setStartingVoice(false);
       setConversationKind(null);
     },
     onStatusChange: (info) => {
       console.log('[11labs] onStatusChange', info);
+      if (voiceStartAtRef.current !== null) {
+        if (info.status === 'connected' || info.status === 'connecting') {
+          nudgeConversationAudioElements(`voice.status-${info.status}`, voiceElapsed(voiceStartAtRef.current));
+        }
+        logAudioRoute('voice.status-change', voiceElapsed(voiceStartAtRef.current), info);
+      }
     },
     onModeChange: (info) => {
+      if (
+        info.mode === 'speaking' &&
+        voiceStartAtRef.current !== null &&
+        firstSpeakingAtRef.current === null
+      ) {
+        firstSpeakingAtRef.current = performance.now();
+        console.log('[11labs] first speaking mode', {
+          elapsedMs: voiceElapsed(voiceStartAtRef.current),
+        });
+        logAudioRoute('voice.first-speaking-mode', voiceElapsed(voiceStartAtRef.current));
+      }
       console.log('[11labs] onModeChange', info);
+    },
+    onAudio: (base64Audio) => {
+      audioChunkCountRef.current += 1;
+      audioChunkBytesRef.current += base64Audio.length;
+      if (voiceStartAtRef.current !== null && firstAudioChunkAtRef.current === null) {
+        firstAudioChunkAtRef.current = performance.now();
+        console.log('[11labs] first audio chunk', {
+          elapsedMs: voiceElapsed(voiceStartAtRef.current),
+          base64Length: base64Audio.length,
+        });
+        nudgeConversationAudioElements('voice.first-audio-chunk', voiceElapsed(voiceStartAtRef.current));
+        logAudioRoute('voice.first-audio-chunk', voiceElapsed(voiceStartAtRef.current), {
+          base64Length: base64Audio.length,
+        });
+      }
+      if (audioChunkCountRef.current <= 5 || audioChunkCountRef.current % 10 === 0) {
+        console.log('[11labs] audio chunk', {
+          elapsedMs: voiceElapsed(voiceStartAtRef.current),
+          count: audioChunkCountRef.current,
+          totalBase64Length: audioChunkBytesRef.current,
+          base64Length: base64Audio.length,
+        });
+      }
+    },
+    onInterruption: (info) => {
+      console.log('[11labs] onInterruption', {
+        elapsedMs: voiceElapsed(voiceStartAtRef.current),
+        info,
+      });
+      logAudioRoute('voice.interruption', voiceElapsed(voiceStartAtRef.current), { info });
     },
     onDebug: (info) => {
       console.log('[11labs] onDebug', info);
@@ -1278,6 +1455,8 @@ export function Chat3({ goto }: ScreenProps) {
     endSession,
     sendUserMessage,
     sendContextualUpdate,
+    getInputVolume,
+    getOutputVolume,
   } = conversation;
 
   type StartSessionOptions = Record<string, unknown> & {
@@ -1293,18 +1472,10 @@ export function Chat3({ goto }: ScreenProps) {
     extra: Partial<StartSessionOptions> = {},
   ): StartSessionOptions => {
     const persona = personaApi.getSnapshot();
-    let isReconnect = false;
-    try {
-      isReconnect = sessionStorage.getItem(RECONNECT_FLAG) === '1';
-      sessionStorage.setItem(RECONNECT_FLAG, '1');
-    } catch {
-      /* storage unavailable */
-    }
-
     const extraOverrides = extra.overrides ?? {};
     const firstMessage = extraOverrides.agent?.firstMessage
       ?? entryFirstMessage
-      ?? (isReconnect ? RECONNECT_FIRST_MESSAGE : undefined);
+      ?? undefined;
     const agentOverride = {
       ...extraOverrides.agent,
       ...(firstMessage ? { firstMessage } : {}),
@@ -1339,18 +1510,88 @@ export function Chat3({ goto }: ScreenProps) {
     };
   };
 
+  const buildVoiceSessionOptions = (): StartSessionOptions => {
+    if (coldVoiceIntroUsedRef.current || !isIosWebKitRuntime()) {
+      return buildSessionOptions('voice');
+    }
+
+    coldVoiceIntroUsedRef.current = true;
+    const baseFirstMessage = entryFirstMessage ?? defaultVoiceFirstMessage(answers);
+    const firstMessage = coldStartVoiceFirstMessage(baseFirstMessage);
+
+    console.log('[11labs] cold iOS first message', {
+      baseFirstMessage: baseFirstMessage.slice(0, 120),
+      firstMessage: firstMessage.slice(0, 160),
+    });
+
+    return buildSessionOptions('voice', {
+      overrides: {
+        agent: { firstMessage },
+      },
+    });
+  };
+
   const startConversationSession = async (
     kind: 'voice' | 'text',
     options: StartSessionOptions,
   ) => {
     setAgentError(null);
     setConversationKind(kind);
+
+    const fetchStartedAt = performance.now();
+    console.log('[11labs] signed-url fetch start', { kind });
+    if (kind === 'voice') {
+      logAudioRoute('voice.signed-url.fetch-start', voiceElapsed(voiceStartAtRef.current));
+    }
     try {
       const signedUrl = await getConversationSignedUrl();
-      startSession({ ...options, signedUrl } as Parameters<typeof startSession>[0]);
+      console.log('[11labs] signed-url fetch done', {
+        kind,
+        elapsedMs: Math.round(performance.now() - fetchStartedAt),
+      });
+      if (kind === 'voice') {
+        logAudioRoute('voice.signed-url.fetch-done', voiceElapsed(voiceStartAtRef.current), {
+          fetchElapsedMs: Math.round(performance.now() - fetchStartedAt),
+        });
+      }
+      console.log('[11labs] startSession', {
+        kind,
+        connectionType: kind === 'voice' ? 'websocket' : options.connectionType,
+        firstMessage:
+          typeof options.overrides?.agent?.firstMessage === 'string'
+            ? options.overrides.agent.firstMessage.slice(0, 120)
+            : '(dashboard default)',
+        hasSignedUrl: true,
+      });
+      if (kind === 'voice') {
+        logAudioRoute('voice.start-session.before', voiceElapsed(voiceStartAtRef.current), {
+          connectionType: 'websocket',
+          hasSignedUrl: true,
+        });
+      }
+      startSession({
+        ...options,
+        ...(kind === 'voice' ? { connectionType: 'websocket' } : {}),
+        signedUrl,
+      } as Parameters<typeof startSession>[0]);
     } catch (error) {
       if (!ELEVENLABS_AGENT_ID) throw error;
       console.warn('[11labs] signed URL unavailable, trying public agent ID fallback', error);
+      console.log('[11labs] startSession fallback', {
+        kind,
+        connectionType: options.connectionType,
+        firstMessage:
+          typeof options.overrides?.agent?.firstMessage === 'string'
+            ? options.overrides.agent.firstMessage.slice(0, 120)
+            : '(dashboard default)',
+        hasAgentId: true,
+      });
+      if (kind === 'voice') {
+        logAudioRoute('voice.start-session.fallback-before', voiceElapsed(voiceStartAtRef.current), {
+          connectionType: options.connectionType,
+          hasAgentId: true,
+        });
+      }
       startSession({ ...options, agentId: ELEVENLABS_AGENT_ID } as Parameters<typeof startSession>[0]);
     }
   };
@@ -1399,6 +1640,11 @@ export function Chat3({ goto }: ScreenProps) {
     messagesRef.current = messages;
   }, [messages]);
 
+  useEffect(() => () => {
+    stopVoiceAudioElementNudgeRef.current?.();
+    stopAudioStream(voicePrewarmStreamRef.current);
+  }, []);
+
   useEffect(() => {
     if (!selectedVibe || !result || announcedResultRef.current) return;
     if (phase !== 'streaming' && phase !== 'ready') return;
@@ -1406,18 +1652,101 @@ export function Chat3({ goto }: ScreenProps) {
     appendMessage('kokoro', 'I made this for you. You can listen now.');
   }, [appendMessage, phase, result, selectedVibe]);
 
-  const startVoice = async () => {
-    unlockAudio();
+  useEffect(() => {
+    if (!isSpeaking || voiceStartAtRef.current === null) return;
 
-    if (status === 'connected') {
-      if (conversationKind === 'voice') {
-        setMuted(!isMuted);
-      } else {
-        endSession();
-        setConversationKind(null);
+    let ticks = 0;
+    const interval = window.setInterval(() => {
+      ticks += 1;
+      let inputVolume: number | null = null;
+      let outputVolume: number | null = null;
+      try {
+        inputVolume = Number(getInputVolume().toFixed(4));
+      } catch {
+        /* volume unavailable */
       }
-      return;
-    }
+      try {
+        outputVolume = Number(getOutputVolume().toFixed(4));
+      } catch {
+        /* volume unavailable */
+      }
+      console.log('[11labs] audio volume probe', {
+        elapsedMs: voiceElapsed(voiceStartAtRef.current),
+        inputVolume,
+        outputVolume,
+      });
+      if (firstVolumeProbeAtRef.current === null) {
+        firstVolumeProbeAtRef.current = performance.now();
+        logAudioRoute('voice.first-volume-probe', voiceElapsed(voiceStartAtRef.current), {
+          inputVolume,
+          outputVolume,
+        });
+      }
+      if (
+        outputVolume !== null &&
+        outputVolume > 0 &&
+        firstOutputVolumeAtRef.current === null
+      ) {
+        firstOutputVolumeAtRef.current = performance.now();
+        logAudioRoute('voice.first-output-volume', voiceElapsed(voiceStartAtRef.current), {
+          inputVolume,
+          outputVolume,
+        });
+      }
+      const elapsedMs = voiceElapsed(voiceStartAtRef.current);
+      if (
+        outputVolume === 0 &&
+        elapsedMs !== undefined &&
+        elapsedMs >= 2000 &&
+        lateZeroOutputRouteAtRef.current === null
+      ) {
+        lateZeroOutputRouteAtRef.current = performance.now();
+        logAudioRoute('voice.output-still-zero-after-2s', elapsedMs, {
+          inputVolume,
+          outputVolume,
+        });
+      }
+      if (ticks >= 32) window.clearInterval(interval);
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [getInputVolume, getOutputVolume, isSpeaking]);
+
+  // Push-to-talk: opens a fresh voice session, connected live. The press/release
+  // handlers own the mute state; this only handles the cold-start connect.
+  const beginVoiceSession = async () => {
+    voiceStartAtRef.current = performance.now();
+    firstAgentTextAtRef.current = null;
+    firstSpeakingAtRef.current = null;
+    firstAudioChunkAtRef.current = null;
+    firstVolumeProbeAtRef.current = null;
+    firstOutputVolumeAtRef.current = null;
+    lateZeroOutputRouteAtRef.current = null;
+    audioChunkCountRef.current = 0;
+    audioChunkBytesRef.current = 0;
+    console.log('[11labs] voice press', {
+      status,
+      conversationKind,
+      isMuted,
+      hasGetUserMedia: Boolean(navigator.mediaDevices?.getUserMedia),
+    });
+    logAudioRoute('voice.tap.before-unlock', voiceElapsed(voiceStartAtRef.current), {
+      status,
+      conversationKind,
+      isMuted,
+    });
+    unlockAudio();
+    logAudioRoute('voice.tap.after-unlock', voiceElapsed(voiceStartAtRef.current));
+    logAudioElements('voice.tap.after-unlock', voiceElapsed(voiceStartAtRef.current));
+    stopVoiceAudioElementNudge();
+    stopVoiceAudioElementNudgeRef.current = startConversationAudioElementNudge(
+      () => voiceElapsed(voiceStartAtRef.current),
+      { durationMs: 6500, intervalMs: 120 },
+    );
+    console.log('[audio] mic route prewarm skipped');
+    logAudioRoute('voice.prewarm.skipped', voiceElapsed(voiceStartAtRef.current), {
+      reason: 'testing ElevenLabs-owned microphone setup',
+    });
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setAgentError('Voice is not available in this iOS webview. Type to Kokoro instead.');
@@ -1428,15 +1757,83 @@ export function Chat3({ goto }: ScreenProps) {
     setAgentError(null);
     setStartingVoice(true);
     try {
-      await startConversationSession('voice', buildSessionOptions('voice'));
+      console.log('[11labs] voice session request', {
+        elapsedMs: voiceElapsed(voiceStartAtRef.current),
+      });
+      logAudioRoute('voice.session-request', voiceElapsed(voiceStartAtRef.current));
+      await startConversationSession('voice', buildVoiceSessionOptions());
     } catch (error) {
-      console.error('[11labs] startVoice threw', error);
+      console.error('[11labs] beginVoiceSession threw', error);
+      stopVoiceAudioElementNudge();
+      stopVoicePrewarm();
       setStartingVoice(false);
       setConversationKind(null);
       setAgentError(friendlyApiError(error));
       setTypeOpen(true);
     }
   };
+
+  // Finger down on the mic = "I'm talking now". If a voice call is already up
+  // we just unmute; otherwise we open one (it connects live).
+  const handleMicPressStart = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* pointer capture unsupported */
+    }
+    wantMicLiveRef.current = true;
+    haptic.light();
+    if (status === 'connected') {
+      if (conversationKind === 'voice') {
+        logAudioRoute('voice.press.unmute', voiceElapsed(voiceStartAtRef.current));
+        setMuted(false);
+      } else {
+        // A text-only session is open — close it; the next press starts voice.
+        logAudioRoute('voice.press.end-text-session', voiceElapsed(voiceStartAtRef.current));
+        endSession();
+        setConversationKind(null);
+      }
+      return;
+    }
+    void beginVoiceSession();
+  };
+
+  // Finger up = stop talking. Mute the mic but keep the call connected so
+  // Kokoro can answer and the next hold is instant.
+  const handleMicPressEnd = (event: React.PointerEvent<HTMLButtonElement>) => {
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* pointer capture unsupported */
+    }
+    if (!wantMicLiveRef.current) return;
+    wantMicLiveRef.current = false;
+    // Gate on status only — a stray onDisconnect/onError can null conversationKind
+    // and would otherwise strand the mic unmuted (button stuck non-gray).
+    if (status === 'connected') {
+      logAudioRoute('voice.release.mute', voiceElapsed(voiceStartAtRef.current));
+      setMuted(true);
+    } else {
+      // Released before the session connected — mute as soon as it does.
+      pendingMuteRef.current = true;
+    }
+  };
+
+  // On connect, honor push-to-talk — if the finger was released before the
+  // connection landed (or a mute is pending), mute now so the mic isn't left hot
+  // capturing background noise. (startingVoice is cleared by the SDK
+  // onConnect/onDisconnect/onError callbacks, so it isn't touched here.)
+  useEffect(() => {
+    if (status === 'connected') {
+      if (!wantMicLiveRef.current || pendingMuteRef.current) {
+        pendingMuteRef.current = false;
+        setMuted(true);
+      }
+    } else if (status === 'disconnected') {
+      pendingMuteRef.current = false;
+    }
+  }, [status, setMuted]);
 
   const submitTyped = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1487,6 +1884,19 @@ export function Chat3({ goto }: ScreenProps) {
     generatedMeditationApi.selectVibeAsCurrent(selectedVibe);
     goto('player');
   };
+
+  // Push-to-talk mic visual state — mutually exclusive, in priority order:
+  //  - connecting: opening the session OR transport not yet 'connected' (covers
+  //    the iOS cold-start delay, so the button never reads as a dead orange)
+  //  - live: connected and mic hot (finger held / unmuted)
+  //  - muted: connected but not holding ("push to talk" rest state)
+  //  - idle: nothing open yet — the GREEN "ready" state
+  const micState: 'idle' | 'connecting' | 'live' | 'muted' =
+    status === 'connecting' || (startingVoice && status !== 'connected')
+      ? 'connecting'
+      : status === 'connected'
+        ? (isMuted ? 'muted' : 'live')
+        : 'idle';
 
   return (
     <Frame className="k3-chat-frame">
@@ -1563,6 +1973,7 @@ export function Chat3({ goto }: ScreenProps) {
               <strong>{VIBE_CARDS[selectedVibe].title}</strong>
             </div>
             {phase === 'ready' ? <Check size={18} /> : <Wind size={18} />}
+            <MakingProgress phase={phase} startedAt={generationStartedAt} />
           </div>
         )}
 
@@ -1640,19 +2051,34 @@ export function Chat3({ goto }: ScreenProps) {
               )}
               <button
                 type="button"
-                className={`k3-mic ${status === 'connected' && isMuted ? 'is-muted' : ''}`}
-                onClick={startVoice}
-                title={status === 'connected' ? (isMuted ? 'Unmute mic' : 'Mute mic') : 'Talk to Kokoro'}
-                aria-label={status === 'connected' ? (isMuted ? 'Unmute mic' : 'Mute mic') : 'Talk to Kokoro'}
+                className={`k3-mic k3-mic--${micState}`}
+                onPointerDown={handleMicPressStart}
+                onPointerUp={handleMicPressEnd}
+                onPointerCancel={handleMicPressEnd}
+                onLostPointerCapture={handleMicPressEnd}
+                onContextMenu={(event) => event.preventDefault()}
+                aria-busy={micState === 'connecting'}
+                title={micState === 'idle' ? 'Tap to start' : 'Hold to speak'}
+                aria-label={micState === 'idle' ? 'Tap to start' : 'Hold to speak'}
               >
-                {status === 'connected' && isMuted ? <MicOff size={30} /> : <Mic size={32} />}
+                {micState === 'connecting' ? (
+                  <Loader2 size={30} className="k3-mic-spin" />
+                ) : micState === 'muted' ? (
+                  <MicOff size={30} />
+                ) : (
+                  <Mic size={32} />
+                )}
               </button>
               {status === 'connected' && <span className="k3-end-btn k3-end-btn--ghost" aria-hidden="true" />}
             </div>
             <div className="k3-voice-status">
-              {status === 'connected'
-                ? (isMuted ? 'mic muted - tap mic to unmute' : 'Kokoro is listening - tap mic to mute')
-                : 'tap to speak'}
+              {micState === 'connecting'
+                ? 'Connecting…'
+                : micState === 'live'
+                  ? 'Listening… release to stop'
+                  : micState === 'muted'
+                    ? 'Hold to speak'
+                    : 'Tap to start'}
             </div>
             <button type="button" className="k3-type-toggle" onClick={() => setTypeOpen(true)}>
               Or type instead
@@ -1844,6 +2270,16 @@ export function Player3({ goto }: ScreenProps) {
       audio.removeEventListener('ended', onEnded);
     };
   }, [src, goto]);
+
+  // While the player screen is open: keep the screen awake (no auto-lock) and
+  // hold a background-capable audio session so playback survives a manual lock.
+  // Reverted on leave so it never touches the ElevenLabs voice flow.
+  useEffect(() => {
+    void enterPlaybackMode();
+    return () => {
+      void exitPlaybackMode();
+    };
+  }, []);
 
   if (!generated || !src) {
     return (
