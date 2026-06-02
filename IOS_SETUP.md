@@ -24,7 +24,7 @@ Sign Xcode into your Apple ID:
 
 ```bash
 git clone <your repo URL>
-cd "<repo>/apps/web"
+cd "<repo>/app"
 pnpm install
 ```
 
@@ -33,13 +33,13 @@ pnpm install
 ## 2. Add the iOS project — first time only
 
 ```bash
-cd "<repo>/apps/web"
+cd "<repo>/app"
 pnpm build              # generates dist/ that Capacitor will copy into iOS
-npx cap add ios         # creates apps/web/ios/ — Xcode project. Commit this.
+npx cap add ios         # creates app/ios/ — Xcode project. Commit this.
 npx cap sync ios        # installs CocoaPods, copies dist/ into the iOS bundle
 ```
 
-After this you'll have an `apps/web/ios/` directory. Commit it back to git so future `cap sync` calls on either machine work.
+After this you'll have an `app/ios/` directory. Commit it back to git so future `cap sync` calls on either machine work.
 
 ## 3. Configure the Xcode project
 
@@ -64,14 +64,14 @@ This opens Xcode on the workspace. Do the following one-time setup:
 
 ## 4. Generate app icons and splash
 
-Drop a single source image at `apps/web/assets/icon.png` (1024×1024, no transparency, no rounded corners — Apple adds those) and a splash at `apps/web/assets/splash.png` (2732×2732, centered logo on the cream background `#F4EFE6`). Then:
+Drop a single source image at `app/assets/icon.png` (1024×1024, no transparency, no rounded corners — Apple adds those) and a splash at `app/assets/splash.png` (2732×2732, centered logo on the cream background `#F4EFE6`). Then:
 
 ```bash
-cd "<repo>/apps/web"
+cd "<repo>/app"
 npx capacitor-assets generate --ios
 ```
 
-For v1 you can use the Kokoro mascot still frame from `apps/web/public/kokoro3/`. Higher-quality icons can ship in v1.1 via OTA — no re-review needed.
+For v1 you can use the Kokoro mascot still frame from `app/public/kokoro3/`. Higher-quality icons can ship in v1.1 via OTA — no re-review needed.
 
 ## 5. Run on the simulator (fast iteration)
 
@@ -119,7 +119,7 @@ After this initial setup, normal day-to-day:
 
 **On Mac** — pull, then:
 ```bash
-cd "<repo>/apps/web"
+cd "<repo>/app"
 pnpm install            # if deps changed
 pnpm build
 npx cap sync ios        # copies new dist/ into iOS bundle
@@ -131,8 +131,8 @@ npx cap open ios        # then Product → Archive → upload
 1. ✅ Apple Developer account paid (done).
 2. ✅ Bundle ID: `com.kokoromind.app`. This is permanent once you publish.
 3. ☐ App Store Connect → Agreements, Tax, and Banking → sign the **Free Apps** agreement. Fill the tax form (W-8BEN if non-US, W-9 if US).
-4. ☐ Decide and host the privacy policy URL. The page is already written at [apps/web/public/privacy.html](apps/web/public/privacy.html); it will be live at `<your-railway-url>/privacy.html` after the next Railway deploy.
-5. ☐ Provide a 1024×1024 app icon source PNG (or tell me to use the Kokoro mascot still). Drop it at `apps/web/assets/icon.png`.
+4. ☐ Decide and host the privacy policy URL. The page is already written at [app/public/privacy.html](app/public/privacy.html); it will be live at `<your-railway-url>/privacy.html` after the next Railway deploy.
+5. ☐ Provide a 1024×1024 app icon source PNG (or tell me to use the Kokoro mascot still). Drop it at `app/assets/icon.png`.
 6. ☐ Decide on App Store listing copy: name (max 30 chars), subtitle (30), description, keywords (100). I can draft these.
 7. ☐ Take 3–10 screenshots on a 6.7" iPhone (iPhone 15 Pro Max or 16 Pro Max) once the TestFlight build runs.
 
