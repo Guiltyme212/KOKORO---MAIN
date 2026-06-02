@@ -1,7 +1,7 @@
 {
   "name": "app",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.14",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,7 @@
     "ios:open": "cap open ios",
     "ios:icons": "capacitor-assets generate --ios",
     "version:bump": "node -e \"const p=require('./package.json');const v=p.version.split('.');v[2]=String(+v[2]+1);p.version=v.join('.');require('fs').writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n');console.log('bumped to',p.version)\"",
-    "release:ota": "pnpm run version:bump && pnpm build && capgo bundle upload com.kokoromind.app --channel production --key-v2 ./.capgo_key_v2"
+    "release:ota": "pnpm run version:bump && pnpm build && pnpm exec capgo bundle upload com.kokoromind.app --channel production --key-v2 ./.capgo_key_v2"
   },
   "dependencies": {
     "@capacitor-community/apple-sign-in": "6.0.0",
@@ -28,6 +28,7 @@
     "@capacitor/status-bar": "^6.0.2",
     "@capgo/capacitor-updater": "^6.45.10",
     "@elevenlabs/react": "^1.6.0",
+    "kokoro-audio-route-diagnostics": "file:plugins/audio-route-diagnostics",
     "lucide-react": "^1.16.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"

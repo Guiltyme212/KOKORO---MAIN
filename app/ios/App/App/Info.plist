@@ -35,9 +35,7 @@
 	<string>Allow Kokoro to transcribe your voice during voice chat so your words can be used in the conversation and meditation.</string>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>processing</string>
 		<string>audio</string>
-		<string>fetch</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

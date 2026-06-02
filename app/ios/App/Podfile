@@ -19,6 +19,7 @@ def capacitor_pods
   pod 'CapacitorSplashScreen', :path => '../../node_modules/.pnpm/@capacitor+splash-screen@6.0.4_@capacitor+core@6.2.1/node_modules/@capacitor/splash-screen'
   pod 'CapacitorStatusBar', :path => '../../node_modules/.pnpm/@capacitor+status-bar@6.0.3_@capacitor+core@6.2.1/node_modules/@capacitor/status-bar'
   pod 'CapgoCapacitorUpdater', :path => '../../node_modules/.pnpm/@capgo+capacitor-updater@6.45.10_@capacitor+core@6.2.1/node_modules/@capgo/capacitor-updater'
+  pod 'KokoroAudioRouteDiagnostics', :path => '../../node_modules/.pnpm/kokoro-audio-route-diagnostics@file+plugins+audio-route-diagnostics_@capacitor+core@6.2.1/node_modules/kokoro-audio-route-diagnostics'
 end
 
 target 'App' do

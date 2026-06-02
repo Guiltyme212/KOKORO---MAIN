@@ -41,6 +41,9 @@ importers:
       '@elevenlabs/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/dom-mediacapture-record@1.0.22)(react@19.2.5)
+      kokoro-audio-route-diagnostics:
+        specifier: file:plugins/audio-route-diagnostics
+        version: file:plugins/audio-route-diagnostics(@capacitor/core@6.2.1)
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.5)
@@ -1613,6 +1616,11 @@ packages:
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
+
+  kokoro-audio-route-diagnostics@file:plugins/audio-route-diagnostics:
+    resolution: {directory: plugins/audio-route-diagnostics, type: directory}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -4345,6 +4353,10 @@ snapshots:
   kleur@3.0.3: {}
 
   kleur@4.1.5: {}
+
+  kokoro-audio-route-diagnostics@file:plugins/audio-route-diagnostics(@capacitor/core@6.2.1):
+    dependencies:
+      '@capacitor/core': 6.2.1
 
   levn@0.4.1:
     dependencies:
