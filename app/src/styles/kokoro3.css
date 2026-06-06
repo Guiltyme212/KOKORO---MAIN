@@ -52,6 +52,32 @@ body,
   }
 }
 
+/* Native app on iPad / large screens (App Store Guideline 4 — "optimized for all
+   screen sizes"). The native shell runs full-screen, so fill the whole canvas
+   with cream (no letterbox / no floating phone card) and present the UI as a
+   centered, full-height content column. Gated to .is-native so the desktop
+   browser keeps its existing phone-frame presentation. */
+@media (min-width: 601px) {
+  html.is-native .stage {
+    background: var(--k3-cream);
+    overflow: hidden;
+  }
+
+  html.is-native .page-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  html.is-native .k3-frame {
+    width: min(620px, 100%);
+    height: 100vh;
+    height: 100dvh;
+    height: var(--tg-vh, 100dvh);
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 .k3-sakura {
   position: absolute;
   top: -8px;
@@ -78,6 +104,25 @@ body,
 .k3-petal-a { left: 54px; top: 96px; }
 .k3-petal-b { right: 72px; top: 255px; }
 .k3-petal-c { left: 42px; bottom: 104px; }
+
+/* iPad: anchor the sakura branch and the chat companion to the real screen
+   edges instead of the centered 620px content column. Switching to
+   position:fixed re-bases them onto the full-screen layer (the transformed
+   .page-wrap), so their existing offsets now land at the device edges. The
+   content column and the iPhone layout are completely unaffected (gated to
+   is-native + tablet width). */
+@media (min-width: 601px) {
+  html.is-native .k3-sakura {
+    position: fixed;
+    left: auto;
+    right: -10px;
+    width: clamp(440px, 64vw, 700px);
+  }
+
+  html.is-native .k3-chat-peek {
+    position: fixed;
+  }
+}
 
 .k3-icon-button {
   width: 39px;
@@ -1877,7 +1922,7 @@ body,
 .k3-home-scroll {
   position: absolute;
   inset: 0;
-  bottom: calc(69px + var(--k3-safe-bottom));
+  bottom: calc(80px + var(--k3-safe-bottom));
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -2509,16 +2554,6 @@ body,
   letter-spacing: 0;
 }
 
-.k3-recent-play {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--k3-sunset);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  padding-left: 1px;
-}
 
 .k3-recent-card strong {
   display: block;
@@ -2529,7 +2564,7 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(69px + var(--k3-safe-bottom));
+  height: calc(80px + var(--k3-safe-bottom));
   z-index: 10;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -2543,9 +2578,9 @@ body,
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 3px;
+  gap: 4px;
   color: rgba(27, 27, 27, 0.50);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 850;
   min-width: 0;
 }
@@ -2555,15 +2590,15 @@ body,
 }
 
 .k3-tabbar button.is-primary {
-  transform: translateY(-13px);
+  transform: translateY(-16px);
   gap: 1px;
   color: rgba(27, 27, 27, 0.54);
 }
 
 .k3-tabbar button.is-primary svg {
-  width: 54px;
-  height: 54px;
-  padding: 13px;
+  width: 62px;
+  height: 62px;
+  padding: 15px;
   border-radius: 50%;
   background: var(--k3-sunset);
   color: #fff;
@@ -2639,20 +2674,6 @@ body,
   box-shadow: 0 14px 30px rgba(66, 57, 34, 0.10);
 }
 
-.k3-library-thumb {
-  width: 100%;
-  height: 150px;
-  border-radius: 0;
-  overflow: hidden;
-  background: var(--k3-cream);
-}
-
-.k3-library-thumb .k3-loop-video {
-  width: 118%;
-  height: 118%;
-  margin: -9% 0 0 -9%;
-}
-
 .k3-library-info {
   min-width: 0;
   padding: 14px 16px 16px;
@@ -2722,21 +2743,53 @@ body,
   font-weight: 950;
 }
 
-.k3-library-play {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  padding-left: 1px;
-  background: var(--k3-sunset);
-  color: #fff;
-}
-
 .k3-preset-frame,
 .k3-progress-frame,
 .k3-you-frame {
-  padding: max(20px, calc(var(--k3-safe-top) + 12px)) 22px calc(96px + var(--k3-safe-bottom));
+  display: flex;
+  flex-direction: column;
+  padding: max(20px, calc(var(--k3-safe-top) + 12px)) 22px 0;
+}
+
+/* The You screen scrolls its content so the account-deletion control is always
+   reachable on any device height (App Store Guideline 5.1.1(v)). The header and
+   tab bar stay fixed outside the scroll region. */
+.k3-you-scroll {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(96px + var(--k3-safe-bottom));
+}
+
+/* On iPad (wide, native) compact the You screen so every control — including
+   Delete account — is visible WITHOUT scrolling, even in the shorter landscape
+   height: the 3 memory cards and the secondary actions sit side-by-side, while
+   Delete account stays full-width and prominent. (App Store 5.1.1(v) + G4.) */
+@media (min-width: 601px) {
+  html.is-native .k3-you-card {
+    margin-top: 16px;
+    padding: 16px 18px;
+  }
+  html.is-native .k3-you-avatar {
+    width: 46px;
+    height: 46px;
+  }
+  html.is-native .k3-you-card h2 {
+    font-size: 28px;
+  }
+  html.is-native .k3-memory-list {
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+  }
+  html.is-native .k3-you-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  html.is-native .k3-you-actions button.is-muted {
+    grid-column: auto;
+  }
 }
 
 .k3-companion-head {
@@ -2889,8 +2942,15 @@ body,
   position: relative;
   z-index: 5;
   display: grid;
+  align-content: start;
   gap: 9px;
   margin-top: 14px;
+  /* Scroll the vibe list so the last row never hides behind the tab bar. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(96px + var(--k3-safe-bottom));
 }
 
 .k3-progress-list button {
@@ -3003,6 +3063,117 @@ body,
   grid-column: 1 / -1;
   background: rgba(27, 27, 27, 0.07);
   color: rgba(27, 27, 27, 0.58);
+}
+
+.k3-you-actions button.is-destructive {
+  grid-column: 1 / -1;
+  background: rgba(179, 38, 30, 0.08);
+  color: #b3261e;
+}
+
+/* Report-content link on the player (Guideline 1.2). */
+.k3-report-link {
+  display: block;
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(27, 27, 27, 0.45);
+  text-decoration: underline;
+}
+
+/* AI-processing consent gate over the chat (Guideline 5.1.2(i)). */
+.k3-ai-consent {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(27, 27, 27, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.k3-ai-consent-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--k3-paper);
+  border-radius: 22px;
+  padding: 24px 22px;
+  box-shadow: var(--k3-shadow);
+}
+
+.k3-ai-consent-card h2 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 950;
+}
+
+.k3-ai-consent-card p {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(27, 27, 27, 0.78);
+}
+
+.k3-ai-consent-accept {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 999px;
+  background: var(--k3-sunset);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.k3-ai-consent-decline {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  background: transparent;
+  color: rgba(27, 27, 27, 0.5);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.k3-ai-consent-link {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  background: transparent;
+  color: var(--k3-moss-olive);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Privacy / Terms / medical disclaimer footer on the You tab. */
+.k3-you-legal {
+  margin-top: 16px;
+  text-align: center;
+  color: rgba(27, 27, 27, 0.45);
+}
+
+.k3-you-legal button {
+  background: transparent;
+  color: var(--k3-moss-olive);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  padding: 2px 6px;
+}
+
+.k3-you-legal span {
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+.k3-you-legal p {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 @keyframes k3-pulse {

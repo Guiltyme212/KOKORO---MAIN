@@ -177,6 +177,21 @@ export function kickoffMeditationFor(
     // not deterministic — a silent retry recovers most of the time.
     if (msg.startsWith('stream INTERNAL')) return true;
     if (msg.startsWith('stream UPSTREAM_TIMEOUT')) return true;
+    // A manual phone lock (or a brief connectivity blip) suspends the WKWebView
+    // and tears down the in-flight fetch; iOS can't keep a silent stream alive in
+    // the background. On resume the stream read rejects with a network error.
+    // Retry once so a quick lock during generation recovers transparently instead
+    // of surfacing "Could not reach Kokoro's server". The retry only runs once the
+    // app is foregrounded again (JS is suspended while locked).
+    if (
+      msg.includes('Failed to fetch') ||
+      msg.includes('Load failed') ||
+      msg.includes('NetworkError') ||
+      msg.includes('Network request failed') ||
+      msg.includes('network connection was lost')
+    ) {
+      return true;
+    }
     return false;
   };
 

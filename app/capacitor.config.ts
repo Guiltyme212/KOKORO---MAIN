@@ -29,7 +29,12 @@ const config: CapacitorConfig = {
       overlaysWebView: true
     },
     CapacitorUpdater: {
-      autoUpdate: true,
+      // Disabled for the App Store relaunch: with autoUpdate on, the app kept
+      // swapping the freshly-built native bundle for the stale OLD published OTA
+      // bundle (no account deletion, old UI) — which both blocked device testing
+      // and risked a re-rejection if it applied during Apple review. Re-enable
+      // and publish a matching OTA only after v1.0 is approved.
+      autoUpdate: false,
       defaultChannel: 'production',
       resetWhenUpdate: true,
       directUpdate: false,

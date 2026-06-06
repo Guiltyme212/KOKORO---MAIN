@@ -42,17 +42,22 @@ type AudioRouteDiagnosticsPlugin = {
   // app-launch override (see docs/ios-elevenlabs-audio-troubleshooting.md).
   activatePlayback(): Promise<void>;
   deactivatePlayback(): Promise<void>;
+  // Disable / restore the iOS idle timer so the screen doesn't auto-dim/auto-lock
+  // during long foreground work. Idle-timer ONLY — does not touch AVAudioSession,
+  // so it is safe to run during the ElevenLabs mic/voice flow.
+  keepAwake(): Promise<void>;
+  allowSleep(): Promise<void>;
 };
 
 const AudioRouteDiagnostics = registerPlugin<AudioRouteDiagnosticsPlugin>('AudioRouteDiagnostics');
 
-const playbackSessionAvailable = (): boolean =>
+const nativePluginAvailable = (): boolean =>
   Capacitor.getPlatform() === 'ios' && Capacitor.isPluginAvailable('AudioRouteDiagnostics');
 
 // Activate a background-capable audio session for meditation playback. iOS-only;
 // no-op on web/Android. Safe to call repeatedly.
 export async function activatePlaybackSession(): Promise<void> {
-  if (!playbackSessionAvailable()) return;
+  if (!nativePluginAvailable()) return;
   try {
     await AudioRouteDiagnostics.activatePlayback();
   } catch (error) {
@@ -63,11 +68,31 @@ export async function activatePlaybackSession(): Promise<void> {
 // Release the playback session when leaving the player so it never bleeds into
 // the ElevenLabs voice flow.
 export async function deactivatePlaybackSession(): Promise<void> {
-  if (!playbackSessionAvailable()) return;
+  if (!nativePluginAvailable()) return;
   try {
     await AudioRouteDiagnostics.deactivatePlayback();
   } catch (error) {
     console.warn('[audio-route] deactivatePlayback failed', error);
+  }
+}
+
+// Keep the screen awake (disable the iOS idle timer) without altering the audio
+// session — safe during the voice/mic flow. iOS-only; no-op elsewhere. Idempotent.
+export async function keepScreenAwake(): Promise<void> {
+  if (!nativePluginAvailable()) return;
+  try {
+    await AudioRouteDiagnostics.keepAwake();
+  } catch (error) {
+    console.warn('[audio-route] keepAwake failed', error);
+  }
+}
+
+export async function allowScreenSleep(): Promise<void> {
+  if (!nativePluginAvailable()) return;
+  try {
+    await AudioRouteDiagnostics.allowSleep();
+  } catch (error) {
+    console.warn('[audio-route] allowSleep failed', error);
   }
 }
 

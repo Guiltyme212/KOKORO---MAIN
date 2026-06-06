@@ -10,11 +10,23 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "snapshot", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activatePlayback", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deactivatePlayback", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "deactivatePlayback", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "allowSleep", returnType: CAPPluginReturnPromise)
     ]
 
     private var routeChangeObserver: NSObjectProtocol?
     private var interruptionObserver: NSObjectProtocol?
+    private var didBecomeActiveObserver: NSObjectProtocol?
+
+    // The iOS idle timer is a single global flag, but two unrelated features want
+    // the screen kept awake: the meditation player (which also holds an audio
+    // session) and the chat/generation flow (idle-timer ONLY — it must never
+    // touch AVAudioSession or it breaks the ElevenLabs mic). Track each reason
+    // independently and OR them together so leaving one doesn't re-enable sleep
+    // while the other still needs it. Always mutated on the main thread.
+    private var playbackRequested = false
+    private var keepAwakeRequested = false
 
     override public func load() {
         routeChangeObserver = NotificationCenter.default.addObserver(
@@ -45,6 +57,18 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
             self.printSnapshot(label: "native.interruption", elapsedMs: nil, extra: extra)
         }
 
+        // iOS can silently clear isIdleTimerDisabled across a background round-trip
+        // (the iOS 13+ scene gotcha). Re-apply our desired state every time the
+        // app becomes active so a lock/unlock cycle during generation doesn't
+        // quietly re-arm auto-lock.
+        didBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.applyIdleTimer()
+        }
+
         printSnapshot(label: "native.plugin-load", elapsedMs: nil, extra: nil)
     }
 
@@ -54,6 +78,15 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        if let didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(didBecomeActiveObserver)
+        }
+        // Symmetry with load(): never leave the idle timer disabled if this plugin
+        // instance goes away (defensive — Capacitor plugins normally live for the
+        // whole app lifetime).
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
@@ -79,7 +112,10 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
         do {
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
-            setIdleTimerDisabled(true)
+            DispatchQueue.main.async {
+                self.playbackRequested = true
+                self.applyIdleTimer()
+            }
             printSnapshot(label: "native.playback.activate", elapsedMs: nil, extra: nil)
             call.resolve()
         } catch {
@@ -93,7 +129,10 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func deactivatePlayback(_ call: CAPPluginCall) {
-        setIdleTimerDisabled(false)
+        DispatchQueue.main.async {
+            self.playbackRequested = false
+            self.applyIdleTimer()
+        }
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setActive(false, options: [.notifyOthersOnDeactivation])
@@ -109,11 +148,31 @@ public class AudioRouteDiagnosticsPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    private func setIdleTimerDisabled(_ disabled: Bool) {
-        // isIdleTimerDisabled must be touched on the main thread.
+    // Keep the screen awake (disable the iOS idle timer) WITHOUT touching the
+    // audio session — safe to call during the ElevenLabs voice/mic flow and while
+    // a meditation is generating. Idempotent. NOTE: this only stops the automatic
+    // idle lock; a manual side-button lock still suspends the app.
+    @objc func keepAwake(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            UIApplication.shared.isIdleTimerDisabled = disabled
+            self.keepAwakeRequested = true
+            self.applyIdleTimer()
+            self.printSnapshot(label: "native.keep-awake", elapsedMs: nil, extra: nil)
+            call.resolve()
         }
+    }
+
+    @objc func allowSleep(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.keepAwakeRequested = false
+            self.applyIdleTimer()
+            self.printSnapshot(label: "native.allow-sleep", elapsedMs: nil, extra: nil)
+            call.resolve()
+        }
+    }
+
+    // Re-applies the OR of every keep-awake reason. Must run on the main thread.
+    private func applyIdleTimer() {
+        UIApplication.shared.isIdleTimerDisabled = keepAwakeRequested || playbackRequested
     }
 
     private func makeSnapshot(label: String, elapsedMs: Double?, extra: [String: Any]?) -> [String: Any] {

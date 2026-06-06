@@ -9,6 +9,13 @@ import { answersApi } from './state/answers';
 import { personaApi } from './state/persona';
 import { hasCompletedLocalProfile } from './lib/profile';
 
+// Silence verbose internal diagnostics (voice / audio-route / OTA) in production
+// builds so they don't leak in the shipped App Store / web bundle. warn + error
+// are kept for genuine crash diagnostics.
+if (import.meta.env.PROD) {
+  console.log = console.debug = console.info = () => {};
+}
+
 // After a long lock/background, iOS can reload the WKWebView and reset the hash
 // to the default welcome screen — even though auth + profile persist in
 // localStorage — which reads to the user as being "logged out". Before React
@@ -23,6 +30,13 @@ function restoreLaunchRoute(): void {
 }
 
 restoreLaunchRoute();
+
+// Native (Capacitor) builds run full-screen on every device, iPad included. Flag
+// the document so the layout fills the screen with a centered content column
+// instead of the desktop browser's small phone-frame card (App Store Guideline 4).
+if (Capacitor.isNativePlatform()) {
+  document.documentElement.classList.add('is-native');
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

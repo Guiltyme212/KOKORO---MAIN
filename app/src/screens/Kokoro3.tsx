@@ -50,6 +50,7 @@ import {
   startConversationAudioElementNudge,
 } from '../lib/audioElementDiagnostics';
 import { stopAudioStream, unlockAudio } from '../lib/audioUnlock';
+import { setWakeLock } from '../lib/wakeLock';
 import { isLibraryAvailable } from '../lib/library';
 import type { LibraryItem } from '../lib/types-meditation';
 import { haptic } from '../lib/telegram';
@@ -71,6 +72,11 @@ import {
 import { useLibrary } from '../state/library';
 
 const A = '/kokoro3/';
+
+// Support / content-report contact (Guideline 1.2) — a monitored inbox.
+const SUPPORT_EMAIL = 'dan@aiboostly.com';
+const PRIVACY_URL = 'https://kokoromind.com/privacy.html';
+const TERMS_URL = 'https://kokoromind.com/terms.html';
 
 const SOFT_NAMES = ['Love', 'Babe', 'Honey', 'Baby', 'Sweetheart', 'Sunshine', 'Kitten'];
 const MAIN_GOALS = [
@@ -737,7 +743,7 @@ export function Welcome3({ goto }: ScreenProps) {
           </button>
         )}
         {appleError && <p className="k3-auth-error" role="alert">{appleError}</p>}
-        <button className="k3-link" onClick={() => goto('home')}>I already have an account</button>
+        <button className="k3-link" onClick={() => goto('home')}>Continue without signing in</button>
         <button
           className="k3-link"
           style={{ marginTop: 6, opacity: 0.45, fontSize: '0.78em' }}
@@ -1147,6 +1153,15 @@ export function Chat3({ goto }: ScreenProps) {
   const { answers, setAnswer } = useAnswers();
   const [entryFirstMessage] = useState(() => takeChatFirstMessage());
   const [chatReturnRoute] = useState<Route>(() => readChatReturnRoute());
+  // Guideline 5.1.2(i): get explicit consent before any voice/text is sent to
+  // third-party AI (ElevenLabs / LLM / Suno). Shown once, then remembered.
+  const [aiConsent, setAiConsent] = useState(() => {
+    try {
+      return localStorage.getItem('kokoro_ai_consent') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [messages, setMessages] = useState<ChatMessage[]>(() => (
     entryFirstMessage
       ? [{ id: 'entry-first-message', role: 'kokoro', text: entryFirstMessage }]
@@ -1240,6 +1255,29 @@ export function Chat3({ goto }: ScreenProps) {
   const generationError = progressSlot?.error;
   const generationStartedAt = progressSlot?.startedAt ?? 0;
   const result = selectedVibe ? byVibe[selectedVibe] : undefined;
+
+  // Keep the screen awake while a meditation is generating so the phone can't
+  // auto-lock and suspend the app mid-stream (which surfaces as "Could not reach
+  // Kokoro's server"). Native idle-timer on iOS — does not touch the audio/voice
+  // flow. A manual lock still suspends the app; that case recovers on resume.
+  useEffect(() => {
+    const generating = phase === 'starting' || phase === 'script' || phase === 'streaming';
+    setWakeLock('generation', generating);
+    return () => setWakeLock('generation', false);
+  }, [phase]);
+
+  // TEMPORARILY DISABLED (2026-06-06) to isolate a "voice silent on device" report.
+  // This is the only keep-awake that runs during the live voice greeting; it's
+  // idle-timer only and shouldn't affect audio, but we're A/B-testing to be sure.
+  // If voice is still silent with this off, the cause is elsewhere — re-enable.
+  //
+  // Keep the screen awake the whole time the voice-chat screen is open, so it
+  // doesn't dim/auto-lock between turns while the user is reading Kokoro's reply
+  // or deciding what to say. Released when leaving chat.
+  // useEffect(() => {
+  //   setWakeLock('chat', true);
+  //   return () => setWakeLock('chat', false);
+  // }, []);
 
   const autoSavedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -1881,6 +1919,7 @@ export function Chat3({ goto }: ScreenProps) {
 
   const openResult = () => {
     if (!selectedVibe) return;
+    unlockAudio(); // prime audio inside the tap so the player can autoplay on iOS
     generatedMeditationApi.selectVibeAsCurrent(selectedVibe);
     goto('player');
   };
@@ -1900,6 +1939,44 @@ export function Chat3({ goto }: ScreenProps) {
 
   return (
     <Frame className="k3-chat-frame">
+      {!aiConsent && (
+        <div className="k3-ai-consent" role="dialog" aria-modal="true" aria-label="AI processing notice">
+          <div className="k3-ai-consent-card">
+            <h2>Before we begin</h2>
+            <p>
+              Kokoro creates your meditation using AI. Your voice and messages are processed by{' '}
+              <strong>ElevenLabs</strong> (voice), an <strong>AI language model</strong> (to write
+              your meditation), and <strong>Suno</strong> (to create the audio). It's sent securely
+              and isn't used to identify you.
+            </p>
+            <button
+              type="button"
+              className="k3-ai-consent-accept"
+              onClick={() => {
+                try {
+                  localStorage.setItem('kokoro_ai_consent', '1');
+                } catch {
+                  /* storage unavailable */
+                }
+                haptic.light();
+                setAiConsent(true);
+              }}
+            >
+              Continue
+            </button>
+            <button type="button" className="k3-ai-consent-decline" onClick={() => goto(chatReturnRoute)}>
+              Not now
+            </button>
+            <button
+              type="button"
+              className="k3-ai-consent-link"
+              onClick={() => window.open(PRIVACY_URL, '_blank')}
+            >
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+      )}
       <header className="k3-chat-top">
         <BackButton
           onClick={() => {
@@ -2368,6 +2445,14 @@ export function Player3({ goto }: ScreenProps) {
 
       <div className="k3-player-done">
         <PrimaryButton onClick={() => goto('home')}>Home</PrimaryButton>
+        <a
+          className="k3-report-link"
+          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+            'Report a Kokoro meditation',
+          )}&body=${encodeURIComponent(`Meditation ID: ${generated.meditationId}\n\nWhat's wrong with this meditation:\n`)}`}
+        >
+          Report this meditation
+        </a>
       </div>
     </Frame>
   );
@@ -2502,6 +2587,7 @@ export function Home3({ goto }: ScreenProps) {
 
   const playVibe = (vibe: Vibe) => {
     if (byVibe[vibe]) {
+      unlockAudio();
       generatedMeditationApi.selectVibeAsCurrent(vibe);
       goto('player');
     } else {
@@ -2537,7 +2623,7 @@ export function Home3({ goto }: ScreenProps) {
         </button>
 
         {generated && (
-          <button className="k3-continue-card" onClick={() => goto('player')}>
+          <button className="k3-continue-card" onClick={() => { unlockAudio(); goto('player'); }}>
             <span>Continue</span>
             <strong>{VIBE_CARDS[generated.vibe].title} meditation is ready</strong>
             <Send size={16} />
@@ -2583,9 +2669,6 @@ export function Home3({ goto }: ScreenProps) {
                 <span className="k3-recent-sub">{libraryItemSubtitle(item)}</span>
                 <div className="k3-recent-foot">
                   <span className="k3-recent-duration">{formatDuration(item.durationSec)}</span>
-                  <span className="k3-recent-play" aria-hidden="true">
-                    <Play size={12} fill="currentColor" />
-                  </span>
                 </div>
               </button>
               );
@@ -2611,9 +2694,6 @@ export function Home3({ goto }: ScreenProps) {
                 <div className="k3-recent-foot">
                   <span className="k3-recent-duration">
                     {byVibe[vibe] ? formatDuration(byVibe[vibe]?.durationSec) : 'Create'}
-                  </span>
-                  <span className="k3-recent-play" aria-hidden="true">
-                    <Play size={12} fill="currentColor" />
                   </span>
                 </div>
               </button>
@@ -2733,6 +2813,7 @@ export function Progress3({ goto }: ScreenProps) {
 
   const openVibe = (vibe: Vibe) => {
     if (!byVibe[vibe]) return;
+    unlockAudio();
     generatedMeditationApi.selectVibeAsCurrent(vibe);
     goto('player');
   };
@@ -2810,6 +2891,31 @@ export function You3({ goto }: ScreenProps) {
     goto('welcome');
   };
 
+  // Apple Sign In creates an account, so Apple requires an in-app, discoverable
+  // way to delete it (Guideline 5.1.1(v)). The account is local-only (the Apple
+  // credential is never sent to any server), so this fully + permanently erases
+  // the account record and all associated data from the device.
+  const deleteAccount = () => {
+    const ok = window.confirm(
+      'Delete your account and all your data?\n\nThis permanently removes your name, saved meditations, and Apple sign-in from this device. This cannot be undone.',
+    );
+    if (!ok) return;
+    haptic.medium();
+    authApi.signOut(); // removes the saved Apple credential (kokoro_auth)
+    reset(); // kokoro_answers
+    personaApi.reset(); // kokoro_persona
+    generatedMeditationApi.resetAll();
+    meditationProgressApi.reset();
+    try {
+      localStorage.removeItem('kokoro_local_library');
+      localStorage.removeItem('kokoro_ai_consent');
+      sessionStorage.clear();
+    } catch {
+      /* storage unavailable */
+    }
+    goto('welcome');
+  };
+
   return (
     <Frame className="k3-you-frame">
       <header className="k3-companion-head">
@@ -2817,6 +2923,7 @@ export function You3({ goto }: ScreenProps) {
         <h1>You</h1>
       </header>
 
+      <div className="k3-you-scroll">
       <section className="k3-you-card">
         <div className="k3-you-avatar">
           <UserRound size={30} />
@@ -2845,6 +2952,15 @@ export function You3({ goto }: ScreenProps) {
         <button onClick={() => goto('name')}>Edit name</button>
         <button onClick={() => openReturningChat(goto, answers, 'you')}>Talk now</button>
         <button className="is-muted" onClick={startOver}>Start over</button>
+        <button className="is-destructive" onClick={deleteAccount}>Delete account</button>
+      </div>
+
+      <div className="k3-you-legal">
+        <button type="button" onClick={() => window.open(PRIVACY_URL, '_blank')}>Privacy Policy</button>
+        <span aria-hidden="true">·</span>
+        <button type="button" onClick={() => window.open(TERMS_URL, '_blank')}>Terms</button>
+        <p>For relaxation &amp; mindfulness. Not a medical device.</p>
+      </div>
       </div>
 
       <TabBar active="you" goto={goto} />
@@ -2879,7 +2995,6 @@ export function Library3({ goto }: ScreenProps) {
       {items.length > 0 && (
         <div className="k3-library-list">
           {items.map((item) => {
-            const artwork = libraryItemArtwork(item);
             return (
               <button
                 key={item.meditationId}
@@ -2887,9 +3002,6 @@ export function Library3({ goto }: ScreenProps) {
                 style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
                 onClick={() => openLibraryItem(item, goto)}
               >
-                <div className="k3-library-thumb">
-                  <InlineLoopVideo file={artwork.thumb} poster={artwork.poster} />
-                </div>
                 <div className="k3-library-info">
                   <div className="k3-library-meta">
                     <span>{VIBE_CARDS[item.vibe].title}</span>
@@ -2899,9 +3011,6 @@ export function Library3({ goto }: ScreenProps) {
                   <p>{libraryItemSubtitle(item)}</p>
                   <small>{formatDuration(item.durationSec)}</small>
                 </div>
-                <span className="k3-library-play" aria-hidden="true">
-                  <Play size={13} fill="currentColor" />
-                </span>
               </button>
             );
           })}
@@ -2947,7 +3056,7 @@ function TabBar({ active, goto }: { active: 'home' | 'library' | 'talk' | 'progr
               }
             }}
           >
-            <Icon size={19} />
+            <Icon size={25} />
             <span>{tab.label}</span>
           </button>
         );

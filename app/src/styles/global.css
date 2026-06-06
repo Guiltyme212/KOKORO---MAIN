@@ -1,4 +1,8 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  /* No grey tap-flash box on buttons in the iOS WebView. */
+  -webkit-tap-highlight-color: transparent;
+}
 
 html, body, #root {
   margin: 0;
@@ -9,6 +13,10 @@ html, body, #root {
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* A native app shouldn't let you long-press-select UI text like a web page. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 body {
@@ -38,6 +46,9 @@ input, textarea {
   background: transparent;
   border: none;
   outline: none;
+  /* Re-enable selection where the user actually types. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 a { color: inherit; text-decoration: none; }

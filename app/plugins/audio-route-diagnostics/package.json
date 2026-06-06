@@ -6,6 +6,11 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "ios",
+    "dist",
+    "KokoroAudioRouteDiagnostics.podspec"
+  ],
   "peerDependencies": {
     "@capacitor/core": "^6.0.0"
   },
