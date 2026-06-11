@@ -4,6 +4,11 @@
   "description": "Kokoro-only iOS audio route diagnostics for Capacitor voice debugging.",
   "license": "UNLICENSED",
   "private": true,
+  "files": [
+    "ios",
+    "dist",
+    "KokoroAudioRouteDiagnostics.podspec"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "peerDependencies": {

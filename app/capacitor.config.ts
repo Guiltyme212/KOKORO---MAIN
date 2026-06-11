@@ -29,7 +29,12 @@ const config: CapacitorConfig = {
       overlaysWebView: true
     },
     CapacitorUpdater: {
-      autoUpdate: true,
+      // Disabled for the App Store review build so reviewers always run the
+      // bundled web code from this binary, not a stale or mismatched OTA.
+      // Re-enable after approval only when the production channel is published
+      // from the exact same dist.
+      autoUpdate: false,
+      version: '1.0.19',
       defaultChannel: 'production',
       resetWhenUpdate: true,
       directUpdate: false,

@@ -7,11 +7,17 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 export const isNative = (): boolean => Capacitor.isNativePlatform();
 export const platform = (): string => Capacitor.getPlatform();
 
+function isIpadLike(): boolean {
+  return (
+    /iPad/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function initNative(): void {
   if (!isNative()) return;
 
   void StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-  void StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
 
   if (platform() === 'ios') {
     // KeyboardResize.None keeps the body at full viewport height — the keyboard
@@ -19,8 +25,10 @@ export function initNative(): void {
     // With KeyboardResize.Body, both window.innerHeight AND
     // visualViewport.height shrink together, so the App.tsx visualViewport
     // tracker reads kbH=0 and our CSS lift never fires.
-    void Keyboard.setResizeMode({ mode: KeyboardResize.None }).catch(() => {});
-    void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+    if (!isIpadLike()) {
+      void Keyboard.setResizeMode({ mode: KeyboardResize.None }).catch(() => {});
+      void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+    }
 
     const root = document.documentElement;
     void Keyboard.addListener('keyboardWillShow', (info) => {

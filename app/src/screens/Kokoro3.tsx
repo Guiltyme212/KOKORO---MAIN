@@ -72,7 +72,33 @@ import { useLibrary } from '../state/library';
 
 const A = '/kokoro3/';
 
+// Support / content-report contact (Guideline 1.2) — a monitored inbox.
+const SUPPORT_EMAIL = 'dan@aiboostly.com';
+const PRIVACY_URL = 'https://kokoromind.com/privacy.html';
+const TERMS_URL = 'https://kokoromind.com/terms.html';
+
 const SOFT_NAMES = ['Love', 'Babe', 'Honey', 'Baby', 'Sweetheart', 'Sunshine', 'Kitten'];
+
+// True only on the native tablet (iPad) build at tablet width — used to opt the
+// chat screen into the iPad-only "Kokoro's words stay up top, the generating bar
+// drops to the bottom" layout, leaving the iPhone layout completely untouched.
+function useIsPadNative(): boolean {
+  const query = '(min-width: 601px)';
+  const read = () =>
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.(query).matches &&
+    document.documentElement.classList.contains('is-native');
+  const [isPad, setIsPad] = useState<boolean>(read);
+  useEffect(() => {
+    const mq = window.matchMedia?.(query);
+    if (!mq) return;
+    const update = () => setIsPad(read());
+    update();
+    mq.addEventListener?.('change', update);
+    return () => mq.removeEventListener?.('change', update);
+  }, []);
+  return isPad;
+}
 const MAIN_GOALS = [
   'Calm me down',
   'Help me sleep',
@@ -270,6 +296,61 @@ const VIBE_CARDS: Record<Vibe, {
   },
 };
 
+// Safe VIBE_CARDS accessor. Keys coming from the backend stream
+// (result.vibe / generated.vibe — JSON.parse'd with no runtime validation) or
+// from persisted localStorage (item.vibe / a stale answers.vibe) may fall
+// outside the 5-key union. A bare VIBE_CARDS[badKey] is undefined and reading
+// .title/.thumb/etc throws during render → blank screen. Default to zen.
+const vibeCard = (v: string | undefined | null) => VIBE_CARDS[v as Vibe] ?? VIBE_CARDS.zen;
+const TYPED_MEDITATION_PROMPT =
+  "Okay. I have enough to shape this into something useful. Choose how it should land.";
+
+function typedMessageLooksLikeGreeting(text: string): boolean {
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .replace(/[!.?,\s]+$/g, '');
+  return /^(hey|hi|hello|hii|hiya|yo|sup|heyy|hey kokoro|hi kokoro|hello kokoro)$/.test(normalized);
+}
+
+function typedMessageAsksForMeditation(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return /\b(make it|turn this|i'?m ready|ready|help me sleep|calm me down|wind me down)\b/.test(normalized)
+    || (
+      /\b(make|create|generate|start|give me|need|want|please)\b/.test(normalized)
+      && /\b(meditation|meditate|calm|sleep|wind down|reset|ground|breathe|breath)\b/.test(normalized)
+    );
+}
+
+// Typed-only guard: an informational / exploratory message ("tell me more about
+// meditation", "what is this", "how does it work", "why meditate") should reach
+// the agent so it can explain and *offer* to make one — not trip the turn-count
+// shortcut below that tears down the session and jumps straight to the style
+// cards. Voice has no such shortcut, which is why voice already behaves this way.
+function typedMessageIsInfoSeeking(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (normalized.includes('?')) return true;
+  return /\b(tell me more|more about|what'?s|what is|what are|how (?:do|does|can|would|long)|why|explain|curious|wondering|wonder|learn|teach me|do you|does it|is it|are there)\b/.test(normalized);
+}
+
+function typedFollowupFor(text: string): string {
+  const clean = text.trim();
+
+  if (typedMessageLooksLikeGreeting(clean)) {
+    return "Hey. I'm here with you. Tell me what's been on your mind today.";
+  }
+
+  if (clean.length < 18) {
+    return 'I hear you. Give me one real sentence about what is happening, and I will stay with it.';
+  }
+
+  if (/\?/.test(clean) && /\b(meditation|meditate|benefit|benefits|why)\b/i.test(clean)) {
+    return "Meditation can help your body slow down enough to actually hear yourself. Tell me what's going on for you, and I can shape one around it.";
+  }
+
+  return 'Okay, I am with you. What is the hardest part of that right now?';
+}
+
 type ScreenProps = { goto: (r: Route) => void };
 type ChatMessage = { id: string; role: 'kokoro' | 'user' | 'system'; text: string };
 
@@ -415,6 +496,8 @@ function MascotVideo({
   play?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const posterSrc = poster ? `${A}${poster}` : `${A}kokoro-meditate.png`;
 
   useEffect(() => {
     const v = videoRef.current;
@@ -431,29 +514,32 @@ function MascotVideo({
     }
   }, [play]);
 
-  /* Always autoplay muted so the first frame loads; if `play` is false,
-     pause back to frame 0 as soon as decoded data is available. This way
-     the paused state matches the video's actual first frame instead of
-     showing a separate poster image. */
   return (
-    <video
-      ref={videoRef}
-      className={`k3-mascot ${className}`}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="auto"
-      poster={poster ? `${A}${poster}` : undefined}
-      onLoadedData={(event) => {
-        if (!play) {
-          event.currentTarget.pause();
-          event.currentTarget.currentTime = 0;
-        }
-      }}
-    >
-      <source src={`${A}${file}`} type="video/mp4" />
-    </video>
+    <div className={`k3-mascot-video ${videoReady ? 'is-video-ready' : ''} ${className}`}>
+      <img src={posterSrc} alt="" draggable={false} />
+      <video
+        ref={videoRef}
+        className={videoReady ? 'is-ready' : ''}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        poster={posterSrc}
+        onLoadedData={(event) => {
+          setVideoReady(true);
+          if (!play) {
+            event.currentTarget.pause();
+            event.currentTarget.currentTime = 0;
+          }
+        }}
+        onCanPlay={() => setVideoReady(true)}
+        onPlaying={() => setVideoReady(true)}
+        onError={() => setVideoReady(false)}
+      >
+        <source src={`${A}${file}`} type="video/mp4" />
+      </video>
+    </div>
   );
 }
 
@@ -541,6 +627,7 @@ function PeekVideo({
   file,
   loopFile,
   stillImage,
+  poster,
   active = true,
   variant = 'feather',
   className = '',
@@ -548,6 +635,7 @@ function PeekVideo({
   file: string;
   loopFile?: string;
   stillImage?: string;
+  poster?: string;
   active?: boolean;
   variant?: 'feather' | 'soft' | 'right';
   className?: string;
@@ -559,7 +647,10 @@ function PeekVideo({
       : 'k3-peek-wrap--feather';
 
   const [introDone, setIntroDone] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
+  const [loopReady, setLoopReady] = useState(false);
   const loopRef = useRef<HTMLVideoElement | null>(null);
+  const fallbackImage = stillImage || poster || 'kokoro-peak.png';
 
   useEffect(() => {
     if (!introDone) return;
@@ -575,8 +666,21 @@ function PeekVideo({
 
   if (!loopFile) {
     return (
-      <div className={`k3-peek-wrap ${variantClass} ${className}`}>
-        <video autoPlay loop muted playsInline>
+      <div className={`k3-peek-wrap ${introReady ? 'is-video-ready' : ''} ${variantClass} ${className}`}>
+        <img src={`${A}${fallbackImage}`} alt="" draggable={false} />
+        <video
+          className={introReady ? 'is-ready' : ''}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster={`${A}${fallbackImage}`}
+          onLoadedData={() => setIntroReady(true)}
+          onCanPlay={() => setIntroReady(true)}
+          onPlaying={() => setIntroReady(true)}
+          onError={() => setIntroReady(false)}
+        >
           <source src={`${A}${file}`} type="video/mp4" />
         </video>
       </div>
@@ -600,10 +704,18 @@ function PeekVideo({
 
   return (
     <div className={`k3-peek-wrap ${variantClass} ${className}`}>
+      <img
+        src={`${A}${fallbackImage}`}
+        alt=""
+        draggable={false}
+        style={{ ...layerStyle, opacity: !introReady || (showLoop && !loopReady) || (introDone && !showLoop && !showStill) ? 1 : 0 }}
+      />
       <video
         autoPlay
         muted
         playsInline
+        preload="auto"
+        poster={`${A}${fallbackImage}`}
         onEnded={() => {
           setIntroDone(true);
           const v = loopRef.current;
@@ -612,7 +724,11 @@ function PeekVideo({
             void v.play().catch(() => {});
           }
         }}
-        style={{ ...layerStyle, opacity: introDone ? 0 : 1 }}
+        onLoadedData={() => setIntroReady(true)}
+        onCanPlay={() => setIntroReady(true)}
+        onPlaying={() => setIntroReady(true)}
+        onError={() => setIntroReady(false)}
+        style={{ ...layerStyle, opacity: introReady && !introDone ? 1 : 0 }}
       >
         <source src={`${A}${file}`} type="video/mp4" />
       </video>
@@ -622,7 +738,12 @@ function PeekVideo({
         muted
         playsInline
         preload="auto"
-        style={{ ...layerStyle, opacity: showLoop ? 1 : 0 }}
+        poster={`${A}${fallbackImage}`}
+        onLoadedData={() => setLoopReady(true)}
+        onCanPlay={() => setLoopReady(true)}
+        onPlaying={() => setLoopReady(true)}
+        onError={() => setLoopReady(false)}
+        style={{ ...layerStyle, opacity: showLoop && loopReady ? 1 : 0 }}
       >
         <source src={`${A}${loopFile}`} type="video/mp4" />
       </video>
@@ -647,14 +768,24 @@ function BlendedVideo({
   className?: string;
   poster?: string;
 }) {
+  const [videoReady, setVideoReady] = useState(false);
+  const posterSrc = poster ? `${A}${poster}` : `${A}kokoro-meditate.png`;
+
   return (
-    <div className={`k3-blended-video ${className}`}>
+    <div className={`k3-blended-video ${videoReady ? 'is-video-ready' : ''} ${className}`}>
+      <img src={posterSrc} alt="" draggable={false} />
       <video
+        className={videoReady ? 'is-ready' : ''}
         autoPlay
         loop
         muted
         playsInline
-        poster={poster ? `${A}${poster}` : undefined}
+        preload="auto"
+        poster={posterSrc}
+        onLoadedData={() => setVideoReady(true)}
+        onCanPlay={() => setVideoReady(true)}
+        onPlaying={() => setVideoReady(true)}
+        onError={() => setVideoReady(false)}
       >
         <source src={`${A}${file}`} type="video/mp4" />
       </video>
@@ -737,7 +868,7 @@ export function Welcome3({ goto }: ScreenProps) {
           </button>
         )}
         {appleError && <p className="k3-auth-error" role="alert">{appleError}</p>}
-        <button className="k3-link" onClick={() => goto('home')}>I already have an account</button>
+        <button className="k3-link" onClick={() => goto('home')}>Continue without signing in</button>
         <button
           className="k3-link"
           style={{ marginTop: 6, opacity: 0.45, fontSize: '0.78em' }}
@@ -1147,6 +1278,15 @@ export function Chat3({ goto }: ScreenProps) {
   const { answers, setAnswer } = useAnswers();
   const [entryFirstMessage] = useState(() => takeChatFirstMessage());
   const [chatReturnRoute] = useState<Route>(() => readChatReturnRoute());
+  // Guideline 5.1.2(i): get explicit consent before any voice/text is sent to
+  // third-party AI (ElevenLabs / LLM / Suno). Shown once, then remembered.
+  const [aiConsent, setAiConsent] = useState(() => {
+    try {
+      return localStorage.getItem('kokoro_ai_consent') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [messages, setMessages] = useState<ChatMessage[]>(() => (
     entryFirstMessage
       ? [{ id: 'entry-first-message', role: 'kokoro', text: entryFirstMessage }]
@@ -1180,7 +1320,16 @@ export function Chat3({ goto }: ScreenProps) {
       return null;
     }
   });
-  const [selectedVibe, setSelectedVibe] = useState<Vibe | ''>(answers.vibe || '');
+  // A *fresh* conversation — any entry that set its own opening line via
+  // setChatEntry ("Talk to Kokoro", 60-second reset, Wind down, "make one in X
+  // style") — must start with no selected vibe. Otherwise the persisted
+  // answers.vibe + byVibe record from a previously-finished meditation
+  // resurfaces its result card in the new session (the reported stale-card bug).
+  // Returning to the chat you were already in (e.g. the Player back button, which
+  // sets no entry message) keeps answers.vibe so your just-made meditation shows.
+  const [selectedVibe, setSelectedVibe] = useState<Vibe | ''>(
+    entryFirstMessage ? '' : (answers.vibe || ''),
+  );
   const [agentError, setAgentError] = useState<string | null>(null);
   const [startingVoice, setStartingVoice] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
@@ -1202,10 +1351,20 @@ export function Chat3({ goto }: ScreenProps) {
   const voicePrewarmRunRef = useRef(0);
   const stopVoiceAudioElementNudgeRef = useRef<(() => void) | null>(null);
   const coldVoiceIntroUsedRef = useRef(false);
+  const pendingTextMessageRef = useRef<string | null>(null);
   // True while the mic button is held (push-to-talk). Drives mute on connect.
   const wantMicLiveRef = useRef(false);
   // Set when the user releases during 'connecting'; the connect effect flushes it.
   const pendingMuteRef = useRef(false);
+  // Set when the mic is pressed while a text session is open. The text session is
+  // torn down first; voice is then opened from onDisconnect, so the old session's
+  // late onDisconnect can't clobber the new voice session's conversationKind.
+  const startVoiceAfterTeardownRef = useRef(false);
+  // The kind of the session we last intended to start. onConnect re-asserts
+  // conversationKind from this, so a prior session's late onDisconnect (which
+  // nulls conversationKind) can never leave a freshly-connected session in the
+  // wrong kind — the authoritative-on-connect guard for the text<->voice swap.
+  const intendedKindRef = useRef<'voice' | 'text' | null>(null);
   const stylePanelRef = useRef<HTMLDivElement | null>(null);
   const [dismissedErrorVibes, setDismissedErrorVibes] = useState<Set<Vibe>>(() => new Set());
 
@@ -1222,6 +1381,18 @@ export function Chat3({ goto }: ScreenProps) {
       /* session storage unavailable */
     }
   }, [showStyles]);
+
+  // Leaving the chat screen should dismiss the style picker — otherwise it's
+  // persisted in sessionStorage and pops back up next time chat mounts.
+  useEffect(() => {
+    return () => {
+      try {
+        sessionStorage.removeItem('kokoro_chat_show_styles');
+      } catch {
+        /* session storage unavailable */
+      }
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -1240,6 +1411,23 @@ export function Chat3({ goto }: ScreenProps) {
   const generationError = progressSlot?.error;
   const generationStartedAt = progressSlot?.startedAt ?? 0;
   const result = selectedVibe ? byVibe[selectedVibe] : undefined;
+  const isGeneratingMeditation = Boolean(selectedVibe && phase !== 'idle' && phase !== 'error' && !result);
+  const isPadNative = useIsPadNative();
+
+  // The white "generating" card. On BOTH iPhone and iPad it now drops into the
+  // same lower slot the orange result card uses (iPhone -> .k3-making-bar, iPad
+  // -> .k3-pad-making-bar), so Kokoro's words stay visible up top and the white
+  // box hands off to the orange card in place, at the same size.
+  const makingCard = (
+    <div className="k3-making-card">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span>{phaseLabel(phase)}</span>
+        <strong>{vibeCard(selectedVibe).title}</strong>
+      </div>
+      {phase === 'ready' ? <Check size={18} /> : <Wind size={18} />}
+      <MakingProgress phase={phase} startedAt={generationStartedAt} />
+    </div>
+  );
 
   const autoSavedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -1371,12 +1559,28 @@ export function Chat3({ goto }: ScreenProps) {
         ...info,
         elapsedMs: voiceElapsed(voiceStartAtRef.current),
       });
+      // Authoritative on connect: a prior session's late onDisconnect may have
+      // nulled conversationKind after we set it (text<->voice swap). Heal it from
+      // the kind we actually started, so mic/mute logic always sees the truth.
+      if (intendedKindRef.current) setConversationKind(intendedKindRef.current);
       nudgeConversationAudioElements('voice.on-connect', voiceElapsed(voiceStartAtRef.current));
       logAudioRoute('voice.on-connect', voiceElapsed(voiceStartAtRef.current), {
         conversationId: typeof info.conversationId === 'string' ? info.conversationId : undefined,
       });
       stopVoicePrewarm(2500);
       setStartingVoice(false);
+      const pendingText = pendingTextMessageRef.current;
+      if (pendingText) {
+        pendingTextMessageRef.current = null;
+        window.setTimeout(() => {
+          try {
+            void sendUserMessage(pendingText);
+          } catch (error) {
+            console.error('[11labs] send pending typed message failed', error);
+            appendMessage('kokoro', typedFollowupFor(pendingText));
+          }
+        }, 0);
+      }
     },
     onDisconnect: (details) => {
       console.log('[11labs] onDisconnect', details);
@@ -1385,8 +1589,27 @@ export function Chat3({ goto }: ScreenProps) {
         details,
       });
       stopVoicePrewarm();
-      setStartingVoice(false);
       setConversationKind(null);
+      // The mic was pressed while a text session was open: now that it's fully
+      // torn down, open the voice session (audio was already unlocked inside the
+      // tap gesture). Deferring to here avoids this disconnect racing the new
+      // voice session's conversationKind. setTimeout(0) lets this callback settle.
+      // Keep startingVoice true across the handoff so the mic stays 'connecting'.
+      if (startVoiceAfterTeardownRef.current) {
+        // Keep the ref SET across this tick so a mic press in the gap before the
+        // deferred start is still guarded; the deferred callback (or the 600ms
+        // safety net, whichever runs first) clears it exactly once and starts
+        // voice exactly once. Clearing it here would briefly open the guard and
+        // let a stray press start a second session.
+        window.setTimeout(() => {
+          if (startVoiceAfterTeardownRef.current) {
+            startVoiceAfterTeardownRef.current = false;
+            void beginVoiceSession();
+          }
+        }, 0);
+      } else {
+        setStartingVoice(false);
+      }
     },
     onStatusChange: (info) => {
       console.log('[11labs] onStatusChange', info);
@@ -1536,6 +1759,7 @@ export function Chat3({ goto }: ScreenProps) {
     options: StartSessionOptions,
   ) => {
     setAgentError(null);
+    intendedKindRef.current = kind;
     setConversationKind(kind);
 
     const fetchStartedAt = performance.now();
@@ -1575,7 +1799,11 @@ export function Chat3({ goto }: ScreenProps) {
         signedUrl,
       } as Parameters<typeof startSession>[0]);
     } catch (error) {
-      if (!ELEVENLABS_AGENT_ID) throw error;
+      // Text-only fallback through public agentId can make the ElevenLabs React
+      // SDK render a text conversation path that throws during render
+      // ("setMicMuted is not supported in text conversations"). Let the typed
+      // chat caller use the local style-picker fallback instead.
+      if (kind === 'text' || !ELEVENLABS_AGENT_ID) throw error;
       console.warn('[11labs] signed URL unavailable, trying public agent ID fallback', error);
       console.log('[11labs] startSession fallback', {
         kind,
@@ -1596,43 +1824,62 @@ export function Chat3({ goto }: ScreenProps) {
     }
   };
 
-  const sendTypedMessage = (text: string) => {
-    try {
-      sendUserMessage(text);
-    } catch (error) {
-      console.error('[11labs] sendUserMessage failed', error);
-      throw error;
+  const showTypedMeditationStyles = () => {
+    setAgentError(null);
+    pendingTextMessageRef.current = null;
+    if (conversationKind === 'text') {
+      if (status === 'connected') {
+        try {
+          endSession();
+        } catch {
+          /* stale SDK session - ignore */
+        }
+      }
+      setConversationKind(null);
+    }
+    setShowStyles(true);
+    setSuggestedVibe(null);
+    if (latestKokoro?.text !== TYPED_MEDITATION_PROMPT) {
+      appendMessage('kokoro', TYPED_MEDITATION_PROMPT);
     }
   };
 
-  const startTextSessionAndSend = async (text: string) => {
-    const options = buildSessionOptions('text', {
-      onConnect: () => {
-        window.setTimeout(() => {
-          try {
-            sendTypedMessage(text);
-          } catch (error) {
-            setAgentError(friendlyApiError(error));
-            setShowStyles(true);
-            appendMessage(
-              'kokoro',
-              "I couldn't connect live chat, but I can still make a meditation from what you wrote. Pick a style.",
-            );
-          }
-        }, 0);
-      },
-    });
+  const sendTypedToAgent = async (text: string) => {
+    setAgentError(null);
+    setShowStyles(false);
+    setSuggestedVibe(null);
 
+    const sendNow = () => {
+      try {
+        void sendUserMessage(text);
+        return true;
+      } catch (error) {
+        console.error('[11labs] send typed message failed', error);
+        return false;
+      }
+    };
+
+    if (status === 'connected' && conversationKind === 'text' && sendNow()) {
+      return;
+    }
+
+    if (status === 'connected') {
+      try {
+        endSession();
+      } catch {
+        /* stale SDK session - ignore */
+      }
+    }
+
+    pendingTextMessageRef.current = text;
     try {
-      await startConversationSession('text', options);
+      await startConversationSession('text', buildSessionOptions('text'));
     } catch (error) {
+      pendingTextMessageRef.current = null;
       setConversationKind(null);
+      console.error('[11labs] typed text session failed', error);
       setAgentError(friendlyApiError(error));
-      setShowStyles(true);
-      appendMessage(
-        'kokoro',
-        "I couldn't connect live chat, but I can still make a meditation from what you wrote. Pick a style.",
-      );
+      appendMessage('kokoro', typedFollowupFor(text));
     }
   };
 
@@ -1784,15 +2031,40 @@ export function Chat3({ goto }: ScreenProps) {
     }
     wantMicLiveRef.current = true;
     haptic.light();
+    // A text->voice swap is already in flight (the text session is tearing down).
+    // Ignore further presses until voice opens, so a second press can't also fire
+    // the cold-start path below and start a second voice session.
+    if (startVoiceAfterTeardownRef.current) return;
     if (status === 'connected') {
       if (conversationKind === 'voice') {
         logAudioRoute('voice.press.unmute', voiceElapsed(voiceStartAtRef.current));
         setMuted(false);
       } else {
-        // A text-only session is open — close it; the next press starts voice.
-        logAudioRoute('voice.press.end-text-session', voiceElapsed(voiceStartAtRef.current));
-        endSession();
+        // A text-only session is open. Unlock audio inside this tap (iOS needs it
+        // in-gesture), tear the text session down, and open voice from onDisconnect
+        // above. Starting voice here would let the old session's late onDisconnect
+        // null the new voice session's conversationKind. This makes the FIRST mic
+        // press after typing open voice (previously it silently took two presses).
+        logAudioRoute('voice.press.swap-text-for-voice', voiceElapsed(voiceStartAtRef.current));
+        unlockAudio();
+        pendingTextMessageRef.current = null;
+        // Show the mic as 'connecting' immediately and hold it through the
+        // teardown->voice handoff so the button never flashes the idle/green state.
+        setStartingVoice(true);
+        startVoiceAfterTeardownRef.current = true;
+        try {
+          endSession();
+        } catch {
+          /* stale SDK session - ignore */
+        }
         setConversationKind(null);
+        // Safety net if onDisconnect is delayed or never fires for this teardown.
+        window.setTimeout(() => {
+          if (startVoiceAfterTeardownRef.current) {
+            startVoiceAfterTeardownRef.current = false;
+            void beginVoiceSession();
+          }
+        }, 600);
       }
       return;
     }
@@ -1811,10 +2083,10 @@ export function Chat3({ goto }: ScreenProps) {
     wantMicLiveRef.current = false;
     // Gate on status only — a stray onDisconnect/onError can null conversationKind
     // and would otherwise strand the mic unmuted (button stuck non-gray).
-    if (status === 'connected') {
+    if (status === 'connected' && conversationKind === 'voice') {
       logAudioRoute('voice.release.mute', voiceElapsed(voiceStartAtRef.current));
       setMuted(true);
-    } else {
+    } else if (status !== 'connected') {
       // Released before the session connected — mute as soon as it does.
       pendingMuteRef.current = true;
     }
@@ -1825,7 +2097,7 @@ export function Chat3({ goto }: ScreenProps) {
   // capturing background noise. (startingVoice is cleared by the SDK
   // onConnect/onDisconnect/onError callbacks, so it isn't touched here.)
   useEffect(() => {
-    if (status === 'connected') {
+    if (status === 'connected' && conversationKind === 'voice') {
       if (!wantMicLiveRef.current || pendingMuteRef.current) {
         pendingMuteRef.current = false;
         setMuted(true);
@@ -1833,23 +2105,35 @@ export function Chat3({ goto }: ScreenProps) {
     } else if (status === 'disconnected') {
       pendingMuteRef.current = false;
     }
-  }, [status, setMuted]);
+  }, [conversationKind, status, setMuted]);
 
   const submitTyped = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
+    const userTurnsAfterSend = messagesRef.current.filter((message) => message.role === 'user').length + 1;
+    // Explicit "make me one" always fast-paths to the cards. Informational /
+    // exploratory messages defer to the agent (info + proposal) instead of the
+    // turn-count auto-jump, matching how voice already behaves.
+    const asksExplicitly = typedMessageAsksForMeditation(text);
+    const infoSeeking = typedMessageIsInfoSeeking(text);
+    const shouldOfferMeditation =
+      asksExplicitly ||
+      (!infoSeeking && userTurnsAfterSend >= 2 && text.length >= 18 && !/\?$/.test(text));
+
     setDraft('');
-    appendMessage('user', text);
-    if (status === 'connected') {
-      try {
-        sendTypedMessage(text);
-      } catch {
-        void startTextSessionAndSend(text);
-      }
-    } else {
-      void startTextSessionAndSend(text);
+    if (!shouldOfferMeditation) {
+      setShowStyles(false);
+      setSuggestedVibe(null);
     }
+    appendMessage('user', text);
+    window.setTimeout(() => {
+      if (shouldOfferMeditation) {
+        showTypedMeditationStyles();
+      } else {
+        void sendTypedToAgent(text);
+      }
+    }, 180);
   };
 
   const startMeditation = (vibe: Vibe) => {
@@ -1871,9 +2155,13 @@ export function Chat3({ goto }: ScreenProps) {
     generatedMeditationApi.resetAll();
     appendMessage('kokoro', `Okay. I am making this in ${VIBE_CARDS[vibe].title} style now. Stay with me here.`);
     if (status === 'connected') {
-      sendContextualUpdate(
-        `The user chose ${VIBE_CARDS[vibe].title} style. The app has started generating a personalized meditation in the background.`,
-      );
+      try {
+        sendContextualUpdate(
+          `The user chose ${VIBE_CARDS[vibe].title} style. The app has started generating a personalized meditation in the background.`,
+        );
+      } catch {
+        /* voice session ended while the style was selected */
+      }
     }
     kickoffMeditationFor(vibe, nextAnswers, null);
     personaApi.recordMeditation({ vibe, feeling: answers.feeling });
@@ -1881,6 +2169,7 @@ export function Chat3({ goto }: ScreenProps) {
 
   const openResult = () => {
     if (!selectedVibe) return;
+    unlockAudio(); // prime audio inside the tap so the player can autoplay on iOS
     generatedMeditationApi.selectVibeAsCurrent(selectedVibe);
     goto('player');
   };
@@ -1899,7 +2188,45 @@ export function Chat3({ goto }: ScreenProps) {
         : 'idle';
 
   return (
-    <Frame className="k3-chat-frame">
+    <Frame className={`k3-chat-frame ${isGeneratingMeditation ? 'is-generating' : ''}`}>
+      {!aiConsent && (
+        <div className="k3-ai-consent" role="dialog" aria-modal="true" aria-label="AI processing notice">
+          <div className="k3-ai-consent-card">
+            <h2>Before we begin</h2>
+            <p>
+              Kokoro creates your meditation using AI. Your voice and messages are processed by{' '}
+              <strong>ElevenLabs</strong> (voice), an <strong>AI language model</strong> (to write
+              your meditation), and <strong>Suno</strong> (to create the audio). It's sent securely
+              and isn't used to identify you.
+            </p>
+            <button
+              type="button"
+              className="k3-ai-consent-accept"
+              onClick={() => {
+                try {
+                  localStorage.setItem('kokoro_ai_consent', '1');
+                } catch {
+                  /* storage unavailable */
+                }
+                haptic.light();
+                setAiConsent(true);
+              }}
+            >
+              Continue
+            </button>
+            <button type="button" className="k3-ai-consent-decline" onClick={() => goto(chatReturnRoute)}>
+              Not now
+            </button>
+            <button
+              type="button"
+              className="k3-ai-consent-link"
+              onClick={() => window.open(PRIVACY_URL, '_blank')}
+            >
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+      )}
       <header className="k3-chat-top">
         <BackButton
           onClick={() => {
@@ -1935,7 +2262,7 @@ export function Chat3({ goto }: ScreenProps) {
 
       <div className="k3-bubble-stack">
         <div className="k3-bubble-slot k3-bubble-slot-kokoro">
-          {showStyles ? (
+          {showStyles && !isGeneratingMeditation ? (
             <div className="k3-message k3-message-kokoro k3-message-picker">
               <div className="k3-style-heading">
                 <Sparkles size={17} />
@@ -1964,24 +2291,20 @@ export function Chat3({ goto }: ScreenProps) {
         </div>
       </div>
 
-      <section className={`k3-chat-log ${showStyles ? 'has-panel' : ''} ${typeOpen ? 'is-typing-mode' : ''}`} aria-live="polite">
+      {isGeneratingMeditation && (
+        <div
+          className={`${isPadNative ? 'k3-pad-making-bar' : 'k3-making-bar'}${typeOpen ? ' is-typing-mode' : ''}`}
+        >
+          {makingCard}
+        </div>
+      )}
 
-        {selectedVibe && phase !== 'idle' && phase !== 'error' && !result && (
-          <div className="k3-making-card">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span>{phaseLabel(phase)}</span>
-              <strong>{VIBE_CARDS[selectedVibe].title}</strong>
-            </div>
-            {phase === 'ready' ? <Check size={18} /> : <Wind size={18} />}
-            <MakingProgress phase={phase} startedAt={generationStartedAt} />
-          </div>
-        )}
-
+      <section className={`k3-chat-log ${showStyles ? 'has-panel' : ''} ${typeOpen ? 'is-typing-mode' : ''} ${result ? 'has-result' : ''}`} aria-live="polite">
         {result && (phase === 'streaming' || phase === 'ready') && (
           <button className="k3-result-card" onClick={openResult}>
             <div>
               <span>Your meditation</span>
-              <strong>{VIBE_CARDS[result.vibe].title} - {formatDuration(result.durationSec)}</strong>
+              <strong>{vibeCard(result.vibe).title} - {formatDuration(result.durationSec)}</strong>
             </div>
             <Play size={22} fill="currentColor" />
           </button>
@@ -1992,7 +2315,7 @@ export function Chat3({ goto }: ScreenProps) {
         <div className="k3-error-toast" role="alert">
           <div className="k3-error-toast-text">
             <strong>
-              {generationError || `Couldn't make ${VIBE_CARDS[selectedVibe].title}`}
+              {generationError || `Couldn't make ${vibeCard(selectedVibe).title}`}
             </strong>
             <button
               type="button"
@@ -2100,7 +2423,6 @@ export function Chat3({ goto }: ScreenProps) {
               value={draft}
               onChange={(event) => {
                 setDraft(event.currentTarget.value);
-                if (status === 'connected') conversation.sendUserActivity();
               }}
               placeholder={status === 'connected' ? 'type instead...' : 'tell Kokoro...'}
               autoFocus
@@ -2190,7 +2512,7 @@ function cleanCapturePreview(capture: string | undefined): string {
 }
 
 function libraryItemTitle(item: LibraryItem): string {
-  return `${VIBE_CARDS[item.vibe].title} meditation`;
+  return `${vibeCard(item.vibe).title} meditation`;
 }
 
 function libraryItemSubtitle(item: LibraryItem): string {
@@ -2208,8 +2530,8 @@ function libraryItemSubtitle(item: LibraryItem): string {
 
 function libraryItemArtwork(item: Pick<LibraryItem, 'vibe'>): { thumb: string; poster: string } {
   return {
-    thumb: VIBE_CARDS[item.vibe].thumb,
-    poster: VIBE_CARDS[item.vibe].poster,
+    thumb: vibeCard(item.vibe).thumb,
+    poster: vibeCard(item.vibe).poster,
   };
 }
 
@@ -2339,8 +2661,8 @@ export function Player3({ goto }: ScreenProps) {
 
       <section className="k3-player-copy">
         <span>Your meditation</span>
-        <h1>{VIBE_CARDS[generated.vibe].title}</h1>
-        <span className="k3-player-eyebrow-below">{VIBE_CARDS[generated.vibe].eyebrow}</span>
+        <h1>{vibeCard(generated.vibe).title}</h1>
+        <span className="k3-player-eyebrow-below">{vibeCard(generated.vibe).eyebrow}</span>
       </section>
 
       <div
@@ -2368,6 +2690,14 @@ export function Player3({ goto }: ScreenProps) {
 
       <div className="k3-player-done">
         <PrimaryButton onClick={() => goto('home')}>Home</PrimaryButton>
+        <a
+          className="k3-report-link"
+          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+            'Report a Kokoro meditation',
+          )}&body=${encodeURIComponent(`Meditation ID: ${generated.meditationId}\n\nWhat's wrong with this meditation:\n`)}`}
+        >
+          Report this meditation
+        </a>
       </div>
     </Frame>
   );
@@ -2502,6 +2832,7 @@ export function Home3({ goto }: ScreenProps) {
 
   const playVibe = (vibe: Vibe) => {
     if (byVibe[vibe]) {
+      unlockAudio();
       generatedMeditationApi.selectVibeAsCurrent(vibe);
       goto('player');
     } else {
@@ -2537,9 +2868,9 @@ export function Home3({ goto }: ScreenProps) {
         </button>
 
         {generated && (
-          <button className="k3-continue-card" onClick={() => goto('player')}>
+          <button className="k3-continue-card" onClick={() => { unlockAudio(); goto('player'); }}>
             <span>Continue</span>
-            <strong>{VIBE_CARDS[generated.vibe].title} meditation is ready</strong>
+            <strong>{vibeCard(generated.vibe).title} meditation is ready</strong>
             <Send size={16} />
           </button>
         )}
@@ -2569,7 +2900,7 @@ export function Home3({ goto }: ScreenProps) {
               <button
                 key={`saved-${item.meditationId}`}
                 className="k3-recent-card k3-recent-card-saved"
-                style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
+                style={{ '--pill': vibeCard(item.vibe).accent } as CSSProperties}
                 onClick={() => openLibraryItem(item, goto)}
               >
                 <div className="k3-recent-thumb">
@@ -2583,9 +2914,6 @@ export function Home3({ goto }: ScreenProps) {
                 <span className="k3-recent-sub">{libraryItemSubtitle(item)}</span>
                 <div className="k3-recent-foot">
                   <span className="k3-recent-duration">{formatDuration(item.durationSec)}</span>
-                  <span className="k3-recent-play" aria-hidden="true">
-                    <Play size={12} fill="currentColor" />
-                  </span>
                 </div>
               </button>
               );
@@ -2611,9 +2939,6 @@ export function Home3({ goto }: ScreenProps) {
                 <div className="k3-recent-foot">
                   <span className="k3-recent-duration">
                     {byVibe[vibe] ? formatDuration(byVibe[vibe]?.durationSec) : 'Create'}
-                  </span>
-                  <span className="k3-recent-play" aria-hidden="true">
-                    <Play size={12} fill="currentColor" />
                   </span>
                 </div>
               </button>
@@ -2731,12 +3056,6 @@ export function Progress3({ goto }: ScreenProps) {
     void refresh();
   }, [refresh]);
 
-  const openVibe = (vibe: Vibe) => {
-    if (!byVibe[vibe]) return;
-    generatedMeditationApi.selectVibeAsCurrent(vibe);
-    goto('player');
-  };
-
   return (
     <Frame className="k3-progress-frame">
       <header className="k3-companion-head">
@@ -2761,25 +3080,17 @@ export function Progress3({ goto }: ScreenProps) {
         </div>
       </div>
 
-      <section className="k3-progress-list" aria-label="Meditation status">
+      <section className="k3-progress-list" aria-label="Meditations by type">
         {ALL_VIBES.map((vibe) => {
-          const record = byVibe[vibe];
-          const slot = progress[vibe];
-          const available = !!record;
+          const count = items.filter((it) => it.vibe === vibe).length;
           return (
-            <button
-              key={vibe}
-              className={available ? 'is-ready' : ''}
-              disabled={!available}
-              onClick={() => openVibe(vibe)}
-            >
+            <div key={vibe} className="k3-progress-row">
               <span style={{ '--pill': VIBE_CARDS[vibe].accent } as CSSProperties} />
               <div>
                 <strong>{VIBE_CARDS[vibe].title}</strong>
-                <small>{available ? `${formatDuration(record.durationSec)} ready` : phaseLabel(slot.phase)}</small>
               </div>
-              {available ? <Play size={18} fill="currentColor" /> : <Clock3 size={18} />}
-            </button>
+              <span className="k3-progress-count">{count}</span>
+            </div>
           );
         })}
       </section>
@@ -2792,7 +3103,7 @@ export function Progress3({ goto }: ScreenProps) {
 export function You3({ goto }: ScreenProps) {
   const { answers, reset } = useAnswers();
   const { persona } = usePersona();
-  const { items, refresh } = useLibrary();
+  const { refresh } = useLibrary();
   const displayName = answers.callMe || persona.callMe || answers.realName || persona.realName || 'friend';
   const realName = answers.realName || persona.realName || '';
   const themes = persona.themes || [answers.feeling, answers.source].filter(Boolean).join(', ');
@@ -2810,6 +3121,31 @@ export function You3({ goto }: ScreenProps) {
     goto('welcome');
   };
 
+  // Apple Sign In creates an account, so Apple requires an in-app, discoverable
+  // way to delete it (Guideline 5.1.1(v)). The account is local-only (the Apple
+  // credential is never sent to any server), so this fully + permanently erases
+  // the account record and all associated data from the device.
+  const deleteAccount = () => {
+    const ok = window.confirm(
+      'Delete your account and all your data?\n\nThis permanently removes your name, saved meditations, and Apple sign-in from this device. This cannot be undone.',
+    );
+    if (!ok) return;
+    haptic.medium();
+    authApi.signOut(); // removes the saved Apple credential (kokoro_auth)
+    reset(); // kokoro_answers
+    personaApi.reset(); // kokoro_persona
+    generatedMeditationApi.resetAll();
+    meditationProgressApi.reset();
+    try {
+      localStorage.removeItem('kokoro_local_library');
+      localStorage.removeItem('kokoro_ai_consent');
+      sessionStorage.clear();
+    } catch {
+      /* storage unavailable */
+    }
+    goto('welcome');
+  };
+
   return (
     <Frame className="k3-you-frame">
       <header className="k3-companion-head">
@@ -2817,6 +3153,7 @@ export function You3({ goto }: ScreenProps) {
         <h1>You</h1>
       </header>
 
+      <div className="k3-you-scroll">
       <section className="k3-you-card">
         <div className="k3-you-avatar">
           <UserRound size={30} />
@@ -2832,10 +3169,6 @@ export function You3({ goto }: ScreenProps) {
           <strong>{themes || 'Not enough yet'}</strong>
         </div>
         <div>
-          <span>Saved rituals</span>
-          <strong>{items.length}</strong>
-        </div>
-        <div>
           <span>Last check-in</span>
           <strong>{answers.feeling || 'None yet'}</strong>
         </div>
@@ -2845,6 +3178,15 @@ export function You3({ goto }: ScreenProps) {
         <button onClick={() => goto('name')}>Edit name</button>
         <button onClick={() => openReturningChat(goto, answers, 'you')}>Talk now</button>
         <button className="is-muted" onClick={startOver}>Start over</button>
+        <button className="is-destructive" onClick={deleteAccount}>Delete account</button>
+      </div>
+
+      <div className="k3-you-legal">
+        <button type="button" onClick={() => window.open(PRIVACY_URL, '_blank')}>Privacy Policy</button>
+        <span aria-hidden="true">·</span>
+        <button type="button" onClick={() => window.open(TERMS_URL, '_blank')}>Terms</button>
+        <p>For relaxation &amp; mindfulness. Not a medical device.</p>
+      </div>
       </div>
 
       <TabBar active="you" goto={goto} />
@@ -2879,29 +3221,22 @@ export function Library3({ goto }: ScreenProps) {
       {items.length > 0 && (
         <div className="k3-library-list">
           {items.map((item) => {
-            const artwork = libraryItemArtwork(item);
             return (
               <button
                 key={item.meditationId}
                 className="k3-library-card"
-                style={{ '--pill': VIBE_CARDS[item.vibe].accent } as CSSProperties}
+                style={{ '--pill': vibeCard(item.vibe).accent } as CSSProperties}
                 onClick={() => openLibraryItem(item, goto)}
               >
-                <div className="k3-library-thumb">
-                  <InlineLoopVideo file={artwork.thumb} poster={artwork.poster} />
-                </div>
                 <div className="k3-library-info">
                   <div className="k3-library-meta">
-                    <span>{VIBE_CARDS[item.vibe].title}</span>
+                    <span>{vibeCard(item.vibe).title}</span>
                     <small>{formatRelativeDate(item.generatedAt || item.savedAt)}</small>
                   </div>
                   <strong>{libraryItemTitle(item)}</strong>
                   <p>{libraryItemSubtitle(item)}</p>
                   <small>{formatDuration(item.durationSec)}</small>
                 </div>
-                <span className="k3-library-play" aria-hidden="true">
-                  <Play size={13} fill="currentColor" />
-                </span>
               </button>
             );
           })}
@@ -2947,7 +3282,7 @@ function TabBar({ active, goto }: { active: 'home' | 'library' | 'talk' | 'progr
               }
             }}
           >
-            <Icon size={19} />
+            <Icon size={25} />
             <span>{tab.label}</span>
           </button>
         );

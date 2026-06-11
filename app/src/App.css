@@ -10,7 +10,7 @@
 .page-wrap {
   position: absolute;
   inset: 0;
-  transition: opacity 380ms var(--ease), transform 380ms var(--ease);
+  transition: opacity 150ms var(--ease), transform 150ms var(--ease);
 }
 
 .page-wrap.entered {

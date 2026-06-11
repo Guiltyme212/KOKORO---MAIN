@@ -53,7 +53,7 @@ export function useRouter() {
     window.setTimeout(() => {
       window.location.hash = next;
       setTransitioning(false);
-    }, 320);
+    }, 120);
   }, []);
 
   return { route, transitioning, goto };

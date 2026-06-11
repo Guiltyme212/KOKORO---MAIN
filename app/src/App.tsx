@@ -96,9 +96,13 @@ export default function App() {
     </div>
   );
 
-  if (route === 'chat' || route === 'contentType' || route === 'composing' || route === 'pickwhatlands') {
-    return <ConversationProvider>{content}</ConversationProvider>;
-  }
-
-  return content;
+  // Mount ConversationProvider UNCONDITIONALLY (not gated on `route`). It is
+  // inert without an active session (creates only refs/context — no mic/WebRTC).
+  // Gating it on route let Chat3 render in a commit where the provider subtree
+  // was torn down/null (e.g. a typed-send racing an agent end_call/onDisconnect),
+  // and every useConversation sub-hook throws "must be used within a
+  // ConversationProvider" SYNCHRONOUSLY during render → the whole app unmounted
+  // to a blank cream screen (App Store Guideline 2.1(a) rejection, Jun 2026).
+  // Always-mounting removes that entire class of context-null render crashes.
+  return <ConversationProvider>{content}</ConversationProvider>;
 }
