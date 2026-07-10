@@ -9,6 +9,7 @@ import { recordError } from './lib/errorLog';
 import { answersApi } from './state/answers';
 import { personaApi } from './state/persona';
 import { hasCompletedLocalProfile } from './lib/profile';
+import { pwaApi } from './state/pwa';
 
 // Silence verbose internal diagnostics (voice / audio-route / OTA) in production
 // builds so they don't leak in the shipped App Store / web bundle. warn + error
@@ -31,6 +32,7 @@ function restoreLaunchRoute(): void {
 }
 
 restoreLaunchRoute();
+pwaApi.initialize();
 
 // Native (Capacitor) builds run full-screen on every device, iPad included. Flag
 // the document so the layout fills the screen with a centered content column

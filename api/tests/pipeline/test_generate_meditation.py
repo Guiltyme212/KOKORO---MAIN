@@ -103,7 +103,7 @@ async def test_retries_once_on_parse_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retries_on_validation_failure_and_passes_violations_back() -> None:
+async def test_coerces_formatting_failure_without_another_llm_call() -> None:
     bad_json = json.dumps(
         {
             "style": "pop dance edm rap",  # missing 'spoken' / 'no singing'
@@ -114,7 +114,9 @@ async def test_retries_on_validation_failure_and_passes_violations_back() -> Non
     llm = _FakeLlm(_ok_result(bad_json), _ok_result())
     result = await generate_meditation(_input(), llm)
     assert result.validation_warnings == []
-    assert llm.generate.await_count == 2
+    assert result.lyrics.startswith("[Narration over ambient music.")
+    assert "no singing" in result.style
+    assert llm.generate.await_count == 1
 
 
 @pytest.mark.asyncio

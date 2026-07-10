@@ -48,12 +48,29 @@ class Config(BaseSettings):
     blob_public_base_url: AnyHttpUrl | None = None
     reference_public_base_url: AnyHttpUrl | None = None
 
+    # Web/PWA identity and subscription access. These settings are optional so
+    # legacy iOS and Telegram deployments can keep starting while staging is
+    # being configured. Protected /v1 routes return 503 until all required
+    # values are present.
+    supabase_url: AnyHttpUrl | None = None
+    supabase_publishable_key: str | None = None
+    supabase_secret_key: str | None = None
+    stripe_restricted_key: str | None = None
+    stripe_api_base_url: AnyHttpUrl = AnyHttpUrl("https://api.stripe.com")
+    stripe_allowed_product_ids: str = "prod_UfyAnM42JA5jub"
+    auth_db_path: str | None = None
+    purchase_url: AnyHttpUrl = AnyHttpUrl("https://kokoromind.com/funnel/standard/")
+    manage_url: AnyHttpUrl = AnyHttpUrl("https://kokoromind.com/manage")
+
     cors_origin: str = (
         "http://localhost:5173,"
         "http://127.0.0.1:5173,"
         "capacitor://localhost,"
         "Kokoro://localhost,"
-        "kokoro://localhost"
+        "kokoro://localhost,"
+        "https://app.kokoromind.com,"
+        "https://kokoromind.com,"
+        "https://www.kokoromind.com"
     )
 
 

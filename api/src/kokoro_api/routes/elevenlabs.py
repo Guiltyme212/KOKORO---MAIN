@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import httpx
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Query
 from fastapi.responses import JSONResponse
+
+from kokoro_api.auth.dependencies import require_subscription_access
 
 
 def register_elevenlabs_routes(
@@ -134,3 +136,16 @@ def register_elevenlabs_routes(
             content={"signedUrl": signed_url},
             headers={"Cache-Control": "no-store"},
         )
+
+    app.add_api_route(
+        "/v1/elevenlabs/conversation-token",
+        get_conversation_token,
+        methods=["GET"],
+        dependencies=[Depends(require_subscription_access)],
+    )
+    app.add_api_route(
+        "/v1/elevenlabs/conversation-signed-url",
+        get_conversation_signed_url,
+        methods=["GET"],
+        dependencies=[Depends(require_subscription_access)],
+    )

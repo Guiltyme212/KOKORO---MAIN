@@ -13,6 +13,7 @@ dependencies = [
     "structlog>=24.4",
     "python-multipart>=0.0.27",
     "mutagen>=1.47.0",
+    "PyJWT[crypto]>=2.10",
 ]
 
 [project.optional-dependencies]

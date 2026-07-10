@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 
+from kokoro_api.auth.dependencies import require_subscription_access
 from kokoro_api.providers.blob.base import BlobStore
 from kokoro_api.types import UploadResponse
 
@@ -64,3 +65,12 @@ def register_uploads_route(app: FastAPI, *, blob: BlobStore) -> None:
         )
 
         return UploadResponse(audio_url=url, key=key, mime_type=mime)
+
+    app.add_api_route(
+        "/v1/uploads",
+        upload_capture,
+        methods=["POST"],
+        response_model=UploadResponse,
+        response_model_by_alias=True,
+        dependencies=[Depends(require_subscription_access)],
+    )

@@ -1,6 +1,7 @@
 import { tgUser } from './telegram';
 import type { LibraryItem, LibraryListOutput } from './types-meditation';
-import { API_BASE } from './config';
+import { apiFetch } from './apiTransport';
+import { isProtectedWebClient } from './platform';
 import { answersApi } from '../state/answers';
 import { generatedMeditationApi } from '../state/generatedMeditation';
 
@@ -143,6 +144,16 @@ async function expectOk<T>(res: Response): Promise<T> {
 }
 
 export async function saveToLibrary(meditationId: string): Promise<LibraryItem[]> {
+  if (isProtectedWebClient()) {
+    const res = await apiFetch('/library/items', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ meditationId }),
+    });
+    const out = await expectOk<LibraryListOutput>(res);
+    return out.items;
+  }
+
   const user = tgUser();
   if (!user) {
     const item = buildLocalLibraryItem(meditationId);
@@ -152,7 +163,7 @@ export async function saveToLibrary(meditationId: string): Promise<LibraryItem[]
   }
 
   const tgUserId = user.id;
-  const res = await fetch(`${API_BASE}/library/items`, {
+  const res = await apiFetch('/library/items', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ meditationId, tgUserId }),
@@ -162,18 +173,30 @@ export async function saveToLibrary(meditationId: string): Promise<LibraryItem[]
 }
 
 export async function listLibrary(): Promise<LibraryItem[]> {
+  if (isProtectedWebClient()) {
+    const res = await apiFetch('/library');
+    const out = await expectOk<LibraryListOutput>(res);
+    return out.items;
+  }
+
   const user = tgUser();
   if (!user) return readLocalLibrary();
 
   const tgUserId = user.id;
-  const url = new URL(`${API_BASE}/library`);
-  url.searchParams.set('tgUserId', String(tgUserId));
-  const res = await fetch(url.toString());
+  const res = await apiFetch(`/library?tgUserId=${encodeURIComponent(String(tgUserId))}`);
   const out = await expectOk<LibraryListOutput>(res);
   return out.items;
 }
 
 export async function removeFromLibrary(meditationId: string): Promise<LibraryItem[]> {
+  if (isProtectedWebClient()) {
+    const res = await apiFetch(`/library/items/${encodeURIComponent(meditationId)}`, {
+      method: 'DELETE',
+    });
+    const out = await expectOk<LibraryListOutput>(res);
+    return out.items;
+  }
+
   const user = tgUser();
   if (!user) {
     const next = readLocalLibrary().filter((item) => item.meditationId !== meditationId);
@@ -182,7 +205,7 @@ export async function removeFromLibrary(meditationId: string): Promise<LibraryIt
   }
 
   const tgUserId = user.id;
-  const res = await fetch(`${API_BASE}/library/items/${encodeURIComponent(meditationId)}`, {
+  const res = await apiFetch(`/library/items/${encodeURIComponent(meditationId)}`, {
     method: 'DELETE',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ tgUserId }),

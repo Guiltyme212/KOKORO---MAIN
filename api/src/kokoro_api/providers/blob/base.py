@@ -22,3 +22,7 @@ class BlobStore(ABC):
     @abstractmethod
     async def get(self, key: str) -> bytes | None:
         """Return raw bytes for the key, or None if not found."""
+
+    async def delete_prefix(self, prefix: str) -> None:
+        """Delete user-owned data below a prefix when the driver supports it."""
+        _ = prefix

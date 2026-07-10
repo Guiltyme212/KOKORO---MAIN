@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import time
 from pathlib import Path
 
@@ -36,3 +37,11 @@ class FilesystemBlobStore(BlobStore):
         if not path.exists():
             return None
         return path.read_bytes()
+
+    async def delete_prefix(self, prefix: str) -> None:
+        root = self._root.resolve()
+        target = (root / prefix).resolve()
+        if target == root or root not in target.parents:
+            raise ValueError("refusing to delete outside blob root")
+        if target.exists():
+            shutil.rmtree(target)

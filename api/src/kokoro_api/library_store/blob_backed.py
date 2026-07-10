@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import structlog
 
-from kokoro_api.library_store.base import LibraryStore, MeditationNotFoundError
+from kokoro_api.library_store.base import LibraryStore, MeditationNotFoundError, UserKey
 from kokoro_api.providers.blob.base import BlobStore
 from kokoro_api.types import LibraryItem
 
@@ -33,8 +33,9 @@ class BlobLibraryStore(LibraryStore):
         self._blob = blob
 
     @staticmethod
-    def _user_key(tg_user_id: int) -> str:
-        return f"users/{tg_user_id}/library.json"
+    def _user_key(user_key: UserKey) -> str:
+        safe_key = re.sub(r"[^A-Za-z0-9_-]", "_", str(user_key))
+        return f"users/{safe_key}/library.json"
 
     @staticmethod
     def _meta_key(meditation_id: str) -> str:
@@ -44,10 +45,10 @@ class BlobLibraryStore(LibraryStore):
     def _audio_key(meditation_id: str) -> str:
         return f"meditations/{meditation_id}/audio.mp3"
 
-    async def list_items(self, tg_user_id: int) -> list[LibraryItem]:
-        return await self._read_and_resign(tg_user_id)
+    async def list_items(self, user_key: UserKey) -> list[LibraryItem]:
+        return await self._read_and_resign(user_key)
 
-    async def add(self, tg_user_id: int, meditation_id: str) -> list[LibraryItem]:
+    async def add(self, user_key: UserKey, meditation_id: str) -> list[LibraryItem]:
         meta_bytes = await self._blob.get(self._meta_key(meditation_id))
         if meta_bytes is None:
             raise MeditationNotFoundError(
@@ -63,22 +64,22 @@ class BlobLibraryStore(LibraryStore):
 
         new_item = self._build_item(meditation_id, meta)
 
-        existing = await self._read_raw(tg_user_id)
+        existing = await self._read_raw(user_key)
         # Idempotent insert: if already present, just refresh the entry.
         existing = [it for it in existing if it["meditationId"] != meditation_id]
         existing.insert(0, new_item)
-        await self._write_raw(tg_user_id, existing)
+        await self._write_raw(user_key, existing)
         return await self._resign(existing)
 
-    async def remove(self, tg_user_id: int, meditation_id: str) -> list[LibraryItem]:
-        existing = await self._read_raw(tg_user_id)
+    async def remove(self, user_key: UserKey, meditation_id: str) -> list[LibraryItem]:
+        existing = await self._read_raw(user_key)
         filtered = [it for it in existing if it["meditationId"] != meditation_id]
         if len(filtered) != len(existing):
-            await self._write_raw(tg_user_id, filtered)
+            await self._write_raw(user_key, filtered)
         return await self._resign(filtered)
 
-    async def _read_raw(self, tg_user_id: int) -> list[dict[str, object]]:
-        raw = await self._blob.get(self._user_key(tg_user_id))
+    async def _read_raw(self, user_key: UserKey) -> list[dict[str, object]]:
+        raw = await self._blob.get(self._user_key(user_key))
         if raw is None:
             return []
         try:
@@ -97,20 +98,20 @@ class BlobLibraryStore(LibraryStore):
                 out.append(entry)
         return out
 
-    async def _write_raw(self, tg_user_id: int, items: list[dict[str, object]]) -> None:
+    async def _write_raw(self, user_key: UserKey, items: list[dict[str, object]]) -> None:
         body = json.dumps(
-            {"tgUserId": tg_user_id, "items": items},
+            {"userKey": str(user_key), "items": items},
             ensure_ascii=False,
             indent=2,
         )
         await self._blob.put(
-            key=self._user_key(tg_user_id),
+            key=self._user_key(user_key),
             body=body,
             content_type="application/json",
         )
 
-    async def _read_and_resign(self, tg_user_id: int) -> list[LibraryItem]:
-        raw = await self._read_raw(tg_user_id)
+    async def _read_and_resign(self, user_key: UserKey) -> list[LibraryItem]:
+        raw = await self._read_raw(user_key)
         return await self._resign(raw)
 
     async def _resign(self, items: list[dict[str, object]]) -> list[LibraryItem]:

@@ -185,6 +185,10 @@ class LibrarySaveInput(_CamelModel):
     tg_user_id: int
 
 
+class LibraryV1SaveInput(_CamelModel):
+    meditation_id: str
+
+
 class LibraryRemoveInput(_CamelModel):
     tg_user_id: int
 
@@ -197,6 +201,10 @@ class UploadResponse(_CamelModel):
 
 class FeedbackInput(_CamelModel):
     tg_user_id: int | None = None
+    liked: bool
+
+
+class FeedbackV1Input(_CamelModel):
     liked: bool
 
 

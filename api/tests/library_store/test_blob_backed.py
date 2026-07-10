@@ -93,7 +93,7 @@ async def test_add_strips_internal_capture_fields_from_preview() -> None:
 
     items = await store.add(123, "med-1")
 
-    assert items[0].capture_preview == "About my dog."
+    assert items[0].capture_preview == "About my dog"
 
 
 @pytest.mark.asyncio

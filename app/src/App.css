@@ -26,3 +26,40 @@
 @media (max-width: 500px) {
   .stage { background: #ede7d6; }
 }
+
+.pwa-update {
+  position: fixed;
+  z-index: 1000;
+  right: 18px;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border: 1px solid rgb(246 235 215 / 20%);
+  border-radius: 16px;
+  background: #344329;
+  color: #fffaf0;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 20%);
+  font: 500 13px/1.35 'Geist', sans-serif;
+}
+
+.pwa-update span { flex: 1; }
+
+.pwa-update button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #f6ebd7;
+  color: #344329;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pwa-update button:last-child {
+  background: transparent;
+  color: #fffaf0;
+}

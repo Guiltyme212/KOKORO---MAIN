@@ -29,16 +29,17 @@ def test_emits_strict_json_with_style_and_lyrics() -> None:
     assert '"beats"' not in prompt
 
 
-def test_lists_spoken_word_tags_and_forbids_song_tags() -> None:
+def test_requires_current_narration_cues_and_forbids_old_tags() -> None:
     prompt = build_system_prompt(locale="en")
-    # Suno tags the model is allowed to emit
-    assert "[Intro:" in prompt
-    assert "[Spoken word" in prompt
-    assert "[Breath]" in prompt
-    assert "[Pause]" in prompt
-    assert "[Outro:" in prompt
+    assert "[Narration over ambient music. Do not sing." in prompt
+    assert "[slow breath]" in prompt
+    assert "[short pause]" in prompt
+    assert "[Outro. Calm spoken voice. No singing.]" in prompt
     # Forbidden song tags must be enumerated
-    for tag in ("[Verse]", "[Chorus]", "[Bridge]", "[Hook]", "[Refrain]"):
+    for tag in (
+        "[Verse]", "[Chorus]", "[Bridge]", "[Hook]", "[Refrain]",
+        "[Intro:]", "[Spoken word, slow]", "[Breath]", "[Pause]",
+    ):
         assert tag in prompt
 
 

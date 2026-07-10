@@ -19,7 +19,11 @@ export type Route =
   | 'quickReset'
   | 'sleep'
   | 'progress'
-  | 'you';
+  | 'you'
+  | 'login'
+  | 'verifyEmail'
+  | 'checkingAccess'
+  | 'accessRequired';
 
 const VALID: Route[] = [
   'welcome', 'name', 'feeling', 'source', 'promise', 'chat',
@@ -28,12 +32,13 @@ const VALID: Route[] = [
   'pickwhatlands',
   'home', 'library', 'quickReset', 'sleep',
   'progress', 'you',
+  'login', 'verifyEmail', 'checkingAccess', 'accessRequired',
 ];
 
 const isRoute = (s: string): s is Route => (VALID as string[]).includes(s);
 
 const fromHash = (): Route => {
-  const h = (window.location.hash || '#welcome').slice(1);
+  const h = (window.location.hash || '#welcome').slice(1).split('?', 1)[0];
   return isRoute(h) ? h : 'welcome';
 };
 

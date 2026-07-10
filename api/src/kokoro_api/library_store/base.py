@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 from kokoro_api.types import LibraryItem
 
+UserKey = int | str
+
 
 class MeditationNotFoundError(LookupError):
     """Raised when a meditation_id has no meta.json in the blob store."""
@@ -22,12 +24,12 @@ class LibraryStore(ABC):
     name: str
 
     @abstractmethod
-    async def list_items(self, tg_user_id: int) -> list[LibraryItem]: ...
+    async def list_items(self, user_key: UserKey) -> list[LibraryItem]: ...
 
     @abstractmethod
-    async def add(self, tg_user_id: int, meditation_id: str) -> list[LibraryItem]:
+    async def add(self, user_key: UserKey, meditation_id: str) -> list[LibraryItem]:
         """Add a meditation to the user's library. No-op if already present.
         Raises MeditationNotFoundError if the meditation has no meta.json."""
 
     @abstractmethod
-    async def remove(self, tg_user_id: int, meditation_id: str) -> list[LibraryItem]: ...
+    async def remove(self, user_key: UserKey, meditation_id: str) -> list[LibraryItem]: ...

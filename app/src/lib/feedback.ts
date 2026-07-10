@@ -1,14 +1,15 @@
 import { tgUser } from './telegram';
-import { API_BASE } from './config';
+import { apiFetch } from './apiTransport';
+import { isProtectedWebClient } from './platform';
 
 export async function sendFeedback(meditationId: string, liked: boolean): Promise<void> {
   const tgUserId = tgUser()?.id;
-  const res = await fetch(
-    `${API_BASE}/meditations/${encodeURIComponent(meditationId)}/feedback`,
+  const res = await apiFetch(
+    `/meditations/${encodeURIComponent(meditationId)}/feedback`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ liked, tgUserId }),
+      body: JSON.stringify(isProtectedWebClient() ? { liked } : { liked, tgUserId }),
     },
   );
   if (!res.ok) {

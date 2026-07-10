@@ -51,6 +51,7 @@ import {
 } from '../lib/audioElementDiagnostics';
 import { stopAudioStream, unlockAudio } from '../lib/audioUnlock';
 import { isLibraryAvailable } from '../lib/library';
+import { isProtectedWebClient } from '../lib/platform';
 import type { LibraryItem } from '../lib/types-meditation';
 import { haptic } from '../lib/telegram';
 import type { Answers, Persona, Vibe } from '../types';
@@ -69,6 +70,8 @@ import {
   useGeneratedMeditationsByVibe,
 } from '../state/generatedMeditation';
 import { useLibrary } from '../state/library';
+import { useWebAuth, webAuthApi } from '../state/webAuth';
+import { pwaApi, usePwa } from '../state/pwa';
 
 const A = '/kokoro3/';
 
@@ -3104,6 +3107,9 @@ export function You3({ goto }: ScreenProps) {
   const { answers, reset } = useAnswers();
   const { persona } = usePersona();
   const { refresh } = useLibrary();
+  const webAuth = useWebAuth();
+  const pwa = usePwa();
+  const webClient = isProtectedWebClient();
   const displayName = answers.callMe || persona.callMe || answers.realName || persona.realName || 'friend';
   const realName = answers.realName || persona.realName || '';
   const themes = persona.themes || [answers.feeling, answers.source].filter(Boolean).join(', ');
@@ -3121,19 +3127,11 @@ export function You3({ goto }: ScreenProps) {
     goto('welcome');
   };
 
-  // Apple Sign In creates an account, so Apple requires an in-app, discoverable
-  // way to delete it (Guideline 5.1.1(v)). The account is local-only (the Apple
-  // credential is never sent to any server), so this fully + permanently erases
-  // the account record and all associated data from the device.
-  const deleteAccount = () => {
-    const ok = window.confirm(
-      'Delete your account and all your data?\n\nThis permanently removes your name, saved meditations, and Apple sign-in from this device. This cannot be undone.',
-    );
-    if (!ok) return;
-    haptic.medium();
-    authApi.signOut(); // removes the saved Apple credential (kokoro_auth)
-    reset(); // kokoro_answers
-    personaApi.reset(); // kokoro_persona
+  // Native Apple identity remains local-only. Web/PWA deletion also removes the
+  // Supabase identity, but deliberately never mutates or cancels Stripe billing.
+  const clearLocalAccount = () => {
+    reset();
+    personaApi.reset();
     generatedMeditationApi.resetAll();
     meditationProgressApi.reset();
     try {
@@ -3143,7 +3141,32 @@ export function You3({ goto }: ScreenProps) {
     } catch {
       /* storage unavailable */
     }
-    goto('welcome');
+  };
+
+  const deleteAccount = async () => {
+    const message = webClient
+      ? 'Delete your Kokoro account and app data?\n\nDeleting your Kokoro account does not cancel your Stripe subscription. Manage or cancel it first. This cannot be undone.'
+      : 'Delete your account and all your data?\n\nThis permanently removes your name, saved meditations, and Apple sign-in from this device. This cannot be undone.';
+    const ok = window.confirm(message);
+    if (!ok) return;
+    haptic.medium();
+    if (webClient) {
+      try {
+        await webAuthApi.deleteAccount();
+      } catch {
+        window.alert('Kokoro could not delete the account right now. Please try again.');
+        return;
+      }
+    } else {
+      authApi.signOut(); // removes the saved Apple credential (kokoro_auth)
+    }
+    clearLocalAccount();
+    goto(webClient ? 'login' : 'welcome');
+  };
+
+  const signOutWeb = async () => {
+    await webAuthApi.signOut();
+    goto('login');
   };
 
   return (
@@ -3161,6 +3184,7 @@ export function You3({ goto }: ScreenProps) {
         <span>Kokoro calls you</span>
         <h2>{displayName}</h2>
         {realName && <p>{realName}</p>}
+        {webClient && webAuth.session?.email && <p>{webAuth.session.email}</p>}
       </section>
 
       <section className="k3-memory-list">
@@ -3177,8 +3201,18 @@ export function You3({ goto }: ScreenProps) {
       <div className="k3-you-actions">
         <button onClick={() => goto('name')}>Edit name</button>
         <button onClick={() => openReturningChat(goto, answers, 'you')}>Talk now</button>
+        {webClient && (
+          <button onClick={() => window.open(
+            webAuth.access?.manageUrl ?? 'https://kokoromind.com/manage',
+            '_blank',
+          )}>Manage subscription</button>
+        )}
+        {webClient && pwa.canInstall && (
+          <button onClick={() => void pwaApi.install()}>Install Kokoro</button>
+        )}
+        {webClient && <button className="is-muted" onClick={() => void signOutWeb()}>Sign out</button>}
         <button className="is-muted" onClick={startOver}>Start over</button>
-        <button className="is-destructive" onClick={deleteAccount}>Delete account</button>
+        <button className="is-destructive" onClick={() => void deleteAccount()}>Delete account</button>
       </div>
 
       <div className="k3-you-legal">

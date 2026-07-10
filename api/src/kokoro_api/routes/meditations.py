@@ -6,10 +6,11 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from kokoro_api.auth.dependencies import require_subscription_access
 from kokoro_api.types import (
     GenerateMeditationInput,
     GenerateMeditationOutput,
@@ -179,3 +180,20 @@ def register_meditations_route(
                 "Cache-Control": "no-cache",
             },
         )
+
+    # Web/PWA aliases share the exact same pipeline; only the dependency layer
+    # differs. Legacy routes remain available to the current iOS/Telegram apps.
+    app.add_api_route(
+        "/v1/meditations",
+        post_meditation,
+        methods=["POST"],
+        response_model=GenerateMeditationOutput,
+        response_model_by_alias=True,
+        dependencies=[Depends(require_subscription_access)],
+    )
+    app.add_api_route(
+        "/v1/meditations/stream",
+        post_meditation_stream,
+        methods=["POST"],
+        dependencies=[Depends(require_subscription_access)],
+    )

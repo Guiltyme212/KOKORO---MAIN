@@ -1,5 +1,5 @@
 import type { UploadResponse } from './types-meditation';
-import { API_BASE } from './config';
+import { apiFetch } from './apiTransport';
 
 export async function uploadCapture(blob: Blob): Promise<UploadResponse> {
   const form = new FormData();
@@ -8,7 +8,7 @@ export async function uploadCapture(blob: Blob): Promise<UploadResponse> {
   const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
   form.append('file', blob, `capture.${ext}`);
 
-  const res = await fetch(`${API_BASE}/uploads`, {
+  const res = await apiFetch('/uploads', {
     method: 'POST',
     body: form,
   });

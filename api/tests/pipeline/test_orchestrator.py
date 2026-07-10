@@ -197,7 +197,7 @@ async def test_passes_writer_style_verbatim_to_audio_provider() -> None:
     kwargs = audio.synthesize.await_args.kwargs
     assert "spoken-word guided meditation" in kwargs["music_style_prompt"]
     assert "no singing" in kwargs["music_style_prompt"]
-    assert kwargs["script"].startswith("[Intro: ambient, no singing]")
+    assert kwargs["script"].startswith("[Narration over ambient music.")
 
 
 @pytest.mark.asyncio

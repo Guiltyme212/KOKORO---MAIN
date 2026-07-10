@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from kokoro_api.auth.dependencies import require_subscription_access
+from kokoro_api.auth.models import CurrentUser
 from kokoro_api.library_store.base import LibraryStore, MeditationNotFoundError
 from kokoro_api.types import (
     LibraryListOutput,
     LibraryRemoveInput,
     LibrarySaveInput,
+    LibraryV1SaveInput,
 )
 
 
@@ -83,3 +87,63 @@ def register_library_routes(app: FastAPI, *, store: LibraryStore) -> None:
                 },
             )
         return LibraryListOutput(items=items)
+
+    @app.post(
+        "/v1/library/items",
+        response_model=LibraryListOutput,
+        response_model_by_alias=True,
+    )
+    async def save_to_web_library(
+        input: LibraryV1SaveInput,
+        user: Annotated[CurrentUser, Depends(require_subscription_access)],
+    ) -> LibraryListOutput | JSONResponse:
+        try:
+            items = await store.add(user.id, input.meditation_id)
+        except MeditationNotFoundError as exc:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "MEDITATION_NOT_FOUND",
+                    "details": {"meditationId": input.meditation_id, "message": str(exc)},
+                },
+            )
+        except Exception as exc:
+            return _internal_error(exc)
+        return LibraryListOutput(items=items)
+
+    @app.get(
+        "/v1/library",
+        response_model=LibraryListOutput,
+        response_model_by_alias=True,
+    )
+    async def list_web_library(
+        user: Annotated[CurrentUser, Depends(require_subscription_access)],
+    ) -> LibraryListOutput | JSONResponse:
+        try:
+            items = await store.list_items(user.id)
+        except Exception as exc:
+            return _internal_error(exc)
+        return LibraryListOutput(items=items)
+
+    @app.delete(
+        "/v1/library/items/{meditation_id}",
+        response_model=LibraryListOutput,
+        response_model_by_alias=True,
+    )
+    async def remove_from_web_library(
+        meditation_id: str,
+        user: Annotated[CurrentUser, Depends(require_subscription_access)],
+    ) -> LibraryListOutput | JSONResponse:
+        try:
+            items = await store.remove(user.id, meditation_id)
+        except Exception as exc:
+            return _internal_error(exc)
+        return LibraryListOutput(items=items)
+def _internal_error(exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "INTERNAL",
+            "details": {"traceId": str(uuid.uuid4()), "message": str(exc)},
+        },
+    )

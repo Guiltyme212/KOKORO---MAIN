@@ -3,6 +3,12 @@ import { ConversationProvider } from '@elevenlabs/react';
 import { useRouter, type Route } from './lib/router';
 import { initTelegram } from './lib/telegram';
 import { initNative } from './lib/native';
+import { isProtectedWebClient } from './lib/platform';
+import { hasCompletedLocalProfile } from './lib/profile';
+import { answersApi } from './state/answers';
+import { personaApi } from './state/persona';
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
+import { useWebAuth, webAuthApi } from './state/webAuth';
 import {
   Chat3,
   Feeling3,
@@ -18,6 +24,12 @@ import {
   You3,
   Welcome3,
 } from './screens/Kokoro3';
+import {
+  AccessRequiredScreen,
+  CheckingAccessScreen,
+  LoginScreen,
+  VerifyEmailScreen,
+} from './screens/WebAuth';
 import './App.css';
 import './styles/kokoro3.css';
 
@@ -43,14 +55,20 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   sleep: Sleep3,
   progress: Progress3,
   you: You3,
+  login: LoginScreen,
+  verifyEmail: VerifyEmailScreen,
+  checkingAccess: CheckingAccessScreen,
+  accessRequired: AccessRequiredScreen,
 };
 
 export default function App() {
   const { route, transitioning, goto } = useRouter();
+  const webAuth = useWebAuth();
 
   useEffect(() => {
     initTelegram();
     initNative();
+    void webAuthApi.initialize();
   }, []);
 
   useEffect(() => {
@@ -86,11 +104,31 @@ export default function App() {
     };
   }, []);
 
-  const Active = SCREENS[route];
+  let activeRoute = route;
+  if (isProtectedWebClient()) {
+    if (webAuth.status === 'initializing' || webAuth.status === 'checkingAccess') {
+      activeRoute = 'checkingAccess';
+    } else if (webAuth.status === 'signedOut') {
+      activeRoute = 'login';
+    } else if (webAuth.status === 'verifying') {
+      activeRoute = 'verifyEmail';
+    } else if (webAuth.status === 'denied' || webAuth.status === 'accessError') {
+      activeRoute = 'accessRequired';
+    } else if (webAuth.status === 'allowed' && (
+      route === 'login' || route === 'verifyEmail' ||
+      route === 'checkingAccess' || route === 'accessRequired'
+    )) {
+      activeRoute = hasCompletedLocalProfile(
+        answersApi.getSnapshot(),
+        personaApi.getSnapshot(),
+      ) ? 'home' : 'welcome';
+    }
+  }
+  const Active = SCREENS[activeRoute];
 
   const content = (
     <div className="stage">
-      <div className={`page-wrap ${transitioning ? 'exiting' : 'entered'}`} key={route}>
+      <div className={`page-wrap ${transitioning ? 'exiting' : 'entered'}`} key={activeRoute}>
         <Active goto={goto} />
       </div>
     </div>
@@ -104,5 +142,10 @@ export default function App() {
   // ConversationProvider" SYNCHRONOUSLY during render → the whole app unmounted
   // to a blank cream screen (App Store Guideline 2.1(a) rejection, Jun 2026).
   // Always-mounting removes that entire class of context-null render crashes.
-  return <ConversationProvider>{content}</ConversationProvider>;
+  return (
+    <ConversationProvider>
+      {content}
+      <PwaUpdatePrompt />
+    </ConversationProvider>
+  );
 }

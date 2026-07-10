@@ -16,6 +16,11 @@ from kokoro_api.types import (
 )
 
 
+async def _empty_stream(_input):  # type: ignore[no-untyped-def]
+    if False:
+        yield
+
+
 def _ok_output() -> GenerateMeditationOutput:
     return GenerateMeditationOutput(
         meditation_id="m1",
@@ -51,7 +56,11 @@ def _ok_output() -> GenerateMeditationOutput:
 @pytest.mark.asyncio
 async def test_returns_200_with_valid_output() -> None:
     app = FastAPI()
-    register_meditations_route(app, run_pipeline=AsyncMock(return_value=_ok_output()))
+    register_meditations_route(
+        app,
+        run_pipeline=AsyncMock(return_value=_ok_output()),
+        run_pipeline_streaming=_empty_stream,
+    )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://x") as client:
@@ -77,7 +86,11 @@ async def test_returns_200_with_valid_output() -> None:
 @pytest.mark.asyncio
 async def test_returns_400_on_invalid_input() -> None:
     app = FastAPI()
-    register_meditations_route(app, run_pipeline=AsyncMock())
+    register_meditations_route(
+        app,
+        run_pipeline=AsyncMock(),
+        run_pipeline_streaming=_empty_stream,
+    )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://x") as client:

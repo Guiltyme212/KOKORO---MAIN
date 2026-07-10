@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import sys
 import time
 from collections.abc import AsyncIterator
@@ -20,6 +22,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from kokoro_api.auth.handoffs import HandoffStore
+from kokoro_api.auth.services import AuthServices
+from kokoro_api.auth.stripe_access import AccessService, StripeReadClient
+from kokoro_api.auth.supabase import SupabaseAuthClient, SupabaseJwtVerifier
 from kokoro_api.config import load_config
 from kokoro_api.library_store.blob_backed import BlobLibraryStore
 from kokoro_api.pipeline.orchestrator import (
@@ -39,6 +45,7 @@ from kokoro_api.providers.stt.base import TranscriptionProvider
 from kokoro_api.providers.stt.disabled import DisabledTranscriptionProvider
 from kokoro_api.providers.stt.elevenlabs import ElevenLabsTranscriptionProvider
 from kokoro_api.providers.stt.whisper import WhisperProvider
+from kokoro_api.routes.auth_access import register_auth_access_routes
 from kokoro_api.routes.elevenlabs import register_elevenlabs_routes
 from kokoro_api.routes.feedback import register_feedback_routes
 from kokoro_api.routes.library import register_library_routes
@@ -54,9 +61,25 @@ config = load_config()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _ = app
+    cleanup_task: asyncio.Task[None] | None = None
+    if auth_services is not None:
+        await auth_services.handoffs.initialize()
+        cleanup_task = asyncio.create_task(_cleanup_handoffs())
     log.info("kokoro_api.startup")
     yield
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await cleanup_task
     log.info("kokoro_api.shutdown")
+
+
+async def _cleanup_handoffs() -> None:
+    while auth_services is not None:
+        await asyncio.sleep(60 * 60)
+        deleted = await auth_services.handoffs.cleanup_expired()
+        if deleted:
+            log.info("auth.handoffs.cleanup", deleted=deleted)
 
 
 def _make_blob() -> BlobStore:
@@ -151,6 +174,42 @@ blob = _make_blob()
 _templates_cache: list[Template] = []
 
 
+def _make_auth_services() -> AuthServices | None:
+    if not (
+        config.supabase_url
+        and config.supabase_publishable_key
+        and config.supabase_secret_key
+        and config.stripe_restricted_key
+    ):
+        return None
+    supabase = SupabaseAuthClient(
+        url=str(config.supabase_url),
+        publishable_key=config.supabase_publishable_key,
+        secret_key=config.supabase_secret_key,
+    )
+    stripe = StripeReadClient(
+        secret_key=config.stripe_restricted_key,
+        allowed_product_ids={
+            value.strip()
+            for value in config.stripe_allowed_product_ids.split(",")
+            if value.strip()
+        },
+        base_url=str(config.stripe_api_base_url),
+    )
+    db_path = config.auth_db_path or str(Path(config.blob_fs_dir) / "auth.sqlite3")
+    return AuthServices(
+        jwt_verifier=SupabaseJwtVerifier(url=str(config.supabase_url)),
+        supabase=supabase,
+        stripe=stripe,
+        access=AccessService(stripe=stripe, supabase=supabase),
+        handoffs=HandoffStore(db_path),
+    )
+
+
+auth_services = _make_auth_services()
+app.state.auth_services = auth_services
+
+
 async def _ensure_templates_loaded() -> list[Template]:
     if not _templates_cache:
         _templates_cache.extend(_resolve_reference_urls(await load_templates()))
@@ -223,6 +282,12 @@ register_elevenlabs_routes(
 register_library_routes(app, store=BlobLibraryStore(blob))
 register_uploads_route(app, blob=blob)
 register_feedback_routes(app, blob=blob)
+register_auth_access_routes(
+    app,
+    purchase_url=str(config.purchase_url),
+    manage_url=str(config.manage_url),
+    delete_user_data=lambda user_id: blob.delete_prefix(f"users/{user_id}"),
+)
 
 
 def serve() -> None:

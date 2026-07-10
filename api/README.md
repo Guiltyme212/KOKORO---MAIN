@@ -4,6 +4,22 @@ Backend for Kokoro meditation generation. Python 3.14 + FastAPI.
 
 ## Endpoints
 
+### Web/PWA auth and access
+
+Ordinary browser/PWA clients use Supabase email OTP and the protected `/v1/*`
+surface. `GET /v1/access` validates the Supabase bearer token and performs a
+read-only Stripe subscription lookup. The post-checkout flow starts at
+`POST /v1/auth/handoffs`; handoff tokens are one-time, expire after 15 minutes,
+and are stored only as SHA-256 hashes in SQLite on the existing Railway Volume.
+
+`active` and `trialing` subscriptions are accepted. `past_due` receives 48 hours
+after the latest item period end. The normal result is cached for 60 seconds;
+on a Stripe outage only a positive result no older than 10 minutes may be used.
+
+Protected aliases exist for meditations, streaming, uploads, ElevenLabs,
+feedback, and library routes. The unversioned routes remain unchanged for the
+current iOS/Telegram clients.
+
 **`POST /meditations/stream`** (primary, NDJSON streaming) — same orchestration as `/meditations` but yields three events as they happen:
 
 - `script` (~20–45s) — LLM finished writing personalized lyrics; client now knows lyrics/style/vibe.

@@ -3,13 +3,13 @@ import type {
   GenerateMeditationOutput,
   StreamEvent,
 } from './types-meditation';
-import { API_BASE } from './config';
+import { apiFetch } from './apiTransport';
 
 export async function generateMeditation(
   input: GenerateMeditationInput,
   signal?: AbortSignal,
 ): Promise<GenerateMeditationOutput> {
-  const res = await fetch(`${API_BASE}/meditations`, {
+  const res = await apiFetch('/meditations', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -34,7 +34,7 @@ export async function* generateMeditationStreaming(
   input: GenerateMeditationInput,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent, void, void> {
-  const res = await fetch(`${API_BASE}/meditations/stream`, {
+  const res = await apiFetch('/meditations/stream', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
