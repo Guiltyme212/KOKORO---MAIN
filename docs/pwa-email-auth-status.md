@@ -1,98 +1,84 @@
 # PWA email auth — staging status
 
-Обновлено: 10 июля 2026, вечер. Ветка: `codex/pwa-email-auth` (оба репо: этот и
+Обновлено: 11 июля 2026, вечер. Ветка: `codex/pwa-email-auth` (оба репо: этот и
 `Guiltyme212/kokoro-heartfelt-moments`). Production `main` не тронут.
 
 Контекст задачи: браузерная PWA для Android/web, вход по email + 6-значный
 Supabase OTP (письма через Resend), доступ по активной подписке Stripe.
-Runbook: `docs/pwa-email-auth-deployment.md`. Оплата остаётся на funnel;
+Runbook деплоя: `docs/pwa-email-auth-deployment.md`. План будущего мержа в
+main: `docs/pwa-email-auth-merge-plan.md`. Оплата остаётся на funnel;
 iOS и Telegram не меняются.
 
-## Сделано и проверено
+## Состояние: основной путь пройден вживую ✅
 
-### DNS / Resend — готово полностью
+Полный E2E на Android подтверждён владельцем 10–11 июля:
 
-- Партнёр добавил DNS-записи для `auth.kokoromind.com` (DKIM, MX, SPF) в
-  Name.com; проверено через dig — значения совпадают с выданными Resend.
-- Домен в Resend: **verified**. Sending on, receiving off, open/click
-  tracking off.
-- SMTP-ключ: используется ключ **Kokoro-sendAuth** (создан владельцем, токен
-  у него). Второй ключ `supabase-staging-smtp` был создан и удалён — его
-  токен недействителен.
-- DMARC-записи нет. Не блокер для staging; перед production добавить TXT
-  `_dmarc.auth` = `v=DMARC1; p=none`.
+```text
+funnel (staging) → Stripe test Checkout (4242…) → thank-you →
+Open Kokoro → PWA → код из письма → доступ → экран установки →
+установка на домашний экран → запуск с иконки: standalone, без
+повторного кода, сессия на месте
+```
 
-### Supabase staging — готово полностью
+## Инфраструктура — готово и проверено
 
-- Проект: ref `maresexyyjdemxvklfyf` (us-west-1, имя «Dimacyb's Project»),
-  URL `https://maresexyyjdemxvklfyf.supabase.co`.
-- Auth-конфиг задан через Management API (`PATCH /v1/projects/{ref}/config/auth`):
-  - SMTP: `smtp.resend.com:465`, user `resend`, отправитель
-    `Kokoro <login@auth.kokoromind.com>`;
-  - OTP: срок 600 сек, повторная отправка не чаще 60 сек;
-  - **`mailer_otp_length: 6`** — критично: дефолт 8, а `WebAuth.tsx`
-    принимает ровно `/^\d{6}$/`. С дефолтом вход не работал бы вообще;
-  - **оба** email-шаблона переведены на код `{{ .Token }}`: «Magic Link»
-    (повторный вход) **и** «Confirm signup» (первый вход нового
-    пользователя — по умолчанию слал ссылку вместо кода, что ломало бы
-    первый вход каждому покупателю);
-  - `site_url` = staging PWA URL.
-- Почтовая цепочка проверена вживую: OTP отправлен через Supabase REST →
-  Resend → статус delivered, письмо содержит 6-значный код, правильную тему
-  «Your Kokoro login code» и отправителя.
+- **DNS/Resend**: домен `auth.kokoromind.com` verified; отправка работает
+  (письма delivered, 6-значный код, отправитель `Kokoro <login@…>`).
+  SMTP-ключ — `Kokoro-sendAuth` (токен у владельца). DMARC ещё не добавлен
+  (перед продом: TXT `_dmarc.auth` = `v=DMARC1; p=none`).
+- **Supabase staging** (`maresexyyjdemxvklfyf`): OTP length 6, expiry 600с,
+  cooldown 60с, оба email-шаблона с `{{ .Token }}`, Resend SMTP,
+  `rate_limit_email_sent` поднят 2 → **100/час** (дефолт 2/час — обязательный
+  пункт для прод-проекта, иначе вход сломается после 2 писем!).
+- **Stripe test mode**: продукт `prod_UrlzzI9T3PuxbK`; funnel staging —
+  `STRIPE_SECRET_KEY` (sk_test) + `CO_PRODUCT`; API staging —
+  `STRIPE_RESTRICTED_KEY` (rk_test, read-only CS/Customers/Subs) +
+  `STRIPE_ALLOWED_PRODUCT_IDS`. `/v1/access`: 401/402 семантика работает,
+  handoff валидирует сессии через Stripe.
+- **Railway staging** (`pwa-auth-staging`): оба сервиса собраны с полным
+  набором переменных; Railway CLI залогинен, funnel-репо локально в
+  `~/kokoro-heartfelt-moments`.
 
-### Railway staging (env `pwa-auth-staging`, проект KOKORO) — готово
+## Продуктовые доработки в ветках (11 июля)
 
-- `kokoro-api-staging`: `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` /
-  `SUPABASE_SECRET_KEY` внесены через Railway CLI. Уже стояли:
-  `AUTH_DB_PATH=/data/auth.sqlite3`, `PURCHASE_URL`/`MANAGE_URL` (указывают
-  на staging funnel), `CORS_ORIGIN` (включает staging PWA origin),
-  `STRIPE_ALLOWED_PRODUCT_IDS`. `/health` отвечает 200.
-- `kokoro-pwa-staging`: `VITE_API_BASE`, `VITE_WEB_AUTH_ENABLED=true`,
-  `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` стоят; PWA
-  пересобрана, Supabase URL подтверждён в собранном JS-бандле на живом URL.
-- Публичный ключ Supabase: `sb_publishable__euN0RsOskTnRBpoUsYlvA_cJDPn2g6`
-  (не секрет, запечён в бандл).
+- **Экран установки после входа** (app `43170b8`): после свежего входа по
+  коду — отдельный экран Install Kokoro (native prompt / подсказка / continue
+  in browser). Session-restore и standalone его не видят. Проверен вживую.
+- **Побег из Facebook in-app browser** (app `3c78c9a`, funnel `01dd8f3`):
+  реклама FB/IG на Android открывается во внутреннем WebView, где установка
+  PWA невозможна в принципе. Thanks-CTA при детекте IAB оборачивает переход
+  в `intent://` → открывает Chrome, handoff-токен передаётся query-параметром
+  (intent не умеет #fragment; PWA принимает `?handoff=` и вычищает из URL).
+  Фолбэк при блокировке — навигация на месте через 1.6с. Экран установки в
+  IAB показывает «Open in Chrome». **Ещё не проверено из реального FB** —
+  главный оставшийся тест.
+- **Гейт аналитики на staging** (funnel `50fb1f8`): PostHog (prod-ключ!),
+  Meta Pixel и серверный CAPI-мост инициализируются только на
+  `*.kokoromind.com` — staging-прогоны больше не пачкают боевую аналитику.
 
-### Известное состояние, не баг
+## Известные наблюдения (не баги, решить до/при проде)
 
-- `/v1/access` (и другие защищённые `/v1/*`) отвечают
-  `503 AUTH_NOT_CONFIGURED`. Так задумано: `main.py` включает auth-модуль
-  только когда задан ещё и `STRIPE_RESTRICTED_KEY` (его пока нет). Фронтенд
-  на 503 показывает экран «Temporary issue» с кнопкой Refresh access.
-- Сессия персистентна: `persistSession + autoRefreshToken`
-  (`app/src/lib/supabase.ts`), код вводится один раз на устройство/браузер.
+- Desktop thank-you: главная CTA ведёт в App Store, веб-вход — маленькая
+  ссылка «open in web»; при включённом веб-логине акценты стоит пересмотреть.
+- В IAB нет Google Pay → на оплате чуть больше трения (ввод карты руками).
+- Письмо повторного входа с нового устройства = новый код (сессии не
+  переносятся между браузерами) — ожидаемое поведение.
 
-## Осталось сделать (по порядку)
+## Осталось (по приоритету)
 
-1. **Ручной UI-тест входа** на
-   `https://kokoro-pwa-staging-pwa-auth-staging.up.railway.app`:
-   email → письмо → код → сессия; закрыть PWA → открыть → кода не спрашивает.
-   Ожидаемо после входа: «We couldn't check your access» (Stripe ещё нет).
-2. **Stripe test mode** (делает владелец в Stripe dashboard, Test mode):
-   тестовый Product + restricted key (`rk_test_...`) с read-доступом только к
-   Checkout Sessions, Customers, Subscriptions. Затем: внести
-   `STRIPE_RESTRICTED_KEY` в Railway API staging и сверить
-   `STRIPE_ALLOWED_PRODUCT_IDS` с ID тестового продукта.
-3. **Проверить включение защиты**: после перезапуска API — `401` без токена,
-   `402` с сессией без подписки, `200 access=true` с тестовой подпиской.
-4. **Funnel staging** (репо `kokoro-heartfelt-moments`, Railway-проект
-   `kokoro-website`, сервис `kokoro-funnel-staging`): нужен Stripe test
-   secret key; проверить `KOKORO_API_BASE`, `KOKORO_PWA_APP_URL`,
-   `KOKORO_WEB_LOGIN_ENABLED`, `KOKORO_ANDROID_PWA_VARIANTS`.
-5. **Полный E2E**: test Checkout → thank-you «Open Kokoro» → handoff → OTP →
-   access=true → chat → generation → library. Плюс отмена через portal
-   (доступ до конца периода) и «Refresh access».
-6. **Turnstile** (Cloudflare) — перед публичным запуском, не блокер E2E:
-   ключ в `VITE_TURNSTILE_SITE_KEY` + пересборка PWA.
-7. Перед production: rebase обеих веток на свежий `origin/main`, повторный
-   E2E, DMARC-запись, production-раскатка по runbook (API → PWA с выключенным
-   web auth → включение → одна Android-вариация funnel).
+1. **Проход из реального приложения Facebook** (Android): пост со staging-URL
+   «только я» → квиз → оплата → CTA должен выбросить в Chrome с экраном кода.
+2. Тест отмены: portal → cancel at period end → «Refresh access» (доступ до
+   конца периода) → refund → 402.
+3. **Turnstile** перед публичным запуском (site key на фронт + secret в
+   Supabase captcha; без secret заблокируются ВСЕ отправки кодов).
+4. DMARC TXT (партнёр, Name.com).
+5. Далее — по `docs/pwa-email-auth-merge-plan.md` (мерж в main выключенным,
+   поэтапное включение, прод-Supabase с теми же настройками **включая
+   rate_limit_email_sent и OTP length 6**, домен app.kokoromind.com).
 
-## Секреты — где лежат
+## Секреты
 
-Локальный файл на машине владельца: `~/kokoro-staging-secrets.env`
-(SUPABASE_ACCESS_TOKEN, RESEND_SMTP_KEY, SUPABASE_URL,
-SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY; туда же добавить
-STRIPE_RESTRICTED_KEY). В git и в чаты значения не копировать; в Railway
-вносить напрямую (CLI залогинен: `railway whoami` → Dimacyb@gmail.com).
+`~/kokoro-staging-secrets.env` (машина владельца): Supabase PAT/URL/ключи,
+Resend SMTP key, sk_test/rk_test Stripe, STRIPE_MCP_KEY. В git/чаты не
+копировать. MCP подключены: Resend (OAuth), Stripe (API key header).
