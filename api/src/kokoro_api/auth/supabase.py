@@ -148,6 +148,9 @@ class SupabaseAuthClient:
     async def delete_user(self, user_id: str) -> None:
         await self._admin_request("DELETE", f"/auth/v1/admin/users/{user_id}")
 
+    async def get_app_metadata(self, user_id: str) -> dict[str, object]:
+        return await self._get_app_metadata(user_id)
+
     async def _get_app_metadata(self, user_id: str) -> dict[str, object]:
         payload = await self._admin_request("GET", f"/auth/v1/admin/users/{user_id}")
         metadata = payload.get("app_metadata")

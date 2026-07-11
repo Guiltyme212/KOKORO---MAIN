@@ -95,6 +95,27 @@ class StripeReadClient:
             starting_after = last.get("id") if isinstance(last, dict) else None
             if not isinstance(starting_after, str):
                 break
+        # The list filter above matches email case-sensitively, but checkout
+        # emails routinely arrive with mobile-keyboard capitalization
+        # ("DimaCyb@…"). The Search API matches case-insensitively (with up to
+        # ~1 min indexing lag), so merge its hits as a second pass.
+        escaped = normalized_email.replace("\\", "\\\\").replace('"', '\\"')
+        payload = await self._get(
+            "/v1/customers/search",
+            params=[("query", f'email:"{escaped}"'), ("limit", "100")],
+        )
+        data = payload.get("data")
+        for customer in data if isinstance(data, list) else []:
+            if not isinstance(customer, dict):
+                continue
+            customer_email = customer.get("email")
+            customer_id = customer.get("id")
+            if (
+                isinstance(customer_email, str)
+                and customer_email.strip().lower() == normalized_email
+                and isinstance(customer_id, str)
+            ):
+                found.append(customer_id)
         return sorted(set(found))
 
     async def subscriptions_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
@@ -225,6 +246,10 @@ class AccessService:
             customer_ids = await self._stripe.find_customer_ids_by_email(user.email)
             if customer_ids:
                 await self._save_mapping_best_effort(user.id, customer_ids)
+        if not customer_ids:
+            # The verify-time mapping may already exist in Supabase while the
+            # caller's JWT predates it — claims only refresh with the token.
+            customer_ids = await self._fresh_metadata_customer_ids(user.id)
 
         subscriptions: list[dict[str, Any]] = []
         for customer_id in customer_ids:
@@ -269,6 +294,13 @@ class AccessService:
             # Mapping is only an optimization. Stripe remains the source of
             # truth, so an admin-metadata write failure must not deny access.
             pass
+
+    async def _fresh_metadata_customer_ids(self, user_id: str) -> list[str]:
+        try:
+            metadata = await self._supabase.get_app_metadata(user_id)
+        except SupabaseError:
+            return []
+        return self._metadata_customer_ids(metadata)
 
     def _evaluate_subscriptions(
         self,

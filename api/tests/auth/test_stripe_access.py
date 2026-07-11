@@ -86,10 +86,37 @@ class _FakeStripe:
 class _FakeSupabase:
     def __init__(self) -> None:
         self.mapping: list[str] = []
+        self.app_metadata: dict[str, object] = {}
 
     async def update_stripe_customer_ids(self, user_id: str, customer_ids: list[str]) -> None:
         _ = user_id
         self.mapping = customer_ids
+
+    async def get_app_metadata(self, user_id: str) -> dict[str, object]:
+        _ = user_id
+        return self.app_metadata
+
+
+@pytest.mark.asyncio
+async def test_stale_jwt_falls_back_to_fresh_supabase_mapping() -> None:
+    now = datetime.now(UTC)
+
+    class _NoEmailMatchStripe(_FakeStripe):
+        async def find_customer_ids_by_email(self, email: str) -> list[str]:
+            _ = email
+            return []
+
+    stripe = _NoEmailMatchStripe([_subscription("active", now + timedelta(days=30))])
+    supabase = _FakeSupabase()
+    supabase.app_metadata = {"stripe_customer_ids": ["cus_fresh"]}
+    service = AccessService(stripe=cast(Any, stripe), supabase=cast(Any, supabase))
+    # JWT carries no mapping (it predates the verify-time metadata write) and
+    # the email search finds nothing (e.g. Stripe stored a capitalized email).
+    user = CurrentUser(id="user-stale-jwt", email="buyer@example.com")
+
+    decision = await service.check(user)
+    assert decision.access is True
+    assert decision.customer_ids == ("cus_fresh",)
 
 
 @pytest.mark.asyncio
