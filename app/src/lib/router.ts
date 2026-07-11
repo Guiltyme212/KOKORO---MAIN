@@ -23,7 +23,8 @@ export type Route =
   | 'login'
   | 'verifyEmail'
   | 'checkingAccess'
-  | 'accessRequired';
+  | 'accessRequired'
+  | 'installApp';
 
 const VALID: Route[] = [
   'welcome', 'name', 'feeling', 'source', 'promise', 'chat',
@@ -32,7 +33,7 @@ const VALID: Route[] = [
   'pickwhatlands',
   'home', 'library', 'quickReset', 'sleep',
   'progress', 'you',
-  'login', 'verifyEmail', 'checkingAccess', 'accessRequired',
+  'login', 'verifyEmail', 'checkingAccess', 'accessRequired', 'installApp',
 ];
 
 const isRoute = (s: string): s is Route => (VALID as string[]).includes(s);

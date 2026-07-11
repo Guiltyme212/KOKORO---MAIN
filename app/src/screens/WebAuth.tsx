@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, Loader2, LogOut, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, LogOut, RefreshCw } from 'lucide-react';
 import type { Route } from '../lib/router';
 import { webAuthApi, useWebAuth } from '../state/webAuth';
+import { pwaApi, usePwa, clearInstallOffer } from '../state/pwa';
+import { hasCompletedLocalProfile } from '../lib/profile';
+import { answersApi } from '../state/answers';
+import { personaApi } from '../state/persona';
 import './WebAuth.css';
 
 type ScreenProps = { goto: (route: Route) => void };
@@ -284,6 +288,55 @@ export function AccessRequiredScreen({ goto }: ScreenProps) {
         </button>
         <button className="web-auth-link" onClick={useAnotherEmail} disabled={busy}>
           <LogOut size={16} /> Sign out
+        </button>
+      </div>
+    </AuthShell>
+  );
+}
+
+export function InstallAppScreen({ goto }: ScreenProps) {
+  const pwa = usePwa();
+  const [busy, setBusy] = useState(false);
+
+  const proceed = () => {
+    clearInstallOffer();
+    goto(hasCompletedLocalProfile(answersApi.getSnapshot(), personaApi.getSnapshot())
+      ? 'home'
+      : 'welcome');
+  };
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      await pwaApi.install();
+    } finally {
+      setBusy(false);
+      proceed();
+    }
+  };
+
+  return (
+    <AuthShell>
+      <p className="web-auth-eyebrow">You're in</p>
+      <h1>Install Kokoro on your phone.</h1>
+      <p className="web-auth-copy">
+        One tap puts Kokoro on your home screen — full screen, no browser bars,
+        always a tap away.
+      </p>
+      {!pwa.canInstall && (
+        <p className="web-auth-copy">
+          In your browser menu choose <strong>“Add to Home screen”</strong> —
+          or continue in the browser below.
+        </p>
+      )}
+      <div className="web-auth-actions">
+        {pwa.canInstall && (
+          <button className="web-auth-primary" onClick={() => void install()} disabled={busy}>
+            <Download size={18} /> Install the app
+          </button>
+        )}
+        <button className="web-auth-link" onClick={proceed} disabled={busy}>
+          Continue in browser
         </button>
       </div>
     </AuthShell>

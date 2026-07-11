@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { API_BASE } from '../lib/config';
 import { webAuthProvider, type AuthSession } from '../lib/authProvider';
 import { isProtectedWebClient } from '../lib/platform';
+import { markFreshLogin } from './pwa';
 
 export type AccessResult = {
   access: boolean;
@@ -195,6 +196,7 @@ async function verifyCode(otp: string): Promise<void> {
     });
     if (error) throw new Error('That code is invalid or expired.');
   }
+  markFreshLogin();
   window.history.replaceState(null, '', '#checkingAccess');
   await checkAccess(true);
 }

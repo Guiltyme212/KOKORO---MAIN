@@ -27,9 +27,11 @@ import {
 import {
   AccessRequiredScreen,
   CheckingAccessScreen,
+  InstallAppScreen,
   LoginScreen,
   VerifyEmailScreen,
 } from './screens/WebAuth';
+import { shouldOfferInstall } from './state/pwa';
 import './App.css';
 import './styles/kokoro3.css';
 
@@ -59,6 +61,7 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
   verifyEmail: VerifyEmailScreen,
   checkingAccess: CheckingAccessScreen,
   accessRequired: AccessRequiredScreen,
+  installApp: InstallAppScreen,
 };
 
 export default function App() {
@@ -116,12 +119,15 @@ export default function App() {
       activeRoute = 'accessRequired';
     } else if (webAuth.status === 'allowed' && (
       route === 'login' || route === 'verifyEmail' ||
-      route === 'checkingAccess' || route === 'accessRequired'
+      route === 'checkingAccess' || route === 'accessRequired' ||
+      route === 'installApp'
     )) {
-      activeRoute = hasCompletedLocalProfile(
-        answersApi.getSnapshot(),
-        personaApi.getSnapshot(),
-      ) ? 'home' : 'welcome';
+      activeRoute = shouldOfferInstall()
+        ? 'installApp'
+        : hasCompletedLocalProfile(
+          answersApi.getSnapshot(),
+          personaApi.getSnapshot(),
+        ) ? 'home' : 'welcome';
     }
   }
   const Active = SCREENS[activeRoute];

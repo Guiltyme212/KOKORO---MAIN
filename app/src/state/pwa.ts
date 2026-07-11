@@ -1,6 +1,23 @@
 import { useSyncExternalStore } from 'react';
 import { registerSW } from 'virtual:pwa-register';
-import { isProtectedWebClient } from '../lib/platform';
+import { isProtectedWebClient, isStandaloneDisplay } from '../lib/platform';
+
+/* One-shot install offer: set on a fresh code-verified login, cleared once the
+   user answers the install screen. sessionStorage so it never outlives the tab. */
+const FRESH_LOGIN_KEY = 'kokoro_fresh_login';
+
+export function markFreshLogin(): void {
+  try { sessionStorage.setItem(FRESH_LOGIN_KEY, '1'); } catch { /* private mode */ }
+}
+
+export function clearInstallOffer(): void {
+  try { sessionStorage.removeItem(FRESH_LOGIN_KEY); } catch { /* private mode */ }
+}
+
+export function shouldOfferInstall(): boolean {
+  if (!isProtectedWebClient() || isStandaloneDisplay()) return false;
+  try { return sessionStorage.getItem(FRESH_LOGIN_KEY) === '1'; } catch { return false; }
+}
 
 type InstallPrompt = Event & {
   prompt(): Promise<void>;

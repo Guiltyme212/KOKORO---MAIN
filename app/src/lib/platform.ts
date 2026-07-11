@@ -8,3 +8,8 @@ const WEB_AUTH_ENABLED = (
 /** Only ordinary browser/PWA sessions use Supabase + protected /v1 APIs. */
 export const isProtectedWebClient = (): boolean =>
   WEB_AUTH_ENABLED && !Capacitor.isNativePlatform() && !isInTelegram();
+
+/** True when already running as an installed PWA (home-screen launch). */
+export const isStandaloneDisplay = (): boolean =>
+  window.matchMedia?.('(display-mode: standalone)').matches === true ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
