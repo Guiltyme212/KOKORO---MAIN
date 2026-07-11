@@ -66,6 +66,17 @@ const handoffFromHash = (): string => {
   return new URLSearchParams(query).get('handoff')?.trim() ?? '';
 };
 
+/* The funnel's in-app-browser escape uses intent:// links, which cannot carry
+   a #fragment — the token arrives as a real query param instead. Consume it
+   and immediately scrub it from the address bar/history. */
+const handoffFromSearch = (): string => {
+  const token = new URLSearchParams(window.location.search).get('handoff')?.trim() ?? '';
+  if (token) {
+    window.history.replaceState(null, '', `${window.location.pathname}#login`);
+  }
+  return token;
+};
+
 async function loadHandoff(handoffToken: string): Promise<void> {
   const response = await fetch(`${API_BASE}/v1/auth/handoffs/info`, {
     method: 'POST',
@@ -131,7 +142,7 @@ async function initialize(): Promise<void> {
         await checkAccess();
         return;
       }
-      const handoffToken = handoffFromHash();
+      const handoffToken = handoffFromHash() || handoffFromSearch();
       if (handoffToken) {
         try {
           await loadHandoff(handoffToken);

@@ -3,6 +3,7 @@ import { ArrowLeft, Download, Loader2, LogOut, RefreshCw } from 'lucide-react';
 import type { Route } from '../lib/router';
 import { webAuthApi, useWebAuth } from '../state/webAuth';
 import { pwaApi, usePwa, clearInstallOffer } from '../state/pwa';
+import { androidIntentUrl, isAndroid, isInAppBrowser } from '../lib/platform';
 import { hasCompletedLocalProfile } from '../lib/profile';
 import { answersApi } from '../state/answers';
 import { personaApi } from '../state/persona';
@@ -297,6 +298,7 @@ export function AccessRequiredScreen({ goto }: ScreenProps) {
 export function InstallAppScreen({ goto }: ScreenProps) {
   const pwa = usePwa();
   const [busy, setBusy] = useState(false);
+  const inApp = isInAppBrowser();
 
   const proceed = () => {
     clearInstallOffer();
@@ -323,14 +325,26 @@ export function InstallAppScreen({ goto }: ScreenProps) {
         One tap puts Kokoro on your home screen — full screen, no browser bars,
         always a tap away.
       </p>
-      {!pwa.canInstall && (
+      {inApp && (
+        <p className="web-auth-copy">
+          Installing isn’t possible inside this browser. Open Kokoro in{' '}
+          {isAndroid() ? 'Chrome' : 'your regular browser'} to install — you’ll
+          be emailed a fresh sign-in code there.
+        </p>
+      )}
+      {!inApp && !pwa.canInstall && (
         <p className="web-auth-copy">
           In your browser menu choose <strong>“Add to Home screen”</strong> —
           or continue in the browser below.
         </p>
       )}
       <div className="web-auth-actions">
-        {pwa.canInstall && (
+        {inApp && isAndroid() && (
+          <a className="web-auth-primary" href={androidIntentUrl(`${window.location.origin}/#login`)}>
+            Open in Chrome
+          </a>
+        )}
+        {!inApp && pwa.canInstall && (
           <button className="web-auth-primary" onClick={() => void install()} disabled={busy}>
             <Download size={18} /> Install the app
           </button>
