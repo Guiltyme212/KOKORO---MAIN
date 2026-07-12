@@ -31,7 +31,7 @@ import {
   LoginScreen,
   VerifyEmailScreen,
 } from './screens/WebAuth';
-import { shouldOfferInstall } from './state/pwa';
+import { pwaApi, shouldOfferInstall, usePwa } from './state/pwa';
 import './App.css';
 import './styles/kokoro3.css';
 
@@ -67,6 +67,7 @@ const SCREENS: Record<Route, ComponentType<ScreenProps>> = {
 export default function App() {
   const { route, transitioning, goto } = useRouter();
   const webAuth = useWebAuth();
+  const pwa = usePwa();
 
   useEffect(() => {
     initTelegram();
@@ -132,6 +133,20 @@ export default function App() {
   }
   const Active = SCREENS[activeRoute];
 
+  // On gate screens a reload loses nothing, so apply service-worker updates
+  // silently instead of interrupting login with the update banner.
+  // verifyEmail is deliberately excluded: reloading there discards the code
+  // being typed (and, on the manual path, the pending email). In-app screens
+  // keep the banner so we never reload mid-meditation or mid-voice-session.
+  const autoUpdateSafe =
+    activeRoute === 'login' ||
+    activeRoute === 'checkingAccess' ||
+    activeRoute === 'accessRequired' ||
+    activeRoute === 'installApp';
+  useEffect(() => {
+    if (pwa.updateReady && autoUpdateSafe) void pwaApi.update();
+  }, [pwa.updateReady, autoUpdateSafe]);
+
   const content = (
     <div className="stage">
       <div className={`page-wrap ${transitioning ? 'exiting' : 'entered'}`} key={activeRoute}>
@@ -151,7 +166,7 @@ export default function App() {
   return (
     <ConversationProvider>
       {content}
-      <PwaUpdatePrompt />
+      {!autoUpdateSafe && <PwaUpdatePrompt />}
     </ConversationProvider>
   );
 }
