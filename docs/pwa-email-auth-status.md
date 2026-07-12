@@ -1,6 +1,6 @@
 # PWA email auth — staging status
 
-Обновлено: 11 июля 2026, вечер. Ветка: `codex/pwa-email-auth` (оба репо: этот и
+Обновлено: 12 июля 2026. Ветка: `codex/pwa-email-auth` (оба репо: этот и
 `Guiltyme212/kokoro-heartfelt-moments`). Production `main` не тронут.
 
 Контекст задачи: браузерная PWA для Android/web, вход по email + 6-значный
@@ -79,14 +79,12 @@ Open Kokoro → PWA → код из письма → доступ → экран
 
 ## Осталось (по приоритету)
 
-1. **Проход из реального приложения Facebook** (Android): пост со staging-URL
-   «только я» → квиз → оплата → CTA должен выбросить в Chrome с экраном кода.
-2. Тест отмены: portal → cancel at period end → «Refresh access» (доступ до
+1. Тест отмены: portal → cancel at period end → «Refresh access» (доступ до
    конца периода) → refund → 402.
-3. **Turnstile** перед публичным запуском (site key на фронт + secret в
+2. **Turnstile** перед публичным запуском (site key на фронт + secret в
    Supabase captcha; без secret заблокируются ВСЕ отправки кодов).
-4. DMARC TXT (партнёр, Name.com).
-5. Далее — по `docs/pwa-email-auth-merge-plan.md` (мерж в main выключенным,
+3. DMARC TXT (партнёр, Name.com — запись отправлена ему 12 июля).
+4. Далее — по `docs/pwa-email-auth-merge-plan.md` (мерж в main выключенным,
    поэтапное включение, прод-Supabase с теми же настройками **включая
    rate_limit_email_sent и OTP length 6**, домен app.kokoromind.com).
 
